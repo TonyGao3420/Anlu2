@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "mshr-h.veriloghdl",       // Verilog-HDL/SystemVerilog 语法高亮与补全
+    "teros-technology.digital-ide", // Digital IDE（国产，对安路/Vivado 支持很好）
+    "eamodio.gitlens",         // GitLens 查看代码修改历史
+  ]
+}
