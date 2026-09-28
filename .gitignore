@@ -68,3 +68,7 @@ Desktop.ini
 *.logw
 td_*.logw
 *.al.bak
+
+
+
+/sim_lib/
