@@ -1,0 +1,31 @@
+{
+  // ================= 基础代码格式化（统一团队风格） =================
+  "editor.tabSize": 4,                     // Verilog 惯例通常使用 4 个空格缩进
+  "editor.insertSpaces": true,             // 将 Tab 转换为空格
+  "files.eol": "\n",                       // 换行符统一使用 LF（避免 Windows CRLF 和 Linux LF 混用导致全文件冲突）
+  "files.trimTrailingWhitespace": true,    // 保存时自动删除行尾多余空格
+  "files.insertFinalNewline": true,        // 文件末尾自动插入空行
+
+  // ================= 文件关联 =================
+  "files.associations": {
+    "*.v": "verilog",                      // 将 .v 识别为 Verilog
+    "*.sv": "systemverilog",               // 将 .sv 识别为 SystemVerilog
+    "*.vh": "verilog",                     // 将 .vh 识别为 Verilog 头文件
+    "*.fdc": "tcl",                        // 安路约束文件通常基于 TCL，关联后高亮更舒服
+    "*.tcl": "tcl",
+    "*.al": "xml"                          // 可选：如果非要看安路工程文件，用 XML 格式高亮
+  },
+
+  // ================= 隐藏本地垃圾文件（保持侧边栏干净） =================
+  "files.exclude": {
+    "**/*.lock.f": true,                   // 隐藏安路锁文件
+    "**/*.logw": true,                     // 隐藏安路日志文件
+    "**/.DS_Store": true,                  // 隐藏 Mac 系统文件
+    "**/*.bak": true                       // 隐藏备份文件
+  },
+
+  // ================= 编辑器视觉辅助 =================
+  "editor.renderWhitespace": "boundary",   // 显示行首和行尾的空白字符，方便对齐端口
+  "editor.rulers": [100],                  // 在第 100 个字符处显示一条垂直参考线（防止代码写太长）
+  "editor.wordWrap": "off"                 // 关闭自动换行（FPGA 代码通常不换行，方便左右对比）
+}
