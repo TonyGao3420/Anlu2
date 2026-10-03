@@ -1,0 +1,33 @@
+-----------------------------------------------------------
+| QoR metrics               |         value               |
+-----------------------------------------------------------
+| Timing                    |                             |
+|     Setup WNS             |          577                |
+|     Setup TNS             |            0                |
+|     Num of violated S-EP  |            0                |
+|     FMAX                  |    78.394MHz                |
+|     SWNS path clock period |      13333ps                |
+|     Hold WNS              |         -284                |
+|     Hold TNS              |       -74644                |
+|     Num of violated H-EP  |          543                |
+-----------------------------------------------------------
+| Routing Resource          |                             |
+|     Wire length           |      1597461                |
+|     Route Net Num         |        24618                |
+|     DontRoute Net Num     |         9008                |
+|     RouteSinks Num        |        78845                |
+-----------------------------------------------------------
+| Utilization               |                             |
+|     #slices               |        15204                |
+|     slices percentage     |       71.66%                |
+|     #RAMs                 |           39                |
+|     #DSPs                 |            9                |
+|     #DRAMHARDCON          |           37                |
+-----------------------------------------------------------
+| Congestion                |                             |
+|     Top 1% tile util      |           68                |
+|     Top 1% tile avg util  |       74.79%                |
+|     Over 100% util #tile  |            0                |
+-----------------------------------------------------------
+Report place stage QoR done.
+

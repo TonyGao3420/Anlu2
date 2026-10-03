@@ -1,0 +1,24 @@
+Location         : D:\HX1P35A_Contest_202606\Anlu2\lab_ex3_osd\td_project\camera_to_dsi_display_Runs\phy_1
+Running with     : Tang Dynasty v6.2.168116
+                   Copyright (c) 2012-2025 Anlogic Inc.
+Top Model        : design_top_wrapper
+Device           : PH1P35MDG324
+Speed            : 3
+
+Timing Mode      : final
+Setup            : WNS     2ps  TNS        0ps  NUM_FEPS     0
+Hold             : WNS    20ps  TNS        0ps  NUM_FEPS     0
+
+Flow Statistics  :
+---------------------------------------------------------------------------------------------------
+     command     |  #calls  |  wall time   |  cpu time(s)  |  used memory(mb)  |  peak memory(mb)  
+---------------------------------------------------------------------------------------------------
+      place      |    1     |  4m37s(61%)  |   444(67%)    |       1277        |       1277        
+      route      |    1     |  2m36s(34%)  |   198(29%)    |       2041        |       2041        
+    phys_opt     |    1     |   12s(2%)    |    14(2%)     |       2041        |       2041        
+    fix_hold     |    1     |    4s(0%)    |     4(0%)     |       2041        |       2041        
+    import_db    |    1     |    1s(0%)    |     0(0%)     |        567        |        567        
+  import_device  |    1     |    1s(0%)    |     1(0%)     |        328        |        328        
+---------------------------------------------------------------------------------------------------
+      total      |    6     |    7m31s     |      661      |       2041        |       2041        
+---------------------------------------------------------------------------------------------------
