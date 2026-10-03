@@ -6,7 +6,7 @@
 *.rpt
 *.jou
 *.str
-*.al
+#*.al
 *.prj
 *.bak
 
