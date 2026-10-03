@@ -163,33 +163,6 @@
                     <Attr Name="CompileOrder" Val="34"/>
                 </FileInfo>
             </File>
-            <File Path="../../../lab_user_source/hdl_source/uics500_cfg/SC500GainTbl.v">
-                <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="35"/>
-                </FileInfo>
-            </File>
-            <File Path="../../../lab_user_source/hdl_source/uics500_cfg/uicfgcs500.v">
-                <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="36"/>
-                </FileInfo>
-            </File>
-            <File Path="../../../lab_user_source/hdl_source/uics500_cfg/uics500regAE.v">
-                <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="37"/>
-                </FileInfo>
-            </File>
             <File Path="../../../lab_user_source/hdl_source/uics500_cfg/uii2c.v">
                 <FileInfo>
                     <Attr Name="UsedInSyn" Val="true"/>
@@ -294,38 +267,20 @@
                     <Attr Name="CompileOrder" Val="50"/>
                 </FileInfo>
             </File>
+            <File Path="../../../lab_user_source/hdl_source/uics520_cfg/uics520regAE.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&amp;R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="53"/>
+                </FileInfo>
+            </File>
             <File Path="../../../lab_user_source/hdl_source/uics520_cfg/uics520reg_720p60.v">
                 <FileInfo>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="51"/>
-                </FileInfo>
-            </File>
-            <File Path="../../../lab_user_source/hdl_source/uics520_cfg/uics520regAE.v">
-                <FileInfo>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="52"/>
-                </FileInfo>
-            </File>
-            <File Path="../../../lab_user_source/hdl_source/uics520_cfg/uics520reg.v">
-                <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="53"/>
-                </FileInfo>
-            </File>
-            <File Path="../../../lab_user_source/hdl_source/uics520_cfg/uics520reg_full_2560x1920_30.v">
-                <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="54"/>
                 </FileInfo>
             </File>
         </Verilog>
