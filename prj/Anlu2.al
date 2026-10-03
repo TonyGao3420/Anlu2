@@ -168,7 +168,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="38"/>
+                    <Attr Name="CompileOrder" Val="35"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/uiisp_beta/ae_set.v">
@@ -176,7 +176,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="39"/>
+                    <Attr Name="CompileOrder" Val="36"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/hdmi_tx.v">
@@ -184,7 +184,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="40"/>
+                    <Attr Name="CompileOrder" Val="37"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v">
@@ -192,7 +192,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="41"/>
+                    <Attr Name="CompileOrder" Val="38"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/hdmi_phy_warpper.v">
@@ -200,7 +200,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="42"/>
+                    <Attr Name="CompileOrder" Val="39"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/lane_lvds_10_1.v">
@@ -208,7 +208,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="43"/>
+                    <Attr Name="CompileOrder" Val="40"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/vtc/uivtc.v">
@@ -216,7 +216,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="44"/>
+                    <Attr Name="CompileOrder" Val="41"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/hdmi_mixer.v">
@@ -224,7 +224,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="45"/>
+                    <Attr Name="CompileOrder" Val="42"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/I2S_receiver.v">
@@ -232,7 +232,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="46"/>
+                    <Attr Name="CompileOrder" Val="43"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/audio_arc_calculate.v">
@@ -240,7 +240,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="47"/>
+                    <Attr Name="CompileOrder" Val="44"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/key_remove_shakes.v">
@@ -248,7 +248,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="48"/>
+                    <Attr Name="CompileOrder" Val="45"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/uics520_cfg/SC520GainTbl.v">
@@ -256,7 +256,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="49"/>
+                    <Attr Name="CompileOrder" Val="46"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/uics520_cfg/uicfgcs520.v">
@@ -264,15 +264,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="50"/>
-                </FileInfo>
-            </File>
-            <File Path="../lab_user_source/hdl_source/uics520_cfg/uics520regAE.v">
-                <FileInfo>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&amp;R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="53"/>
+                    <Attr Name="CompileOrder" Val="47"/>
                 </FileInfo>
             </File>
             <File Path="../lab_user_source/hdl_source/uics520_cfg/uics520reg_720p60.v">
@@ -280,7 +272,15 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="51"/>
+                    <Attr Name="CompileOrder" Val="48"/>
+                </FileInfo>
+            </File>
+            <File Path="../lab_user_source/hdl_source/uics520_cfg/uics520regAE.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="49"/>
                 </FileInfo>
             </File>
         </Verilog>
