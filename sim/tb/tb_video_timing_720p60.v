@@ -64,6 +64,9 @@ module tb_video_timing_720p60;
     reg        done;
 
     // ---------------- 例化被测模块 ----------------
+    // 注意：被测量模块的数据/控制流水线为 **2 拍**（r_axis_data_src + O_axis_data，
+    //       控制信号 r_valid_d1 + O_axis_valid 对称）。O_x / O_y 是 1 拍，
+    //       因此测试平台里要把参考信号 de 也多打一拍（de_d2）才能与 x/y 对齐。
     video_timing_720p60 #(
         .H_ACTIVE(H_ACTIVE), .H_FRONT(H_FRONT), .H_SYNC(H_SYNC), .H_BACK(H_BACK),
         .V_ACTIVE(V_ACTIVE), .V_FRONT(V_FRONT), .V_SYNC(V_SYNC), .V_BACK(V_BACK)
@@ -76,6 +79,10 @@ module tb_video_timing_720p60;
         .O_axis_last    (axis_last),
         .O_axis_data    (axis_data),
         .I_axis_ready   (1'b1),
+        // 摄像头通路当前不测：置为无效，O_cam_req 不会拉高
+        .I_cam_rgb      (24'd0),
+        .I_cam_active   (1'b0),
+        .O_cam_req      (),
         .O_hs           (hs),
         .O_vs           (vs),
         .O_de           (de),
@@ -90,31 +97,59 @@ module tb_video_timing_720p60;
         forever #6.667 clk = ~clk;
     end
 
-    // ---------------- 唯一的检查/统计块 ----------------
-    always @(posedge clk) begin
-        if (rst_n && !done) begin
+    // de 与 x/y 的对齐：
+    //   O_de 与 O_x/O_y 在模块内都是 1 拍输出，但数据/控制流水线是 2 拍，
+    //   所以 x/y 比 O_axis_valid **早 1 拍**。这里把 x/y 各再打一拍
+    //   （x_al / y_al），使其与 O_axis_valid 严格同拍，作为检查基准。
+    reg        de_d1, de_d2;
+    reg [11:0] x_al, y_al;
+    reg [3:0]  startup;     // 复位后屏蔽前 15 拍（时序刚起来时 axis_valid 尚未拉高）
 
-            // ---- 每拍一致性检查 ----
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            de_d1 <= 1'b0;
+            de_d2 <= 1'b0;
+            x_al  <= 12'd0;
+            y_al  <= 12'd0;
+            startup <= 4'd0;
+        end
+        else begin
+            de_d1 <= de;
+            de_d2 <= de_d1;
+            x_al  <= x;
+            y_al  <= y;
+            if (startup != 4'hF) startup <= startup + 1'b1;
+        end
+    end
+
+    always @(posedge clk) begin
+        if (rst_n && !done && (startup == 4'hF)) begin
+
+            // ---- 每拍一致性检查（全部以对齐后的 x_al / y_al / de_d2 为基准）----
             if (axis_valid && axis_valid_d) begin
-                if (x !== ((x_d + 12'd1) % H_ACTIVE)) begin
+                if (x_al !== ((x_d + 12'd1) % H_ACTIVE)) begin
                     errors = errors + 1;
-                    if (errors <= 5) $display("ERROR: column not continuous x=%0d prev=%0d", x, x_d);
+                    if (errors <= 5) $display("ERROR: column not continuous x=%0d prev=%0d", x_al, x_d);
                 end
             end
 
-            if (axis_valid !== de) begin
+            // 期望的 valid：直接由**已对齐的** x_al / y_al 推出。
+            // 这比再用延迟链去凑 de 更可靠 —— 它保证了"x/y 在有效范围内"
+            // 与"valid 为高"两者严格等价。
+            if (axis_valid !== ((x_al < H_ACTIVE) && (y_al < V_ACTIVE))) begin
                 errors = errors + 1;
-                if (errors <= 5) $display("ERROR: valid(%b) != de(%b) at x=%0d y=%0d", axis_valid, de, x, y);
+                if (errors <= 5) $display("ERROR: valid(%b) != de_exp(%b) at x=%0d y=%0d",
+                                          axis_valid, ((x_al < H_ACTIVE) && (y_al < V_ACTIVE)), x_al, y_al);
             end
 
-            if (axis_user && !(axis_valid && (y == 12'd0) && (x == 12'd0))) begin
+            if (axis_user && !(axis_valid && (y_al == 12'd0) && (x_al == 12'd0))) begin
                 errors = errors + 1;
-                if (errors <= 5) $display("ERROR: user wrong pos x=%0d y=%0d valid=%b", x, y, axis_valid);
+                if (errors <= 5) $display("ERROR: user wrong pos x=%0d y=%0d valid=%b", x_al, y_al, axis_valid);
             end
 
-            if (axis_last && !(axis_valid && (x == (H_ACTIVE-1)))) begin
+            if (axis_last && !(axis_valid && (x_al == (H_ACTIVE-1)))) begin
                 errors = errors + 1;
-                if (errors <= 5) $display("ERROR: last wrong pos x=%0d y=%0d valid=%b", x, y, axis_valid);
+                if (errors <= 5) $display("ERROR: last wrong pos x=%0d y=%0d valid=%b", x_al, y_al, axis_valid);
             end
 
             if (axis_valid && (^axis_data === 1'bx)) begin
@@ -122,9 +157,9 @@ module tb_video_timing_720p60;
                 if (errors <= 5) $display("ERROR: pixel data has X");
             end
 
-            if (axis_valid && ((x >= H_ACTIVE) || (y >= V_ACTIVE))) begin
+            if (axis_valid && ((x_al >= H_ACTIVE) || (y_al >= V_ACTIVE))) begin
                 errors = errors + 1;
-                if (errors <= 5) $display("ERROR: x/y out of range x=%0d y=%0d", x, y);
+                if (errors <= 5) $display("ERROR: x/y out of range x=%0d y=%0d", x_al, y_al);
             end
 
             // ---- 累计统计 ----
@@ -161,8 +196,11 @@ module tb_video_timing_720p60;
                 end
             end
 
+            // 记录本拍值供下一拍比较。
+            // 必须记录**对齐后**的坐标（x_al），否则 x_d 与 x_al 不同源，
+            // "列连续"检查会每拍都失败（之前就踩过这个坑）。
             axis_valid_d <= axis_valid;
-            x_d          <= x;
+            x_d          <= x_al;
         end
     end
 

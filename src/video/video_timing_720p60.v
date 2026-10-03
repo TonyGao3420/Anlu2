@@ -33,7 +33,14 @@ module video_timing_720p60 #(
 )(
     input  wire        I_pix_clk,       // 像素时钟 75MHz
     input  wire        I_rst_n,         // 低电平复位
-    input  wire [1:0]  I_pattern_sel,   // 0=彩条 1=灰度渐变 2=棋盘格 3=纯色渐变+移动块
+    input  wire [1:0]  I_pattern_sel,   // 0=彩条 1=灰度渐变 2=棋盘格 3=摄像头RAW
+
+    // ---------------- 摄像头数据源（I_pattern_sel==3 时使用） ----------------
+    // 数据由跨时钟域 FIFO 提供，本模块只负责在正确的时刻请求像素。
+    input  wire [23:0] I_cam_rgb,       // 已转成 RGB888 的摄像头像素
+    input  wire        I_cam_active,    // 摄像头当前行已就绪（读侧可请求像素）
+    output wire        O_cam_req,       // 像素读取请求（本拍需要 I_cam_rgb 的下一拍数据）
+    output wire [11:0] O_cam_col,       // 与 I_cam_rgb **同拍**的列号（供 Bayer 列相位使用）
 
     // ---------------- AXI-Stream 视频输出（接 HDMI 发送核） ----------------
     output reg         O_axis_user,     // 帧首像素标志
@@ -165,21 +172,65 @@ module video_timing_720p60 #(
     wire [7:0] w_gray = r_hcnt[9:2];        // 0~255 横向渐变
     wire [7:0] w_gray_v = r_vcnt[8:1];
 
+    // ---------------------------------------------------------------------
+    // 摄像头像素读取请求
+    //   w_de（未打拍）与 r_hcnt 同拍，表示"本拍正在画第 r_hcnt 列"。
+    //   摄像头像素在**下一拍**到达（FIFO 读延迟 1 拍）。
+    //   只在 I_cam_active 时请求，避免在摄像头行未就绪时把 FIFO 读空。
+    // ---------------------------------------------------------------------
+    assign O_cam_req = w_de && (I_pattern_sel == 2'd3) && I_cam_active;
+
+    // 与 I_cam_rgb **同拍**的列号：I_cam_rgb 相对 O_cam_req 晚 1 拍，
+    // 因此这里把 r_hcnt 打 1 拍输出，正好与 I_cam_rgb 对齐。
+    // （Bayer 列相位必须与实际像素数据同拍，否则颜色相位会错位。）
+    reg [11:0] r_cam_col;
+
     always @(posedge I_pix_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
-            O_axis_data <= 24'd0;
+            r_cam_col <= 12'd0;
+        end
+        else if (O_cam_req) begin
+            r_cam_col <= r_hcnt;
+        end
+    end
+
+    assign O_cam_col = r_cam_col;
+
+    // 摄像头像素第 1 级寄存：FIFO 在 c+1 拍给出第 x 列像素，这里存下来
+    reg [23:0] r_cam_d1;
+
+    always @(posedge I_pix_clk or negedge I_rst_n) begin
+        if (!I_rst_n) begin
+            r_cam_d1 <= 24'd0;
+        end
+        else begin
+            r_cam_d1 <= I_cam_rgb;
+        end
+    end
+
+    // ---------------------------------------------------------------------
+    // 数据源选择（第 1 级寄存）
+    //   图案在 c+1 拍得到第 x 列数据；摄像头 r_cam_d1 同样在 c+1 拍得到第 x 列。
+    //   两条路径**延迟一致**，都进入数据源寄存器。
+    // ---------------------------------------------------------------------
+    reg [23:0] r_axis_data_src;
+
+    always @(posedge I_pix_clk or negedge I_rst_n) begin
+        if (!I_rst_n) begin
+            r_axis_data_src <= 24'd0;
         end
         else begin
             case (I_pattern_sel)
-            2'd0: O_axis_data <= r_bar_color;                       // 彩条
-            2'd1: O_axis_data <= {w_gray, w_gray, w_gray};          // 横向灰度渐变
-            2'd2: O_axis_data <= w_chk ? 24'hFFFFFF : 24'h404040;   // 棋盘格
-            default: begin                                          // 渐变 + 移动块
+            2'd0: r_axis_data_src <= r_bar_color;                       // 彩条
+            2'd1: r_axis_data_src <= {w_gray, w_gray, w_gray};          // 横向灰度渐变
+            2'd2: r_axis_data_src <= w_chk ? 24'hFFFFFF : 24'h404040;   // 棋盘格
+            2'd3: r_axis_data_src <= r_cam_d1;                          // 摄像头 RAW 直通
+            default: begin                                              // 渐变 + 移动块
                 if (w_in_block) begin
-                    O_axis_data <= 24'hFF8000;                      // 橙色方块
+                    r_axis_data_src <= 24'hFF8000;                      // 橙色方块
                 end
                 else begin
-                    O_axis_data <= {w_gray, w_gray_v, w_gray};
+                    r_axis_data_src <= {w_gray, w_gray_v, w_gray};
                 end
             end
             endcase
@@ -187,38 +238,52 @@ module video_timing_720p60 #(
     end
 
     // ---------------------------------------------------------------------
-    // AXI-Stream 控制信号
-    //   user  : 第一行第一个有效像素
-    //   valid : 有效像素
-    //   last  : 每个有效行的最后一个像素
-    // 注意：HDMI 发送核内部对输入再打 2 拍，数据与控制同源因此天然对齐。
+    // 控制信号第 1 级寄存（与 r_axis_data_src 同拍）
+    //
+    // 为什么加 I_cam_active 门控：
+    //   摄像头行缓存可能尚未就绪（还没有完整的一行）。此时若仍然拉高
+    //   O_axis_valid，HDMI 会收到"有效但无数据"的像素，画面出现杂色/撕裂。
+    //   因此**图案模式与摄像头模式统一**在 valid 上叠加 I_cam_active：
+    //     I_pattern_sel != 3 时 I_cam_active 由顶层恒置 1 → 图案不受影响；
+    //     I_pattern_sel == 3 时只有摄像头行就绪才输出有效像素。
+    // ---------------------------------------------------------------------
+    wire w_cam_gate = (I_pattern_sel == 2'd3) ? I_cam_active : 1'b1;
+
+    reg r_valid_d1, r_user_d1, r_last_d1;
+
+    always @(posedge I_pix_clk or negedge I_rst_n) begin
+        if (!I_rst_n) begin
+            r_valid_d1 <= 1'b0;
+            r_user_d1  <= 1'b0;
+            r_last_d1  <= 1'b0;
+        end
+        else begin
+            r_valid_d1 <= w_de && w_cam_gate;
+            r_user_d1  <= w_de && w_cam_gate && (r_vcnt == 12'd0) && (r_hcnt == 12'd0);
+            r_last_d1  <= w_de && w_cam_gate && (r_hcnt == (H_ACTIVE - 1));
+        end
+    end
+
+    // ---------------------------------------------------------------------
+    // 第 2 级寄存：数据与控制**同拍**输出，保证严格对齐
     // ---------------------------------------------------------------------
     always @(posedge I_pix_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
+            O_axis_data  <= 24'd0;
             O_axis_valid <= 1'b0;
             O_axis_user  <= 1'b0;
             O_axis_last  <= 1'b0;
         end
         else begin
-            O_axis_valid <= w_de;
-            O_axis_user  <= w_de && (r_vcnt == 12'd0) && (r_hcnt == 12'd0);
-            O_axis_last  <= w_de && (r_hcnt == (H_ACTIVE - 1));
+            O_axis_data  <= r_axis_data_src;
+            O_axis_valid <= r_valid_d1;
+            O_axis_user  <= r_user_d1;
+            O_axis_last  <= r_last_d1;
         end
     end
 
-    // 与 AXI-Stream 控制信号同拍的行列号（打 1 拍对齐），供下游做坐标相关处理
-    always @(posedge I_pix_clk or negedge I_rst_n) begin
-        if (!I_rst_n) begin
-            r_x_align <= 12'd0;
-            r_y_align <= 12'd0;
-        end
-        else begin
-            r_x_align <= r_hcnt;
-            r_y_align <= r_vcnt;
-        end
-    end
-
-    // 与 AXI-Stream 控制信号同拍的行列号（打 1 拍对齐），供下游做坐标相关处理
+    // 与 AXI-Stream 控制信号同拍的行列号（打 2 拍对齐，与数据/控制流水一致），
+    // 供下游做坐标相关处理。
     always @(posedge I_pix_clk or negedge I_rst_n) begin
         if (!I_rst_n) begin
             r_x_align <= 12'd0;

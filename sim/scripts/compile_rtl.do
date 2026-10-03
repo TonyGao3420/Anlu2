@@ -16,12 +16,15 @@ vlog -work work_rtl ../src/common/debounce.v
 vlog -work work_rtl ../src/common/async_fifo.v
 vlog -work work_rtl ../src/common/clk_rst_gen.v
 vlog -work work_rtl ../src/common/i2c_master.v
+vlog -work work_rtl ../src/common/pixel_fifo_cdc.v
+vlog -work work_rtl ../src/common/line_buffer_cdc.v
 
 # ---------------- 视频输出 ----------------
 vlog -work work_rtl ../src/video/video_timing_720p60.v
 
 # ---------------- 图像处理（基础件，算法后续补全） ----------------
 vlog -work work_rtl ../src/isp/line_buffer3x3.v
+vlog -work work_rtl ../src/isp/bayer_passthrough.v
 
 # ---------------- 摄像头配置（非加密官方文件） ----------------
 vlog -work work_rtl ../src/vendor/uii2c.v

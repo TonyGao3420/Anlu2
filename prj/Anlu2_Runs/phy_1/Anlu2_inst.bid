@@ -1,42 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- HMAC is: 622df6c42dc7f7c099de6a0627bc0cebdce3872e46d73ab1faabe0e731551cbf -->
+<!-- HMAC is: c93b71a2396760f6f3c760f621882a1942f86f5ed2097b024015865d440ea6d8 -->
 <All_Bram_Infos>
-    <Ucode>01010001</Ucode>
+    <Ucode>00100110</Ucode>
     <AL_PHY_ERAM>
         <INST_1>
-            <rid>0X00000211</rid>
-            <wid>0X00000211</wid>
+            <rid>0X0000020D</rid>
+            <wid>0X0000020D</wid>
             <is_debuggable>n</is_debuggable>
             <is_initialize>y</is_initialize>
             <model_type>AL_PHY_ERAM</model_type>
-            <name>u_hdmi_core/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo/u_logic_ramfifo_syn_524</name>
-            <width_a>20</width_a>
-            <width_b>20</width_b>
-            <logic_name>u_hdmi_core/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo/u_logic_ramfifo_syn_497</logic_name>
-            <logic_width>96</logic_width>
-            <logic_depth>1024</logic_depth>
+            <name>u_cam_lbuf/ramread0_syn_19</name>
+            <width_a>10</width_a>
+            <width_b>10</width_b>
+            <logic_name>u_cam_lbuf/ramread0_syn_18</logic_name>
+            <logic_width>7</logic_width>
+            <logic_depth>1280</logic_depth>
             <sub_bid_info>
                 <address_offset>0</address_offset>
                 <data_offset>0</data_offset>
-                <depth>1024</depth>
-                <width>20</width>
+                <depth>1280</depth>
+                <width>7</width>
                 <num_section>1</num_section>
-                <section_size>96</section_size>
-                <width_per_section>20</width_per_section>
+                <section_size>7</section_size>
+                <width_per_section>7</width_per_section>
                 <bytes_in_per_section>1</bytes_in_per_section>
                 <working_mode>
                     <address_step>1</address_step>
-                    <depth>1024</depth>
+                    <depth>2048</depth>
                     <mode_type>161</mode_type>
-                    <width>20</width>
-                    <num_byte>2</num_byte>
+                    <width>10</width>
+                    <num_byte>1</num_byte>
                     <ecc>0</ecc>
                 </working_mode>
             </sub_bid_info>
         </INST_1>
         <INST_2>
-            <rid>0X00000223</rid>
-            <wid>0X00000223</wid>
+            <rid>0X00000224</rid>
+            <wid>0X00000224</wid>
             <is_debuggable>n</is_debuggable>
             <is_initialize>y</is_initialize>
             <model_type>AL_PHY_ERAM</model_type>
@@ -66,8 +66,8 @@
             </sub_bid_info>
         </INST_2>
         <INST_3>
-            <rid>0X00000222</rid>
-            <wid>0X00000222</wid>
+            <rid>0X00000223</rid>
+            <wid>0X00000223</wid>
             <is_debuggable>n</is_debuggable>
             <is_initialize>y</is_initialize>
             <model_type>AL_PHY_ERAM</model_type>
@@ -97,8 +97,39 @@
             </sub_bid_info>
         </INST_3>
         <INST_4>
-            <rid>0X00000210</rid>
-            <wid>0X00000210</wid>
+            <rid>0X00000222</rid>
+            <wid>0X00000222</wid>
+            <is_debuggable>n</is_debuggable>
+            <is_initialize>y</is_initialize>
+            <model_type>AL_PHY_ERAM</model_type>
+            <name>u_hdmi_core/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo/u_logic_ramfifo_syn_524</name>
+            <width_a>20</width_a>
+            <width_b>20</width_b>
+            <logic_name>u_hdmi_core/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo/u_logic_ramfifo_syn_497</logic_name>
+            <logic_width>96</logic_width>
+            <logic_depth>1024</logic_depth>
+            <sub_bid_info>
+                <address_offset>0</address_offset>
+                <data_offset>0</data_offset>
+                <depth>1024</depth>
+                <width>20</width>
+                <num_section>1</num_section>
+                <section_size>96</section_size>
+                <width_per_section>20</width_per_section>
+                <bytes_in_per_section>1</bytes_in_per_section>
+                <working_mode>
+                    <address_step>1</address_step>
+                    <depth>1024</depth>
+                    <mode_type>161</mode_type>
+                    <width>20</width>
+                    <num_byte>2</num_byte>
+                    <ecc>0</ecc>
+                </working_mode>
+            </sub_bid_info>
+        </INST_4>
+        <INST_5>
+            <rid>0X00000211</rid>
+            <wid>0X00000211</wid>
             <is_debuggable>n</is_debuggable>
             <is_initialize>y</is_initialize>
             <model_type>AL_PHY_ERAM</model_type>
@@ -126,10 +157,10 @@
                     <ecc>0</ecc>
                 </working_mode>
             </sub_bid_info>
-        </INST_4>
-        <INST_5>
-            <rid>0X0000020F</rid>
-            <wid>0X0000020F</wid>
+        </INST_5>
+        <INST_6>
+            <rid>0X00000210</rid>
+            <wid>0X00000210</wid>
             <is_debuggable>n</is_debuggable>
             <is_initialize>y</is_initialize>
             <model_type>AL_PHY_ERAM</model_type>
@@ -157,6 +188,6 @@
                     <ecc>0</ecc>
                 </working_mode>
             </sub_bid_info>
-        </INST_5>
+        </INST_6>
     </AL_PHY_ERAM>
 </All_Bram_Infos>

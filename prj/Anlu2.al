@@ -160,44 +160,40 @@
                     <Attr Name="CompileOrder" Val="18"/>
                 </FileInfo>
             </File>
-            <File Path="../src/vendor/mipi_dphy_rx_ph1p_wrapper_v2001.v">
+            <File Path="../src/vendor/ph1p_mipiio_rx_wrapper.v">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="19"/>
                 </FileInfo>
             </File>
-            <File Path="../src/vendor/ph1p_mipiio_rx_wrapper.v">
+            <File Path="../src/vendor/byte_aligner.enc.v">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="20"/>
                 </FileInfo>
             </File>
-            <File Path="../src/vendor/byte_aligner.enc.v">
+            <File Path="../src/vendor/channel_aligner.enc.v">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="21"/>
                 </FileInfo>
             </File>
-            <File Path="../src/vendor/channel_aligner.enc.v">
+            <File Path="../src/vendor/hs_detect.enc.v">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="22"/>
-                </FileInfo>
-            </File>
-            <File Path="../src/vendor/hs_detect.enc.v">
-                <FileInfo>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="23"/>
                 </FileInfo>
             </File>
             <File Path="../src/vendor/hdmi_1_4b_transmitter_core_wrapper.enc.v">
@@ -205,7 +201,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="24"/>
+                    <Attr Name="CompileOrder" Val="23"/>
                 </FileInfo>
             </File>
         </Verilog>

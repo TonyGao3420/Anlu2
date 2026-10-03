@@ -45,7 +45,10 @@
 
 module system_top #(
     // 视频图案：0=彩条 1=灰度渐变 2=棋盘格 3=渐变+移动块
-    parameter [1:0] PATTERN_SEL_DEFAULT = 2'd0,
+    // 图案选择：0=彩条 1=灰度渐变 2=棋盘格 3=摄像头RAW直通
+    // 当前默认 3（摄像头），用于上板验证 MIPI 采集链路。
+    // 若想回到彩条做对照，把这里改回 2'd0 重新综合即可。
+    parameter [1:0] PATTERN_SEL_DEFAULT = 2'd3,
     // 摄像头上电时序（单位：23.81MHz 时钟拍数）
     parameter integer CAM_PWDNB_LOW_CYCLES  = 23810,    // >= 1ms
     parameter integer CAM_I2C_START_CYCLES  = 142857    // 释放后 >= 5ms 再启动 I2C
@@ -229,7 +232,7 @@ module system_top #(
     // 本工程的 v2001 包装直接例化内层加密模块 byte_aligner / channel_aligner
     // （它们都是普通向量端口），功能等价且可被 TD 6.2 接受。
     // 详见 doc/architecture.md 第 8 节。
-    mipi_dphy_rx_ph1p_wrapper_v2001 #(
+    mipi_dphy_rx_ph1p_mipiio_wrapper #(
         .DPHY_RX_LOCATION ("DPHY0"),
         .HS_EQUALIZER     ("3dB"),         // 828Mbps 接收均衡
         .HS_VGA_GAIN      ("8dB"),
@@ -296,6 +299,72 @@ module system_top #(
     );
 
     // ---------------------------------------------------------------------
+    // 4.5 摄像头像素通路（跨时钟域）
+    //
+    //   CSI 解包输出在 w_csi_rx_clk 域（约 103.5MHz），显示在 75MHz 域，
+    //   两者频率不同、相位无关 → 必须经异步 FIFO 穿越。
+    //
+    //   通路：csi2_rx_unpack →(w_csi_rx_clk)→ pixel_fifo_cdc
+    //                          →(w_clk_pixel)→ bayer_passthrough → video_timing → HDMI
+    //
+    //   说明：
+    //     * pixel_fifo_cdc 与 bayer_passthrough 都是后续帧缓存方案
+    //       （A1 DDR / A2 行缓存 / A3）的**基础部件**，不是一次性代码；
+    //     * bayer_passthrough **故意不做去马赛克**，画面会偏绿、有网格感，
+    //       这是 Bayer 原始数据的正常表现 —— 用于先独立验证采集链路
+    //       （MIPI 有数据 / 解包正确 / Lane 顺序正确）。
+    // ---------------------------------------------------------------------
+    wire [11:0] w_cam_col;              // 与相机像素同拍的列号
+    wire [23:0] w_cam_lbuf_dout;        // {行号[11:0], 像素[11:0]}
+    wire        w_cam_lbuf_rd_valid;
+    wire        w_cam_wr_toggle;
+    wire        w_cam_lbuf_rd_active;
+    wire [23:0] w_cam_rgb;
+    wire        w_cam_rgb_valid;
+    wire        w_cam_req;
+
+    // 把**行号 + 像素**一起写进行缓冲：
+    //   行号用于 Bayer 行相位，必须与像素严格同源（用顶层 w_line_cnt 读侧取值
+    //   会因跨域采样偏差导致相位在行间跳变）。
+    //   列相位由行缓存的读地址自然给出（读侧从 0 递增），无需额外传递。
+    wire [23:0] w_cam_lbuf_din = {w_line_cnt, w_pix_data};
+
+    // 行缓冲：整行写入、整行读出，行级速率自适应（见 line_buffer_cdc.v 说明）
+    line_buffer_cdc #(
+        .PIX_BITS (24),
+        .MAX_LINE (1280)
+    ) u_cam_lbuf (
+        .I_wr_clk    (w_csi_rx_clk),
+        .I_wr_rst_n  (w_rst_n),
+        .I_wr_valid  (w_pix_valid),
+        .I_wr_data   (w_cam_lbuf_din),
+        .I_wr_sol    (w_line_start),    // 行起始脉冲 → 清写指针
+        .I_rd_clk    (w_clk_pixel),
+        .I_rd_rst_n  (w_rst_n),
+        .I_rd_req    (w_cam_req),
+        .O_rd_data   (w_cam_lbuf_dout),
+        .O_rd_valid  (w_cam_lbuf_rd_valid),
+        .O_wr_toggle (w_cam_wr_toggle),
+        .O_rd_active (w_cam_lbuf_rd_active)
+    );
+
+    bayer_passthrough #(
+        .PIX_BITS    (12),
+        .BAYER_PHASE (0)            // 0=GRBG（SC520CS 默认）
+    ) u_bayer_pt (
+        .I_clk       (w_clk_pixel),
+        .I_rst_n     (w_rst_n),
+        .I_pix_valid (w_cam_lbuf_rd_valid),
+        .I_pix_data  (w_cam_lbuf_dout[11:0]),
+        // 列相位：用显示侧当前列号；每次读请求消耗一个像素，与源列号一一对应
+        .I_x         (w_cam_col),
+        // 行相位：行号随像素从行缓存出来，与像素严格同源
+        .I_y         (w_cam_lbuf_dout[23:12]),
+        .O_rgb       (w_cam_rgb),
+        .O_valid     (w_cam_rgb_valid)
+    );
+
+    // ---------------------------------------------------------------------
     // 5. 视频时序与图案（75MHz 像素时钟域）-> HDMI 发送核
     // ---------------------------------------------------------------------
     wire        w_axis_user, w_axis_valid, w_axis_last, w_axis_ready;
@@ -335,6 +404,10 @@ module system_top #(
         .O_axis_last    (w_axis_last),
         .O_axis_data    (w_axis_data),
         .I_axis_ready   (w_axis_ready),
+        .I_cam_rgb      (w_cam_rgb),
+        .I_cam_active   (1'b1),          // 行缓存自己管理就绪状态，这里恒放行
+        .O_cam_req      (w_cam_req),
+        .O_cam_col      (w_cam_col),
         .O_hs           (),
         .O_vs           (),
         .O_de           (),
