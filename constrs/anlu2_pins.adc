@@ -1,0 +1,75 @@
+# =============================================================================
+# 文件名 : anlu2_pins.adc
+# 功能   : Anlu2 工程物理引脚约束（安路 TD 语法：set_pin_assignment）
+#
+# ============================ 三个必须记住的要点 ============================
+# 1) **扩展名必须是 .adc**，不能是 .fdc
+#    TD 6.2 的 read_adc 只接受 .adc：
+#        USR-8063 ERROR: ... is not a adc file.
+#    官方所有例程（32_cs500_mipi_hdmi、lab_ex1/ex2/ex3）也都用 .adc。
+#
+# 2) **必须在 settings.cfg 的 ADCList 里登记**，否则不会被读取
+#    DefaultFlow.tcl 的 read_design_fun 里是：
+#        if { [info exists ADCList] } { foreach adc $ADCList { read_adc $adc } }
+#    工程 .prj 里 FileSet "constraint_1" 的条目**不会自动加载**。
+#    本工程：prj/Anlu2_Runs/syn_1/settings.cfg
+#        set ADCList {"../../../constrs/anlu2_pins.adc"}
+#        set SDCList {"../../../constrs/anlu2_timing.sdc"}
+#
+# 3) **输入引脚不能写 DRIVESTRENGTH**，只能写 LOCATION/IOSTANDARD/PULLTYPE
+#    否则报：
+#        USR-8409 ERROR: DRIVESTRENGTH is not supported by
+#                        HDIO.LVCMOS33 in INPUT direction.
+#
+# 另外：两个不同端口不能分配到同一个 PAD，否则报
+#        USR-8055 ERROR: Pin X is set to the same pad with Y.
+# =============================================================================
+
+
+# ---------------------------------------------------------------------------
+# 系统时钟与复位（输入：无 DRIVESTRENGTH）
+# ---------------------------------------------------------------------------
+set_pin_assignment { I_sys_clk }        { LOCATION = C4;  IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment { I_rst_n }          { LOCATION = R10; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+
+# ---------------------------------------------------------------------------
+# 摄像头 I2C、主时钟与复位（PWDNB/XSHUTDN）（输出：有 DRIVESTRENGTH）
+# ---------------------------------------------------------------------------
+set_pin_assignment { O_cam_scl }        { LOCATION = K3;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+set_pin_assignment { IO_cam_sda }       { LOCATION = J3;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+set_pin_assignment { O_cam_24m }        { LOCATION = L3;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+set_pin_assignment { O_cam_rst }        { LOCATION = L2;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+
+# ---------------------------------------------------------------------------
+# 按键与图案选择（输入：无 DRIVESTRENGTH）
+# 说明：I_use_pattern 已从 RTL 顶层移除（TD 报 USR-8055：两个端口不能占同一
+#       PAD），图案改由参数 PATTERN_SEL_DEFAULT 决定；
+#       I_button 保留，供后续按键切换图案/调试使用。
+# ---------------------------------------------------------------------------
+set_pin_assignment { I_button[0] }      { LOCATION = N2;  IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment { I_button[1] }      { LOCATION = J14; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+
+# ---------------------------------------------------------------------------
+# HDMI TMDS 差分对（PH1P35A 开发板 HDMIA 接口）
+# ---------------------------------------------------------------------------
+set_pin_assignment { O_tmds_ch0_p }     { LOCATION = G16; IOSTANDARD = TMDS33; PULLTYPE = NONE; }
+set_pin_assignment { O_tmds_ch1_p }     { LOCATION = F17; IOSTANDARD = TMDS33; PULLTYPE = NONE; }
+set_pin_assignment { O_tmds_ch2_p }     { LOCATION = H14; IOSTANDARD = TMDS33; PULLTYPE = NONE; }
+set_pin_assignment { O_tmds_clk_p }     { LOCATION = C17; IOSTANDARD = TMDS33; PULLTYPE = NONE; }
+
+# ---------------------------------------------------------------------------
+# 状态指示 LED（输出：有 DRIVESTRENGTH）
+# 依据：安路FPGA知识库/例程代码及约束/01-呼吸灯-约束.txt
+#       （02-按键点灯-约束.txt 给出同样引脚）
+#   端口名已由 led[] 改为本工程的 O_led[]
+# ---------------------------------------------------------------------------
+set_pin_assignment { O_led[0] }         { LOCATION = D10; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+set_pin_assignment { O_led[1] }         { LOCATION = E10; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+set_pin_assignment { O_led[2] }         { LOCATION = C6;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+set_pin_assignment { O_led[3] }         { LOCATION = D6;  IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+
+# ---------------------------------------------------------------------------
+# 串口：本工程尚未实装，且知识库未给出 UART 引脚定义。
+# 处理办法：已从 src/system_top.v 顶层移除 O_uart_txd 端口，
+#           因此此处无需也不应添加约束（避免臆造引脚）。
+# ---------------------------------------------------------------------------

@@ -1,0 +1,253 @@
+m255
+K4
+z2
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z0 dD:/Anlogic/Anlu2/sim
+vhdmi_phy_wrapper
+Z1 !s110 1790940975
+!i10b 1
+!s100 Amf9=HkCz:^HY[ahcB3R`3
+IeJR@MC]ABABN1ok5D_C1e3
+Z2 V`JN@9S9cnhjKRR_L]QIcM3
+R0
+w1709191672
+8../src/vendor/hdmi_phy_wrapper.v
+F../src/vendor/hdmi_phy_wrapper.v
+L0 3
+Z3 OV;L;10.3c;59
+r1
+!s85 0
+31
+!s108 1790940975.575000
+!s107 ../src/vendor/hdmi_phy_wrapper.v|
+!s90 -work|work_vendor|../src/vendor/hdmi_phy_wrapper.v|
+!i113 1
+Z4 o-work work_vendor
+vlane_lvds_10_1
+R1
+!i10b 1
+!s100 <klfNi3W@22S9@N]j8Cdm2
+IYce;YQdBEaWDzo0m1JSKD3
+R2
+R0
+w1709194594
+8../src/vendor/lane_lvds_10_1.v
+F../src/vendor/lane_lvds_10_1.v
+L0 4
+R3
+r1
+!s85 0
+31
+!s108 1790940975.528000
+!s107 ../src/vendor/lane_lvds_10_1.v|
+!s90 -work|work_vendor|../src/vendor/lane_lvds_10_1.v|
+!i113 1
+R4
+vph1p_phy_pll_wrapper_25a56e5ce2f9
+R1
+!i10b 1
+!s100 7>^bX4=H>@m48fk5Zb14j3
+I[eU_eb95>]6HMF8EAgK?Z2
+R2
+R0
+w1774515822
+8../src/vendor/ph1p_phy_pll_wrapper_25a56e5ce2f9.v
+F../src/vendor/ph1p_phy_pll_wrapper_25a56e5ce2f9.v
+L0 2
+R3
+r1
+!s85 0
+31
+!s108 1790940975.080000
+!s107 ../src/vendor/ph1p_phy_pll_wrapper_25a56e5ce2f9.v|
+!s90 -work|work_vendor|../src/vendor/ph1p_phy_pll_wrapper_25a56e5ce2f9.v|
+!i113 1
+R4
+vPLL
+R1
+!i10b 1
+!s100 RG?meG1IS_2Dka<FaknM73
+I6;TK7nMz3_9YCfc0CH6Mc0
+R2
+R0
+w1788929984
+8../src/vendor/PLL.v
+F../src/vendor/PLL.v
+Z5 L0 22
+R3
+r1
+!s85 0
+31
+!s108 1790940975.027000
+!s107 ../src/vendor/PLL.v|
+!s90 -work|work_vendor|../src/vendor/PLL.v|
+!i113 1
+R4
+n@p@l@l
+vpll_hdmi
+R1
+!i10b 1
+!s100 TR]fFUOO=aF7B0M6OabIP0
+ICfk3PYSLnm;^@N280l[<n3
+R2
+R0
+w1774248654
+8../src/vendor/pll_hdmi.v
+F../src/vendor/pll_hdmi.v
+R5
+R3
+r1
+!s85 0
+31
+!s108 1790940975.130000
+!s107 ../src/vendor/pll_hdmi.v|
+!s90 -work|work_vendor|../src/vendor/pll_hdmi.v|
+!i113 1
+R4
+vSC520GainTbl
+R1
+!i10b 1
+!s100 5UJRjhEkN2I:C:Nook=0^3
+IDWJn`6^Kl_fCWKk]FUB0m3
+R2
+R0
+w1789113038
+8../src/camera/config/sc520_gain_tbl.v
+F../src/camera/config/sc520_gain_tbl.v
+L0 8
+R3
+r1
+!s85 0
+31
+!s108 1790940975.417000
+!s107 ../src/camera/config/sc520_gain_tbl.v|
+!s90 -work|work_vendor|../src/camera/config/sc520_gain_tbl.v|
+!i113 1
+R4
+n@s@c520@gain@tbl
+vuicfgcs520
+R1
+!i10b 1
+!s100 l8aR255H_L1QilP^Z14ZC0
+IKkgI8;DB068NT57@1k]hj1
+R2
+R0
+w1789113044
+8../src/camera/config/sc520_cfg.v
+F../src/camera/config/sc520_cfg.v
+L0 3
+R3
+r1
+!s85 0
+31
+!s108 1790940975.464000
+!s107 ../src/camera/config/sc520_cfg.v|
+!s90 -work|work_vendor|../src/camera/config/sc520_cfg.v|
+!i113 1
+R4
+vuics520reg
+R1
+!i10b 1
+!s100 InJOXFkn3JR<Fio73k8Ad0
+IcBI:72f_TE_HA`inhAJWG0
+R2
+R0
+w1789113058
+8../src/camera/config/sc520_reg_table_base.v
+F../src/camera/config/sc520_reg_table_base.v
+L0 8
+R3
+r1
+!s85 0
+31
+!s108 1790940975.225000
+!s107 ../src/camera/config/sc520_reg_table_base.v|
+!s90 -work|work_vendor|../src/camera/config/sc520_reg_table_base.v|
+!i113 1
+R4
+vuics520reg_720p60
+R1
+!i10b 1
+!s100 @NN0EQHMnXbUh:[EoFYof1
+I>ml4^UKC4mLD?BoPhAE?e2
+R2
+R0
+w1789113048
+8../src/camera/config/sc520_reg_table_720p60.v
+F../src/camera/config/sc520_reg_table_720p60.v
+L0 7
+R3
+r1
+!s85 0
+31
+!s108 1790940975.274000
+!s107 ../src/camera/config/sc520_reg_table_720p60.v|
+!s90 -work|work_vendor|../src/camera/config/sc520_reg_table_720p60.v|
+!i113 1
+R4
+vuics520reg_full_2560x1920_30
+R1
+!i10b 1
+!s100 i7^^aSmhzl>db>oIcK=]M2
+IZOhKJiBa4>ljDMK9Q<:e82
+R2
+R0
+w1789113062
+8../src/camera/config/sc520_reg_table_2560x1920_30.v
+F../src/camera/config/sc520_reg_table_2560x1920_30.v
+L0 21
+R3
+r1
+!s85 0
+31
+!s108 1790940975.320000
+!s107 ../src/camera/config/sc520_reg_table_2560x1920_30.v|
+!s90 -work|work_vendor|../src/camera/config/sc520_reg_table_2560x1920_30.v|
+!i113 1
+R4
+vuics520regAE
+R1
+!i10b 1
+!s100 ?7Ce>RUYzSj=E572_;0lK1
+IH35P[K0];B81ATn?aRWTc2
+R2
+R0
+w1789113052
+8../src/camera/config/sc520_reg_table_ae.v
+F../src/camera/config/sc520_reg_table_ae.v
+L0 3
+R3
+r1
+!s85 0
+31
+!s108 1790940975.371000
+!s107 ../src/camera/config/sc520_reg_table_ae.v|
+!s90 -work|work_vendor|../src/camera/config/sc520_reg_table_ae.v|
+!i113 1
+R4
+nuics520reg@a@e
+vuii2c
+R1
+!i10b 1
+!s100 RDR>SBDV^3nHR_Q@`8a330
+I[Xe^oGfL2RhUIdOj6Rl0a0
+R2
+R0
+w1720267084
+8../src/vendor/uii2c.v
+F../src/vendor/uii2c.v
+L0 41
+R3
+r1
+!s85 0
+31
+!s108 1790940975.175000
+!s107 ../src/vendor/uii2c.v|
+!s90 -work|work_vendor|../src/vendor/uii2c.v|
+!i113 1
+R4
