@@ -106,8 +106,51 @@ module system_top #(
         .lock     (w_pll_lock)
     );
 
-    // 系统复位：PLL 未锁定时保持复位
-    wire w_rst_n = w_pll_lock;
+    // =====================================================================
+    // 系统复位策略（上板调试后修正 —— 这是黑屏的根因）
+    // =====================================================================
+    // 【原先的错误写法】
+    //     wire w_rst_n = w_pll_lock;      // 直接用 PLL lock 当全局复位
+    //   问题：真实板子上 PLL 锁定瞬间 lock 会有短暂抖动。lock 每掉一次，
+    //   就会把 uicfgcs520 / CSI 解包 / 视频时序**全部复位一次**，
+    //   表现为：
+    //     - LED1(w_sensor_id_ok)反复闪烁（配置状态机被反复清零）
+    //     - HDMI 无法稳定输出 → 显示器无信号（黑屏）
+    //   注意：PLL 参数、HDMI 核参数与官方工作版本**逐行一致**，
+    //   所以问题一直在复位策略，不在参数。
+    //
+    // 【修正后】把 lock 当作"启动许可"，产生一个**一次性、上电后不再回退**
+    //   的复位：
+    //     1) lock 必须稳定保持 RST_HOLD 拍（去抖，滤掉锁定瞬间的毛刺）；
+    //     2) 满足后 w_rst_n 锁存为 1，**此后无论 lock 再抖都不再复位**。
+    //   这样既保证"PLL 未锁定时不放行"，又避免 lock 抖动打断整个设计。
+    //   该策略已在诊断工程 sim/diag/video_min_top.v 上板验证通过（出彩条）。
+    // =====================================================================
+    reg [15:0] r_rst_cnt;
+    reg        w_rst_n;
+
+    always @(posedge w_clk_24m or negedge I_rst_n) begin
+        if (!I_rst_n) begin
+            // 外部复位：立即回到复位态（允许重新初始化）
+            r_rst_cnt <= 16'd0;
+            w_rst_n   <= 1'b0;
+        end
+        else if (!w_rst_n) begin
+            // 尚未放行：等 lock 稳定保持足够长时间
+            if (w_pll_lock) begin
+                if (r_rst_cnt == 16'hFFFF) begin
+                    w_rst_n <= 1'b1;        // 锁定稳定 → 一次性放行（锁存）
+                end
+                else begin
+                    r_rst_cnt <= r_rst_cnt + 1'b1;
+                end
+            end
+            else begin
+                r_rst_cnt <= 16'd0;         // lock 掉了 → 去抖计数重来
+            end
+        end
+        // else: w_rst_n 已为 1 → 保持放行，不再受 lock 抖动影响
+    end
 
     // ---------------------------------------------------------------------
     // 2. 摄像头上电时序与 I2C 配置
@@ -118,8 +161,10 @@ module system_top #(
     reg         r_cam_pwdnb;
     reg         r_cam_i2c_ready;
 
-    always @(posedge w_clk_24m or negedge w_pll_lock) begin
-        if (!w_pll_lock) begin
+    // 注意：这里原来用 negedge w_pll_lock 作为异步复位，同样会被 lock 抖动打断，
+    //       导致 I2C 上电时序反复重来。已改为跟随同步复位 w_rst_n。
+    always @(posedge w_clk_24m or negedge w_rst_n) begin
+        if (!w_rst_n) begin
             r_cam_pwr_cnt   <= 18'd0;
             r_cam_pwdnb     <= 1'b0;
             r_cam_i2c_ready <= 1'b0;
@@ -255,6 +300,7 @@ module system_top #(
     // ---------------------------------------------------------------------
     wire        w_axis_user, w_axis_valid, w_axis_last, w_axis_ready;
     wire [23:0] w_axis_data;
+    wire        w_frame_toggle;     // 每帧翻转一次，用于 LED 帧心跳指示
 
     // 视频图案选择：当前由参数 PATTERN_SEL_DEFAULT 固定决定（默认彩条）。
     // 摄像头 RAW 通路接入后，这里改为二选一：
@@ -294,7 +340,7 @@ module system_top #(
         .O_de           (),
         .O_x            (),
         .O_y            (),
-        .O_frame_toggle ()
+        .O_frame_toggle (w_frame_toggle)
     );
 
     // HDMI 发送核：内部含 TMDS 编码与 HDMI 1.4b 协议栈（厂商加密 IP）
@@ -365,14 +411,25 @@ module system_top #(
 
     // ---------------------------------------------------------------------
     // 6. 状态指示（LED 高电平点亮）
-    //    LED0: PLL 锁定
-    //    LED1: 摄像头 ID 识别通过
-    //    LED2: 寄存器配置完成
-    //    LED3: I2C 出错 / MIPI 通道错误
+    //
+    // 上板可读性设计（经诊断工程验证的判读方式）：
+    //   LED0 = PLL 锁定            → 期望**常亮**
+    //   LED1 = 视频帧心跳          → 期望**闪烁**（约 0.7~1Hz，证明视频在跑）
+    //   LED2 = 摄像头 ID 识别通过  → 接了摄像头后期望常亮
+    //   LED3 = 配置完成 / 错误     → 见下方说明
+    //
+    // 【为什么 LED1 从"ID 识别"改成"帧心跳"】
+    //   原来 LED1 接 w_sensor_id_ok，但它被复位策略影响会闪烁，难以判读。
+    //   改成帧心跳后：
+    //     * LED1 闪 + LED0 常亮 = PLL 与视频链路都正常（即使没接摄像头）
+    //     * 这样"黑屏"就有明确的二分判据：心跳正常则问题在显示侧，
+    //       心跳不动则问题在视频时钟/复位。
     // ---------------------------------------------------------------------
-    assign O_led[0] = w_pll_lock;
-    assign O_led[1] = w_sensor_id_ok;
-    assign O_led[2] = w_cam_cfg_done;
-    assign O_led[3] = w_iic_error | (|w_lane_error) | (|w_lane_match_error) | w_csi_err;
+    assign O_led[0] = w_pll_lock;       // PLL 锁定（期望常亮）
+    assign O_led[1] = w_frame_toggle;   // 视频帧心跳（期望闪烁）
+    assign O_led[2] = w_sensor_id_ok;   // 摄像头 ID 识别通过
+    // LED3 = 配置完成 或 任一错误（两者用"常亮"表示有进展/有异常）
+    assign O_led[3] = w_cam_cfg_done | w_iic_error |
+                      (|w_lane_error) | (|w_lane_match_error) | w_csi_err;
 
 endmodule
