@@ -9,13 +9,13 @@ z2
 cModel Technology
 Z0 dD:/Anlogic/Anlu2/sim
 vasync_fifo
-Z1 !s110 1791004177
+Z1 !s110 1791019561
 !i10b 1
 !s100 OWK]Gn@RI4DFGg1gDD8J=1
 IEme5?e9;koT=l1^A[nk:h2
 Z2 V`JN@9S9cnhjKRR_L]QIcM3
 R0
-Z3 w1790940194
+Z3 w1791019063
 8../src/common/async_fifo.v
 F../src/common/async_fifo.v
 L0 14
@@ -23,7 +23,7 @@ Z4 OV;L;10.3c;59
 r1
 !s85 0
 31
-!s108 1791004177.603000
+!s108 1791019561.666000
 !s107 ../src/common/async_fifo.v|
 !s90 -work|work_rtl|../src/common/async_fifo.v|
 !i113 1
@@ -43,7 +43,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.652000
+!s108 1791019561.709000
 !s107 ../src/common/clk_rst_gen.v|
 !s90 -work|work_rtl|../src/common/clk_rst_gen.v|
 !i113 1
@@ -63,7 +63,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.558000
+!s108 1791019561.624000
 !s107 ../src/common/debounce.v|
 !s90 -work|work_rtl|../src/common/debounce.v|
 !i113 1
@@ -75,7 +75,7 @@ R1
 ILKdEk0J<fABMND;7Nld9:1
 R2
 R0
-w1790940244
+R3
 8../src/common/i2c_master.v
 F../src/common/i2c_master.v
 L0 26
@@ -83,7 +83,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.698000
+!s108 1791019561.752000
 !s107 ../src/common/i2c_master.v|
 !s90 -work|work_rtl|../src/common/i2c_master.v|
 !i113 1
@@ -95,7 +95,7 @@ R1
 IP9i=NOcV7UAHejl@SM?S<2
 R2
 R0
-w1790941211
+R3
 8../src/isp/line_buffer3x3.v
 F../src/isp/line_buffer3x3.v
 L0 33
@@ -103,19 +103,19 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.798000
+!s108 1791019561.843000
 !s107 ../src/isp/line_buffer3x3.v|
 !s90 -work|work_rtl|../src/isp/line_buffer3x3.v|
 !i113 1
 R5
 vSC520GainTbl
-Z6 !s110 1791004178
+Z6 !s110 1791019562
 !i10b 1
 !s100 5UJRjhEkN2I:C:Nook=0^3
 I8Oa50z@]3A;[akjB4MNX23
 R2
 R0
-w1789113038
+R3
 8../src/camera/config/sc520_gain_tbl.v
 F../src/camera/config/sc520_gain_tbl.v
 L0 8
@@ -123,7 +123,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004178.162000
+!s108 1791019562.147000
 !s107 ../src/camera/config/sc520_gain_tbl.v|
 !s90 -work|work_rtl|../src/camera/config/sc520_gain_tbl.v|
 !i113 1
@@ -144,7 +144,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.507000
+!s108 1791019561.579000
 !s107 ../src/common/sync_ff.v|
 !s90 -work|work_rtl|../src/common/sync_ff.v|
 !i113 1
@@ -156,7 +156,7 @@ R6
 I`an8GWQA>j48>=jPP<A_Y2
 R2
 R0
-w1789113044
+R3
 8../src/camera/config/sc520_cfg.v
 F../src/camera/config/sc520_cfg.v
 L0 3
@@ -164,7 +164,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004178.213000
+!s108 1791019562.188000
 !s107 ../src/camera/config/sc520_cfg.v|
 !s90 -work|work_rtl|../src/camera/config/sc520_cfg.v|
 !i113 1
@@ -176,7 +176,7 @@ R1
 I4SL:M85HdXQNYjf<QXR9Q1
 R2
 R0
-w1789113058
+R3
 8../src/camera/config/sc520_reg_table_base.v
 F../src/camera/config/sc520_reg_table_base.v
 L0 8
@@ -184,7 +184,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.905000
+!s108 1791019561.933000
 !s107 ../src/camera/config/sc520_reg_table_base.v|
 !s90 -work|work_rtl|../src/camera/config/sc520_reg_table_base.v|
 !i113 1
@@ -196,7 +196,7 @@ R6
 I0J[AG@RcV]j11HRJga_mO0
 R2
 R0
-w1789113048
+R3
 8../src/camera/config/sc520_reg_table_720p60.v
 F../src/camera/config/sc520_reg_table_720p60.v
 L0 7
@@ -204,7 +204,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.959000
+!s108 1791019561.975000
 !s107 ../src/camera/config/sc520_reg_table_720p60.v|
 !s90 -work|work_rtl|../src/camera/config/sc520_reg_table_720p60.v|
 !i113 1
@@ -216,7 +216,7 @@ R6
 IRmo`RH6MJVAokC<K7n]8z2
 R2
 R0
-w1789113062
+R3
 8../src/camera/config/sc520_reg_table_2560x1920_30.v
 F../src/camera/config/sc520_reg_table_2560x1920_30.v
 L0 21
@@ -224,7 +224,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004178.053000
+!s108 1791019562.063000
 !s107 ../src/camera/config/sc520_reg_table_2560x1920_30.v|
 !s90 -work|work_rtl|../src/camera/config/sc520_reg_table_2560x1920_30.v|
 !i113 1
@@ -236,7 +236,7 @@ R6
 Id6QSPg==<98h8IT@9_lA[3
 R2
 R0
-w1789113052
+R3
 8../src/camera/config/sc520_reg_table_ae.v
 F../src/camera/config/sc520_reg_table_ae.v
 L0 3
@@ -244,7 +244,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004178.104000
+!s108 1791019562.106000
 !s107 ../src/camera/config/sc520_reg_table_ae.v|
 !s90 -work|work_rtl|../src/camera/config/sc520_reg_table_ae.v|
 !i113 1
@@ -257,7 +257,7 @@ R1
 I`6OSN=zk4Y0aoEaZCW4011
 R2
 R0
-w1720267084
+R3
 8../src/vendor/uii2c.v
 F../src/vendor/uii2c.v
 L0 41
@@ -265,7 +265,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.847000
+!s108 1791019561.889000
 !s107 ../src/vendor/uii2c.v|
 !s90 -work|work_rtl|../src/vendor/uii2c.v|
 !i113 1
@@ -277,7 +277,7 @@ R1
 IJzMLn1=JZJQX1LP^P6W4=1
 R2
 R0
-w1790950806
+R3
 8../src/video/video_timing_720p60.v
 F../src/video/video_timing_720p60.v
 L0 24
@@ -285,7 +285,7 @@ R4
 r1
 !s85 0
 31
-!s108 1791004177.749000
+!s108 1791019561.798000
 !s107 ../src/video/video_timing_720p60.v|
 !s90 -work|work_rtl|../src/video/video_timing_720p60.v|
 !i113 1

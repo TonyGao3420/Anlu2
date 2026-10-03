@@ -135,10 +135,20 @@ module tb_csi2_rx_unpack;
 
     // ---------------------------------------------------------------------
     // 把缓冲里的字节流按 LANES 个一组送出
+    //
+    // 驱动时序（两段式，避免"同一拍既建立数据又拉起有效"的竞争）：
+    //   1) 先在 hs_valid=0 时把 hs_data 建立好；
+    //   2) 等一个时钟沿，让数据稳定；
+    //   3) 再拉高 hs_valid，模块在下一拍采样。
     // ---------------------------------------------------------------------
     task flush_txbuf;
         begin
             g = 0;
+            // 先确保空闲态、数据清零
+            hs_valid <= 1'b0;
+            hs_data  <= 0;
+            @(posedge clk);
+
             while ((g*LANES) < txlen) begin
                 word = 0;
                 for (n = 0; n < LANES; n = n + 1) begin
@@ -152,14 +162,22 @@ module tb_csi2_rx_unpack;
                         endcase
                     end
                 end
-                @(posedge clk);
-                hs_valid <= 1'b1;
+
+                // ① 在 valid=0 时建立数据
                 hs_data  <= word;
+                hs_valid <= 1'b0;
+                @(posedge clk);
+                // ② 数据已稳定，拉起 valid（模块在下一拍采样）
+                hs_valid <= 1'b1;
+                @(posedge clk);
+
                 g = g + 1;
             end
-            @(posedge clk);
+
+            // 收尾：拉低 valid 并清数据
             hs_valid <= 1'b0;
             hs_data  <= 0;
+            @(posedge clk);
         end
     endtask
 
