@@ -6,17 +6,17 @@
 *.rpt
 *.jou
 *.str
-*.al
+#s*.al
 *.prj
 *.bak
 
 # 安路生成的输出文件夹与编译缓存
-*.runs/
-*.cache/
-*.hw/
-*.sim/
-*.ip_user_files/
-*.data/
+*_runs/
+*_cache/
+*_hw/
+*_sim/
+*_ip_user_files/
+*_data/
 
 # 生成的烧录文件与比特流 (不需要版本控制)
 *.bit
@@ -72,4 +72,3 @@ td_*.logw
 
 
 /sim_lib/
-/prj/
