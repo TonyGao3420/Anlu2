@@ -10,6 +10,9 @@
 *.prj
 *.bak
 
+# Keep the active SC520 Tang Dynasty project entry under version control.
+!src/lab_ex3_osd/td_project/camera_to_dsi_display.al
+
 # 安路生成的输出文件夹与编译缓存
 *.runs/
 *.cache/
