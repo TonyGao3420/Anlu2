@@ -1,3 +1,7 @@
+// Anlu2 源码说明：把16～176的软件增益档位转换为SC520模拟和数字细增益寄存器。
+// 接口与使用约定：输出{0x3e09,0x3e06,0x3e07对应值}，输入越界时限幅；当前默认128映射0x0b/0x00/0xc0。
+// 工程状态：已列入TD编译清单。
+
 `timescale 1ns / 1ps
 
 // Convert the demo's gain control (16..176) to SC520CS gain registers.
@@ -13,12 +17,9 @@ module SC520GainTbl (
     reg [7:0] fine_gain;
 
     always @(*) begin
-        if (I_AG <= 16)
-            step = 8'd0;
-        else if (I_AG >= 176)
-            step = 8'd160;
-        else
-            step = I_AG - 16;
+        if (I_AG <= 16) step = 8'd0;
+        else if (I_AG >= 176) step = 8'd160;
+        else step = I_AG - 16;
 
         if (step < 32) begin
             fine_gain = 8'h80 + (step << 2);

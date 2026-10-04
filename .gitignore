@@ -72,3 +72,9 @@ td_*.logw
 
 
 /sim_lib/
+
+# Local validation tools, original snapshots and generated reports
+/sim/.tools/
+/sim/.baseline/
+/sim/build/
+/td_project/*_Runs/

@@ -1,3 +1,7 @@
+// Anlu2 源码说明：Track2目标检测扩展：累计ROI内颜色匹配点，计算包围框、质心、面积并画框。
+// 接口与使用约定：当前未接入视频链路。逻辑在VS为0时清统计，与当前VTC的有效区VS极性不兼容，不能只实例化就认为可用。
+// 工程状态：未直接列入TD编译清单；见doc/CODE_GUIDE.md。
+
 // ================================================================
 // track2_lab3_merge.v
 // ---------------------------------------------------------------
@@ -12,20 +16,20 @@
 `timescale 1ns / 1ps
 
 module track2_lab3_merge (
-    input  wire        clk,
-    input  wire        rst_n,
+    input wire clk,
+    input wire rst_n,
 
-    input  wire        video_vsync,
-    input  wire        video_hsync,
-    input  wire        video_de,
-    input  wire [23:0] video_pixel,
+    input wire        video_vsync,
+    input wire        video_hsync,
+    input wire        video_de,
+    input wire [23:0] video_pixel,
 
-    output reg         out_vsync,
-    output reg         out_hsync,
-    output reg         out_de,
+    output reg        out_vsync,
+    output reg        out_hsync,
+    output reg        out_de,
     output reg [23:0] out_pixel,
 
-    output reg         track_valid,
+    output reg        track_valid,
     output reg [15:0] bbox_x0,
     output reg [15:0] bbox_y0,
     output reg [15:0] bbox_x1,
@@ -33,11 +37,11 @@ module track2_lab3_merge (
     output reg [15:0] centroid_x,
     output reg [15:0] centroid_y,
     output reg [15:0] target_area,
-    output reg         roi_valid,
-    output reg         color_match_ok,
-    output reg         bbox_drawn,
-    output reg         selfcheck_ok,
-    output reg [3:0]  selfcheck_status
+    output reg        roi_valid,
+    output reg        color_match_ok,
+    output reg        bbox_drawn,
+    output reg        selfcheck_ok,
+    output reg [ 3:0] selfcheck_status
 );
 
     reg [15:0] x_cnt;
@@ -53,7 +57,7 @@ module track2_lab3_merge (
     wire [7:0] r = video_pixel[23:16];
     wire [7:0] g = video_pixel[15:8];
     wire [7:0] b = video_pixel[7:0];
-    wire target_pixel = (r >= 8'd80) && (g <= 8'd160) && (b <= 8'd160);
+    wire       target_pixel = (r >= 8'd80) && (g <= 8'd160) && (b <= 8'd160);
 
     localparam ROI_X0 = 16'd160;
     localparam ROI_Y0 = 16'd120;
@@ -74,14 +78,22 @@ module track2_lab3_merge (
             roi_valid_i <= 1'b0;
             color_match_ok_i <= 1'b0;
             track_valid <= 1'b0;
-            bbox_x0 <= 0; bbox_y0 <= 0; bbox_x1 <= 0; bbox_y1 <= 0;
-            centroid_x <= 0; centroid_y <= 0; target_area <= 0;
+            bbox_x0 <= 0;
+            bbox_y0 <= 0;
+            bbox_x1 <= 0;
+            bbox_y1 <= 0;
+            centroid_x <= 0;
+            centroid_y <= 0;
+            target_area <= 0;
             roi_valid <= 1'b0;
             color_match_ok <= 1'b0;
             bbox_drawn <= 1'b0;
             selfcheck_ok <= 1'b0;
             selfcheck_status <= 4'd0;
-            out_vsync <= 0; out_hsync <= 0; out_de <= 0; out_pixel <= 24'd0;
+            out_vsync <= 0;
+            out_hsync <= 0;
+            out_de <= 0;
+            out_pixel <= 24'd0;
         end else begin
             out_vsync <= video_vsync;
             out_hsync <= video_hsync;
@@ -100,8 +112,13 @@ module track2_lab3_merge (
                 roi_valid_i <= 1'b0;
                 color_match_ok_i <= 1'b0;
                 track_valid <= 1'b0;
-                bbox_x0 <= 0; bbox_y0 <= 0; bbox_x1 <= 0; bbox_y1 <= 0;
-                centroid_x <= 0; centroid_y <= 0; target_area <= 0;
+                bbox_x0 <= 0;
+                bbox_y0 <= 0;
+                bbox_x1 <= 0;
+                bbox_y1 <= 0;
+                centroid_x <= 0;
+                centroid_y <= 0;
+                target_area <= 0;
                 roi_valid <= 1'b0;
                 color_match_ok <= 1'b0;
                 bbox_drawn <= 1'b0;
@@ -142,8 +159,13 @@ module track2_lab3_merge (
                 target_area <= pix_count[15:0];
                 track_valid <= 1'b1;
             end else begin
-                bbox_x0 <= 0; bbox_y0 <= 0; bbox_x1 <= 0; bbox_y1 <= 0;
-                centroid_x <= 0; centroid_y <= 0; target_area <= 0;
+                bbox_x0 <= 0;
+                bbox_y0 <= 0;
+                bbox_x1 <= 0;
+                bbox_y1 <= 0;
+                centroid_x <= 0;
+                centroid_y <= 0;
+                target_area <= 0;
                 track_valid <= 1'b0;
             end
 
@@ -161,10 +183,10 @@ module track2_lab3_merge (
             if (video_de) begin
                 if ((x_cnt >= bbox_x0 && x_cnt <= bbox_x1 && (y_cnt == bbox_y0 || y_cnt == bbox_y1)) ||
                     (y_cnt >= bbox_y0 && y_cnt <= bbox_y1 && (x_cnt == bbox_x0 || x_cnt == bbox_x1))) begin
-                    out_pixel <= 24'hFF0000;
+                    out_pixel  <= 24'hFF0000;
                     bbox_drawn <= 1'b1;
                 end else begin
-                    out_pixel <= video_pixel;
+                    out_pixel  <= video_pixel;
                     bbox_drawn <= 1'b0;
                 end
             end else begin

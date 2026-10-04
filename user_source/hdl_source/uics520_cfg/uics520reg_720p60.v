@@ -1,3 +1,7 @@
+// Anlu2 源码说明：当前使用的SC520 1280×720 RAW10两通道模式寄存器表。
+// 接口与使用约定：REG_INDEX选出{16位地址,8位值}；输出VTS=1000，0x3222关闭外部触发等待。保持表项顺序与REG_SIZE一致。
+// 工程状态：已列入TD编译清单。
+
 `timescale 1ns / 1ps
 
 /*
@@ -5,9 +9,9 @@
  * Lane速率828Mbps，Sensor内部启用VBIN和HSUB，直接输出真实720p。
  */
 module uics520reg_720p60 (
-    input  wire [8:0]  REG_INDEX,
+    input  wire [ 8:0] REG_INDEX,
     output reg  [23:0] REG_DATA,
-    output wire [8:0]  REG_SIZE
+    output wire [ 8:0] REG_SIZE
 );
     assign REG_SIZE = 9'd165;
 
@@ -32,9 +36,9 @@ module uics520reg_720p60 (
             9'd16: REG_DATA = {16'h3205, 8'h27};
             9'd17: REG_DATA = {16'h3206, 8'h06};
             9'd18: REG_DATA = {16'h3207, 8'hab};
-            9'd19: REG_DATA = {16'h3208, 8'h05}; // output width high: 1280
+            9'd19: REG_DATA = {16'h3208, 8'h05};  // output width high: 1280
             9'd20: REG_DATA = {16'h3209, 8'h00};
-            9'd21: REG_DATA = {16'h320a, 8'h02}; // output height high: 720
+            9'd21: REG_DATA = {16'h320a, 8'h02};  // output height high: 720
             9'd22: REG_DATA = {16'h320b, 8'hd0};
             9'd23: REG_DATA = {16'h320e, 8'h03};
             9'd24: REG_DATA = {16'h320f, 8'he8};
@@ -43,8 +47,8 @@ module uics520reg_720p60 (
             9'd27: REG_DATA = {16'h3212, 8'h00};
             9'd28: REG_DATA = {16'h3213, 8'h04};
             9'd29: REG_DATA = {16'h3215, 8'h31};
-            9'd30: REG_DATA = {16'h3220, 8'h81}; // 原厂VBIN/HSUB Slave模式
-            9'd31: REG_DATA = {16'h3222, 8'h00}; // 验证：关闭Slave模式
+            9'd30: REG_DATA = {16'h3220, 8'h81};  // 原厂VBIN/HSUB Slave模式
+            9'd31: REG_DATA = {16'h3222, 8'h00};  // 验证：关闭Slave模式
             9'd32: REG_DATA = {16'h3224, 8'h92};
             9'd33: REG_DATA = {16'h322e, 8'h03};
             9'd34: REG_DATA = {16'h322f, 8'he4};
@@ -150,7 +154,7 @@ module uics520reg_720p60 (
             9'd134: REG_DATA = {16'h5000, 8'h4e};
             9'd135: REG_DATA = {16'h5007, 8'h00};
             9'd136: REG_DATA = {16'h550e, 8'h00};
-            9'd137: REG_DATA = {16'h550f, 8'h8a}; // SC520CS-03料号配置
+            9'd137: REG_DATA = {16'h550f, 8'h8a};  // SC520CS-03料号配置
             9'd138: REG_DATA = {16'h5780, 8'h66};
             9'd139: REG_DATA = {16'h5787, 8'h08};
             9'd140: REG_DATA = {16'h5788, 8'h04};
@@ -177,7 +181,7 @@ module uics520reg_720p60 (
             9'd161: REG_DATA = {16'h5aeb, 8'h3f};
             9'd162: REG_DATA = {16'h5aec, 8'h34};
             9'd163: REG_DATA = {16'h5aed, 8'h2c};
-            9'd164: REG_DATA = {16'h0100, 8'h01}; // stream on
+            9'd164: REG_DATA = {16'h0100, 8'h01};  // stream on
             default: REG_DATA = {16'h0000, 8'h00};
         endcase
     end

@@ -1,3 +1,7 @@
+// Anlu2 源码说明：旧SC500曝光和增益寄存器更新表。
+// 接口与使用约定：由旧SC500配置器使用，当前主工程未选用。
+// 工程状态：未直接列入TD编译清单；见doc/CODE_GUIDE.md。
+
 `timescale 1ns / 1ps
 /*******************************MILIANKE*******************************
 *Company : MiLianKe Electronic Technology Co., Ltd.
@@ -27,29 +31,28 @@
 *********************************************************************/
 
 /*******************************ui7611reg***************************
---1.ADV7611оƬ���üĴ������ñ�
+--1.ADV7611芯片配置寄存器配置表
 *********************************************************************/
 
-module uics500regAE
-(  
-input      [8 :0]  REG_INDEX,
-output reg [31:0]  REG_DATA,
-output     [8 :0]  REG_SIZE,
-input      [15:0]  I_AE,
-input      [15:0]  I_AG
+module uics500regAE (
+    input      [8 : 0] REG_INDEX,
+    output reg [ 31:0] REG_DATA,
+    output     [8 : 0] REG_SIZE,
+    input      [ 15:0] I_AE,
+    input      [ 15:0] I_AG
 );
 
-assign	REG_SIZE = 9'd5;
-//-----------------------------------------------------------------
-/////////////////////	Config Data REG	  //////////////////////////	
-always@(*)
-   case(REG_INDEX)
-		0:	REG_DATA = {16'h3e00, 4'h0, I_AE[15:12]}; 
-		1:	REG_DATA = {16'h3e01, I_AE[11: 4]}; 
-		2:	REG_DATA = {16'h3e02, I_AE[3:0], 4'h0};
-		3:	REG_DATA = {16'h3e08, I_AG[15:8]};
-		4:	REG_DATA = {16'h3e09, I_AG[7 :0]};
-		default:REG_DATA    =   {16'h0000, 8'h00};
-   endcase
+    assign REG_SIZE = 9'd5;
+    //-----------------------------------------------------------------
+    /////////////////////	Config Data REG	  //////////////////////////	
+    always @(*)
+        case (REG_INDEX)
+            0: REG_DATA = {16'h3e00, 4'h0, I_AE[15:12]};
+            1: REG_DATA = {16'h3e01, I_AE[11: 4]};
+            2: REG_DATA = {16'h3e02, I_AE[3:0], 4'h0};
+            3: REG_DATA = {16'h3e08, I_AG[15:8]};
+            4: REG_DATA = {16'h3e09, I_AG[7 :0]};
+            default:REG_DATA    =   {16'h0000, 8'h00};
+        endcase
 
 endmodule

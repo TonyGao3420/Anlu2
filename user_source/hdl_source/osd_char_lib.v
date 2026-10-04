@@ -1,7 +1,11 @@
+// Anlu2 源码说明：根据字符代码与行号输出16位点阵行，用于中文、CNT和数字叠加。
+// 接口与使用约定：组合ROM，返回行掩码；仅字形数据，缩放和位置由hdmi_mixer计算。
+// 工程状态：已列入TD编译清单。
+
 module osd_char_lib (
-    input wire [7:0] I_char,
-    input wire [3:0] I_row,
-    output reg [15:0] O_row_bits
+    input  wire [ 7:0] I_char,
+    input  wire [ 3:0] I_row,
+    output reg  [15:0] O_row_bits
 );
 
     localparam CHAR_AN    = 8'h80;
@@ -45,9 +49,9 @@ module osd_char_lib (
     localparam CHAR_COLON = 8'h3a;
 
     always @(*) begin
-        case(I_char)
+        case (I_char)
             CHAR_AN: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0200;
                     4'd1: O_row_bits = 16'h7ff0;
                     4'd2: O_row_bits = 16'h4410;
@@ -68,7 +72,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_LU: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h79e0;
                     4'd1: O_row_bits = 16'h4a20;
                     4'd2: O_row_bits = 16'h4d40;
@@ -89,7 +93,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_A: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h1c00;
@@ -110,7 +114,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_B: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -131,7 +135,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_C: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h03f0;
@@ -152,7 +156,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_D: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -173,7 +177,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_E: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -194,7 +198,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_F: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -215,7 +219,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_G: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h1c00;
@@ -236,7 +240,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_H: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3300;
@@ -257,7 +261,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_I: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h1e00;
@@ -278,7 +282,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_J: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -299,7 +303,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_K: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3300;
@@ -320,7 +324,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_L: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3000;
@@ -341,7 +345,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_M: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3600;
@@ -362,7 +366,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_N: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h300c;
@@ -383,7 +387,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_O: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h1e00;
@@ -404,7 +408,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_P: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -425,7 +429,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_Q: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h1e00;
@@ -446,7 +450,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_R: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -467,7 +471,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_S: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h1e00;
@@ -488,7 +492,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_T: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3ffc;
@@ -509,7 +513,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_U: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3300;
@@ -530,7 +534,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_V: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h2200;
@@ -551,7 +555,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_W: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h2200;
@@ -572,7 +576,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_X: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -593,7 +597,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_Y: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3180;
@@ -614,7 +618,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_Z: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h3e00;
@@ -635,7 +639,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_0: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -656,7 +660,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_1: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h000c;
                     4'd2: O_row_bits = 16'h000c;
@@ -677,7 +681,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_2: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -698,7 +702,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_3: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -719,7 +723,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_4: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h300c;
                     4'd2: O_row_bits = 16'h300c;
@@ -740,7 +744,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_5: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -761,7 +765,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_6: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -782,7 +786,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_7: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -803,7 +807,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_8: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -824,7 +828,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_9: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h1ff8;
                     4'd2: O_row_bits = 16'h1ff8;
@@ -845,7 +849,7 @@ module osd_char_lib (
                 endcase
             end
             CHAR_COLON: begin
-                case(I_row)
+                case (I_row)
                     4'd0: O_row_bits = 16'h0000;
                     4'd1: O_row_bits = 16'h0000;
                     4'd2: O_row_bits = 16'h0000;

@@ -1,3 +1,7 @@
+// Anlu2 æºç è¯´æ˜ï¼šå°†CSIè½½è·æ¯5å­—èŠ‚è¿˜åŸæˆ4ä¸ª10ä½Bayeré‡‡æ ·ã€‚
+// æ¥å£ä¸ä½¿ç”¨çº¦å®šï¼šè¾“å‡ºæœ€ä½10ä½æ˜¯æ—¶é—´ä¸Šç¬¬ä¸€ä¸ªåƒç´ ï¼›è¾“å…¥è¦æ±‚32ä½æ•°æ®éš”æ‹æœ‰æ•ˆã€‚I_camera_black_levelå½“å‰æœªå‚ä¸è®¡ç®—ã€‚
+// å·¥ç¨‹çŠ¶æ€ï¼šå·²åˆ—å…¥TDç¼–è¯‘æ¸…å•ã€‚
+
 /*******************************MILIANKE*******************************
 *Company : MiLianKe Electronic Technology Co., Ltd.
 *WebSite:https://www.milianke.com
@@ -26,8 +30,8 @@
 *7) _r delay or register
 *8) _s state mechine
 *********************************************************************/
-/*********raw10_unpacket_2lane RAWÊı¾İ¸ñÊ½×ªÎªRAW10,Ö®ºó¶ªÆúµØÎ»£¬ÊµÏÖRAW8***********
---°æ±¾ºÅ1.0
+/*********raw10_unpacket_2lane RAWæ•°æ®æ ¼å¼è½¬ä¸ºRAW10,ä¹‹åä¸¢å¼ƒåœ°ä½ï¼Œå®ç°RAW8***********
+--ç‰ˆæœ¬å·1.0
 *********************************************************************/
 
 module raw10_unpacket_2lane (
@@ -47,98 +51,101 @@ module raw10_unpacket_2lane (
     output reg [39:0] O_raw10_data
 );
 
-  reg         S_csi_valid_1d;  //synthesis keep
-  reg         S_csi_valid_2d;  //synthesis keep
-  reg  [31:0] S_csi_data_1d;  //synthesis keep
-  reg  [31:0] S_csi_data_2d;  //synthesis keep
-  reg  [ 2:0] S_cnt;  //synthesis keep
-  reg         S_raw10_wr_en;  //synthesis keep
-  reg  [39:0] S_raw10_wr_data;  //synthesis keep
-  wire [ 9:0] S_fifo_rd_num;  //synthesis keep
-  reg         S_fifo_rd_en;  //synthesis keep
-  wire        S_fifo_empty;  //synthesis keep
-  reg         S_raw8_valid;  //synthesis keep
-  reg  [39:0] S_raw8_data;  //synthesis keep
-  wire [39:0] S_fifo_rd_data;  //synthesis keep
+    reg         S_csi_valid_1d;  //synthesis keep
+    reg         S_csi_valid_2d;  //synthesis keep
+    reg  [31:0] S_csi_data_1d;  //synthesis keep
+    reg  [31:0] S_csi_data_2d;  //synthesis keep
+    reg  [ 2:0] S_cnt;  //synthesis keep
+    reg         S_raw10_wr_en;  //synthesis keep
+    reg  [39:0] S_raw10_wr_data;  //synthesis keep
+    wire [ 9:0] S_fifo_rd_num;  //synthesis keep
+    reg         S_fifo_rd_en;  //synthesis keep
+    wire        S_fifo_empty;  //synthesis keep
+    reg         S_raw8_valid;  //synthesis keep
+    reg  [39:0] S_raw8_data;  //synthesis keep
+    wire [39:0] S_fifo_rd_data;  //synthesis keep
 
 
-  //Í¬²½´¦Àí£¬MIPIÊäÈë½øÀ´ºó£¬I_csi_valid²»ÊÇÁ¬Ğø£¬Ã¿¸öI_csi_valid ´òÅÂ1´Î
-  always @(posedge I_clk) begin
-    O_raw10_frame_start <= I_csi_frame_start;
-    O_raw10_frame_end   <= I_csi_frame_end;
+    //åŒæ­¥å¤„ç†ï¼ŒMIPIè¾“å…¥è¿›æ¥åï¼ŒI_csi_validä¸æ˜¯è¿ç»­ï¼Œæ¯ä¸ªI_csi_valid æ‰“æ€•1æ¬¡
+    always @(posedge I_clk) begin
+        O_raw10_frame_start <= I_csi_frame_start;
+        O_raw10_frame_end   <= I_csi_frame_end;
 
-    S_csi_valid_1d      <= I_csi_valid;
-    S_csi_valid_2d      <= S_csi_valid_1d;
+        S_csi_valid_1d      <= I_csi_valid;
+        S_csi_valid_2d      <= S_csi_valid_1d;
 
-    S_csi_data_1d       <= I_csi_data;
-    S_csi_data_2d       <= S_csi_data_1d;
-  end
-
-  always @(posedge I_clk) begin
-    if({S_csi_valid_2d,S_csi_valid_1d,I_csi_valid}==3'b101)begin//µ±S_csi_valid_2dºÍI_csi_validÍ¬Ê±ÓĞĞ§£¬S_csi_valid_2d´ú±íÇ°Ò»¸öÓĞĞ§32Bit I_csi_valid´ú±íÁË×îĞÂµÄ32bit
-      if (S_cnt == 3'd4)  //Ò»¸öÖÜÆÚ½áÊø
-        S_cnt <= 3'd0;
-      else S_cnt <= S_cnt + 3'd1;
-    end else if ({S_csi_valid_2d, S_csi_valid_1d, I_csi_valid} == 3'b000) S_cnt <= 3'd0;
-  end
-
-
-  always @(posedge I_clk) begin
-    if ({S_csi_valid_2d, S_csi_valid_1d, I_csi_valid} == 3'b101) begin
-      case (S_cnt)
-        3'd0: begin
-          S_raw10_wr_en          <= 1'b1;
-          S_raw10_wr_data[39:30] <= {S_csi_data_2d[31:24], I_csi_data[25:24]};  ///P0
-          S_raw10_wr_data[29:20] <= {S_csi_data_2d[23:16], I_csi_data[27:26]};  ///P1
-          S_raw10_wr_data[19:10] <= {S_csi_data_2d[15 : 8], I_csi_data[29:28]};  ///P2
-          S_raw10_wr_data[9:0]   <= {S_csi_data_2d[7 : 0], I_csi_data[31:30]};  ///P3
-        end
-        3'd1: begin
-          S_raw10_wr_en          <= 1'b1;
-          S_raw10_wr_data[39:30] <= {S_csi_data_2d[23:16], I_csi_data[17:16]};  ///P4
-          S_raw10_wr_data[29:20] <= {S_csi_data_2d[15 : 8], I_csi_data[19:18]};  ///P5
-          S_raw10_wr_data[19:10] <= {S_csi_data_2d[7 : 0], I_csi_data[21:20]};  ///P6
-          S_raw10_wr_data[9:0]   <= {I_csi_data[31:24], I_csi_data[23:22]};  ///P7
-        end
-        3'd2: begin
-          S_raw10_wr_en          <= 1'b1;
-          S_raw10_wr_data[39:30] <= {S_csi_data_2d[15 : 8], I_csi_data[9:8]};  ///P8
-          S_raw10_wr_data[29:20] <= {S_csi_data_2d[7 : 0], I_csi_data[11:10]};  ///P9
-          S_raw10_wr_data[19:10] <= {I_csi_data[31:24], I_csi_data[13:12]};  ///P10
-          S_raw10_wr_data[9:0]   <= {I_csi_data[23:16], I_csi_data[15:14]};  ///P11
-        end
-        3'd3: begin
-          S_raw10_wr_en          <= 1'b1;
-          S_raw10_wr_data[39:30] <= {S_csi_data_2d[7 : 0], I_csi_data[1:0]};  ///P12
-          S_raw10_wr_data[29:20] <= {I_csi_data[31:24], I_csi_data[3:2]};  ///P13
-          S_raw10_wr_data[19:10] <= {I_csi_data[23:16], I_csi_data[5:4]};  ///P14
-          S_raw10_wr_data[9:0]   <= {I_csi_data[15 : 8], I_csi_data[7:6]};  ///P15
-        end
-        3'd4: begin
-          S_raw10_wr_en          <= 1'b0;
-          S_raw10_wr_data[39:30] <= 'd0;
-          S_raw10_wr_data[29:20] <= 'd0;
-          S_raw10_wr_data[19:10] <= 'd0;
-          S_raw10_wr_data[9:0]   <= 'd0;
-        end
-      endcase
-    end else begin
-      S_raw10_wr_en          <= 1'b0;
-      S_raw10_wr_data[39:30] <= 'd0;
-      S_raw10_wr_data[29:20] <= 'd0;
-      S_raw10_wr_data[19:10] <= 'd0;
-      S_raw10_wr_data[9:0]   <= 'd0;
+        S_csi_data_1d       <= I_csi_data;
+        S_csi_data_2d       <= S_csi_data_1d;
     end
-  end
 
-  always @(posedge I_clk) begin
-    O_raw10_data <= {
-      S_raw10_wr_data[9:0], S_raw10_wr_data[19:10], S_raw10_wr_data[29:20], S_raw10_wr_data[39:30]
-    };
-    O_raw10_valid <= S_raw10_wr_en;
-  end
+    always @(posedge I_clk) begin
+        if({S_csi_valid_2d,S_csi_valid_1d,I_csi_valid}==3'b101)begin//å½“S_csi_valid_2då’ŒI_csi_validåŒæ—¶æœ‰æ•ˆï¼ŒS_csi_valid_2dä»£è¡¨å‰ä¸€ä¸ªæœ‰æ•ˆ32Bit I_csi_validä»£è¡¨äº†æœ€æ–°çš„32bit
+            if (S_cnt == 3'd4)  //ä¸€ä¸ªå‘¨æœŸç»“æŸ
+                S_cnt <= 3'd0;
+            else S_cnt <= S_cnt + 3'd1;
+        end else if ({S_csi_valid_2d, S_csi_valid_1d, I_csi_valid} == 3'b000) S_cnt <= 3'd0;
+    end
 
-  /*
+
+    always @(posedge I_clk) begin
+        if ({S_csi_valid_2d, S_csi_valid_1d, I_csi_valid} == 3'b101) begin
+            case (S_cnt)
+                3'd0: begin
+                    S_raw10_wr_en          <= 1'b1;
+                    S_raw10_wr_data[39:30] <= {S_csi_data_2d[31:24], I_csi_data[25:24]};  ///P0
+                    S_raw10_wr_data[29:20] <= {S_csi_data_2d[23:16], I_csi_data[27:26]};  ///P1
+                    S_raw10_wr_data[19:10] <= {S_csi_data_2d[15 : 8], I_csi_data[29:28]};  ///P2
+                    S_raw10_wr_data[9:0]   <= {S_csi_data_2d[7 : 0], I_csi_data[31:30]};  ///P3
+                end
+                3'd1: begin
+                    S_raw10_wr_en          <= 1'b1;
+                    S_raw10_wr_data[39:30] <= {S_csi_data_2d[23:16], I_csi_data[17:16]};  ///P4
+                    S_raw10_wr_data[29:20] <= {S_csi_data_2d[15 : 8], I_csi_data[19:18]};  ///P5
+                    S_raw10_wr_data[19:10] <= {S_csi_data_2d[7 : 0], I_csi_data[21:20]};  ///P6
+                    S_raw10_wr_data[9:0]   <= {I_csi_data[31:24], I_csi_data[23:22]};  ///P7
+                end
+                3'd2: begin
+                    S_raw10_wr_en          <= 1'b1;
+                    S_raw10_wr_data[39:30] <= {S_csi_data_2d[15 : 8], I_csi_data[9:8]};  ///P8
+                    S_raw10_wr_data[29:20] <= {S_csi_data_2d[7 : 0], I_csi_data[11:10]};  ///P9
+                    S_raw10_wr_data[19:10] <= {I_csi_data[31:24], I_csi_data[13:12]};  ///P10
+                    S_raw10_wr_data[9:0]   <= {I_csi_data[23:16], I_csi_data[15:14]};  ///P11
+                end
+                3'd3: begin
+                    S_raw10_wr_en          <= 1'b1;
+                    S_raw10_wr_data[39:30] <= {S_csi_data_2d[7 : 0], I_csi_data[1:0]};  ///P12
+                    S_raw10_wr_data[29:20] <= {I_csi_data[31:24], I_csi_data[3:2]};  ///P13
+                    S_raw10_wr_data[19:10] <= {I_csi_data[23:16], I_csi_data[5:4]};  ///P14
+                    S_raw10_wr_data[9:0]   <= {I_csi_data[15 : 8], I_csi_data[7:6]};  ///P15
+                end
+                3'd4: begin
+                    S_raw10_wr_en          <= 1'b0;
+                    S_raw10_wr_data[39:30] <= 'd0;
+                    S_raw10_wr_data[29:20] <= 'd0;
+                    S_raw10_wr_data[19:10] <= 'd0;
+                    S_raw10_wr_data[9:0]   <= 'd0;
+                end
+            endcase
+        end else begin
+            S_raw10_wr_en          <= 1'b0;
+            S_raw10_wr_data[39:30] <= 'd0;
+            S_raw10_wr_data[29:20] <= 'd0;
+            S_raw10_wr_data[19:10] <= 'd0;
+            S_raw10_wr_data[9:0]   <= 'd0;
+        end
+    end
+
+    always @(posedge I_clk) begin
+        O_raw10_data <= {
+            S_raw10_wr_data[9:0],
+            S_raw10_wr_data[19:10],
+            S_raw10_wr_data[29:20],
+            S_raw10_wr_data[39:30]
+        };
+        O_raw10_valid <= S_raw10_wr_en;
+    end
+
+    /*
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n)
             S_fifo_rd_en <= 1'b0;

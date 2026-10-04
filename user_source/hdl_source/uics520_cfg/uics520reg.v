@@ -1,3 +1,7 @@
+// Anlu2 源码说明：SC520保留的原始模式寄存器表。
+// 接口与使用约定：不是当前720p60初始化入口；更换表时必须同步RAW/ISP尺寸、lane速率和显示带宽。
+// 工程状态：未直接列入TD编译清单；见doc/CODE_GUIDE.md。
+
 `timescale 1ns / 1ps
 
 // SC520CS A0-based experimental setting:
@@ -6,9 +10,9 @@
 //   it is not an FAE-confirmed 2x2-binning setting.
 // Register 0x550f is set to 0x8a for the SC520CS-03 material revision.
 module uics520reg (
-    input  wire [8:0]  REG_INDEX,
+    input  wire [ 8:0] REG_INDEX,
     output reg  [23:0] REG_DATA,
-    output wire [8:0]  REG_SIZE
+    output wire [ 8:0] REG_SIZE
 );
     assign REG_SIZE = 9'd162;
 
@@ -36,13 +40,13 @@ module uics520reg (
             9'd19: REG_DATA = {16'h3205, 8'h27};
             9'd20: REG_DATA = {16'h3206, 8'h07};
             9'd21: REG_DATA = {16'h3207, 8'ha7};
-            9'd22: REG_DATA = {16'h3208, 8'h05}; // output width  = 1280 (0x0500)
+            9'd22: REG_DATA = {16'h3208, 8'h05};  // output width  = 1280 (0x0500)
             9'd23: REG_DATA = {16'h3209, 8'h00};
-            9'd24: REG_DATA = {16'h320a, 8'h02}; // output height = 720 (0x02d0)
+            9'd24: REG_DATA = {16'h320a, 8'h02};  // output height = 720 (0x02d0)
             9'd25: REG_DATA = {16'h320b, 8'hd0};
-            9'd26: REG_DATA = {16'h3210, 8'h02}; // centered X start = (2600-1280)/2 = 660
+            9'd26: REG_DATA = {16'h3210, 8'h02};  // centered X start = (2600-1280)/2 = 660
             9'd27: REG_DATA = {16'h3211, 8'h94};
-            9'd28: REG_DATA = {16'h3212, 8'h02}; // centered Y start = (1960-720)/2 = 620
+            9'd28: REG_DATA = {16'h3212, 8'h02};  // centered Y start = (1960-720)/2 = 620
             9'd29: REG_DATA = {16'h3213, 8'h6c};
             9'd30: REG_DATA = {16'h3301, 8'h08};
             9'd31: REG_DATA = {16'h3306, 8'h60};
@@ -111,7 +115,7 @@ module uics520reg (
             9'd94: REG_DATA = {16'h3926, 8'h23};
             9'd95: REG_DATA = {16'h3c04, 8'h01};
             9'd96: REG_DATA = {16'h3e00, 8'h00};
-            9'd97: REG_DATA = {16'h3e01, 8'haf}; // initial exposure = 2800 half-lines
+            9'd97: REG_DATA = {16'h3e01, 8'haf};  // initial exposure = 2800 half-lines
             9'd98: REG_DATA = {16'h3e02, 8'h00};
             9'd99: REG_DATA = {16'h3e09, 8'h00};
             9'd100: REG_DATA = {16'h4401, 8'h13};
@@ -147,7 +151,7 @@ module uics520reg (
             9'd130: REG_DATA = {16'h5000, 8'h0e};
             9'd131: REG_DATA = {16'h5007, 8'h00};
             9'd132: REG_DATA = {16'h550e, 8'h00};
-            9'd133: REG_DATA = {16'h550f, 8'h8a}; // SC520CS-03 material setting
+            9'd133: REG_DATA = {16'h550f, 8'h8a};  // SC520CS-03 material setting
             9'd134: REG_DATA = {16'h5780, 8'h66};
             9'd135: REG_DATA = {16'h5787, 8'h08};
             9'd136: REG_DATA = {16'h5788, 8'h04};
