@@ -12,8 +12,13 @@
 
 module design_top_wrapper #(
     parameter integer VIDEO_ENHANCE_ENABLE = 1,
-    parameter integer VIDEO_GAMMA_ENABLE   = 1,
-    parameter integer VIDEO_SHARPEN_ENABLE = 1
+    parameter integer VIDEO_GAMMA_ENABLE      = 1,
+    parameter integer VIDEO_SHARPEN_ENABLE    = 1,
+    parameter integer VIDEO_CONTRAST_ENABLE   = 1,
+    parameter integer VIDEO_SATURATION_ENABLE = 1,
+    parameter integer VIDEO_BLACK_LEVEL       = 12,
+    parameter integer VIDEO_WHITE_LEVEL       = 238,
+    parameter integer VIDEO_SATURATION_Q8     = 320
 ) (
     input wire I_sys_clk,
     input wire I_rst_n,
@@ -784,7 +789,12 @@ module design_top_wrapper #(
     video_enhance #(
         .ENABLE(VIDEO_ENHANCE_ENABLE),
         .GAMMA_ENABLE(VIDEO_GAMMA_ENABLE),
-        .SHARPEN_ENABLE(VIDEO_SHARPEN_ENABLE)
+        .SHARPEN_ENABLE(VIDEO_SHARPEN_ENABLE),
+        .CONTRAST_ENABLE(VIDEO_CONTRAST_ENABLE),
+        .SATURATION_ENABLE(VIDEO_SATURATION_ENABLE),
+        .BLACK_LEVEL(VIDEO_BLACK_LEVEL),
+        .WHITE_LEVEL(VIDEO_WHITE_LEVEL),
+        .SATURATION_Q8(VIDEO_SATURATION_Q8)
     ) u_video_enhance (
         .clk(S_hdmi_pixel_clk),
         .rst_n(S_hdmi_rst_n),
