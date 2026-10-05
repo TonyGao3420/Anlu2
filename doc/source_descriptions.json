@@ -100,8 +100,8 @@
     "读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志让后级增强保留OSD原色。"
   ],
   "video/video_enhance.v": [
-    "显示RGB通路：黑白场扩展、近似亮度色差增强、限幅水平锐化和gamma=1.8映射，改善灰雾、饱和度和细节。",
-    "RGB与VS/HS/DE三级流水严格对齐；保护OSD/调试色，DE边界复制邻点。可独立关闭对比度、饱和度、gamma和锐化。"
+    "显示RGB通路先在亮度Y域扩展黑白场并限制黑白端色差，再做gamma=1.8亮度映射和限幅水平锐化。",
+    "RGB与VS/HS/DE三级流水严格对齐；保护OSD/调试色，DE边界复制邻点。对比度、饱和度、gamma和锐化可独立配置。"
   ],
   "hdmi_tx.v": [
     "把RGB时序转为HDMI核使用的user/valid/last流，并连接TMDS发送物理层。",

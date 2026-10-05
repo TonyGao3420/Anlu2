@@ -4,7 +4,7 @@
 
 // Anlu2 视频显示增强：三级流水，输入/输出均为每拍一个 RGB888 像素。
 // clk=HDMI 像素时钟；rst_n=低有效复位。VS/HS/DE 与 RGB 一起延迟。
-// 先做有阈值和限幅的水平三点锐化，再做 gamma=1.8 的显示曲线。
+// 先按亮度做对比度/色彩映射，再做阈值限幅的水平锐化和gamma=1.8亮度曲线。
 // protect 用于 OSD/测试图：原样输出并隔离邻接像素，避免文字边缘光晕。
 // 左右边界复制中心像素；DE=0 清除邻域，绝不跨行取样。
 // ENABLE=0 仍保持同样的流水延迟，可直接进行同场景 A/B 对比。
@@ -17,8 +17,8 @@ module video_enhance #(
     parameter integer BLACK_LEVEL = 12,
     parameter integer WHITE_LEVEL = 238,
     parameter integer SATURATION_Q8 = 320,
-    parameter integer DETAIL_LIMIT = 12,
-    parameter integer NOISE_THRESHOLD = 8
+    parameter integer DETAIL_LIMIT = 20,
+    parameter integer NOISE_THRESHOLD = 4
 ) (
     input  wire        clk,
     input  wire        rst_n,
@@ -58,28 +58,37 @@ module video_enhance #(
         end
     endfunction
 
-    // 在近似亮度Y周围放大色差，灰阶的Cb/Cr为零，因此中性灰不偏色。
+    // 只在近似亮度Y上拉伸黑白场，避免RGB通道各自触顶造成高光/阴影偏色。
     function [23:0] color_grade;
         input [23:0] rgb;
         integer y;
+        integer mapped_y;
         integer cb;
         integer cr;
         integer cb_scaled;
         integer cr_scaled;
+        integer saturation_q8;
         integer red_value;
         integer green_value;
         integer blue_value;
         integer green_delta;
         begin
             y = (77 * rgb[23:16] + 150 * rgb[15:8] + 29 * rgb[7:0] + 128) >> 8;
+            if (CONTRAST_ENABLE != 0) mapped_y = contrast_channel(y[7:0]);
+            else mapped_y = y;
+
             cb = $signed({1'b0, rgb[7:0]}) - y;
             cr = $signed({1'b0, rgb[23:16]}) - y;
-            cb_scaled = (cb * SATURATION_Q8) >>> 8;
-            cr_scaled = (cr * SATURATION_Q8) >>> 8;
+            saturation_q8 = (SATURATION_ENABLE != 0) ? SATURATION_Q8 : 256;
+            // 黑位和白位附近逐步减小色差，避免端点通道限幅后形成色边。
+            if (mapped_y < 32) saturation_q8 = (saturation_q8 * mapped_y) >> 5;
+            else if (mapped_y > 223) saturation_q8 = (saturation_q8 * (255 - mapped_y)) >> 5;
+            cb_scaled = (cb * saturation_q8) >>> 8;
+            cr_scaled = (cr * saturation_q8) >>> 8;
             green_delta = (131 * cr_scaled + 49 * cb_scaled) >>> 8;
-            red_value = y + cr_scaled;
-            green_value = y - green_delta;
-            blue_value = y + cb_scaled;
+            red_value = mapped_y + cr_scaled;
+            green_value = mapped_y - green_delta;
+            blue_value = mapped_y + cb_scaled;
             if (red_value < 0) red_value = 0;
             else if (red_value > 255) red_value = 255;
             if (green_value < 0) green_value = 0;
@@ -92,13 +101,9 @@ module video_enhance #(
 
     function [23:0] prepare_pixel;
         input [23:0] rgb;
-        reg [23:0] stretched;
         begin
-            if (CONTRAST_ENABLE != 0)
-                stretched = {contrast_channel(rgb[23:16]), contrast_channel(rgb[15:8]), contrast_channel(rgb[7:0])};
-            else stretched = rgb;
-            if (SATURATION_ENABLE != 0) prepare_pixel = color_grade(stretched);
-            else prepare_pixel = stretched;
+            if (ENABLE != 0) prepare_pixel = color_grade(rgb);
+            else prepare_pixel = rgb;
         end
     endfunction
 
@@ -387,6 +392,32 @@ module video_enhance #(
         end
     endfunction
 
+    // Gamma作用于亮度，给三个通道施加相同偏移，避免逐通道Gamma改变色相。
+    function [23:0] gamma_pixel;
+        input [23:0] rgb;
+        integer y;
+        integer mapped_y;
+        integer offset;
+        integer red_value;
+        integer green_value;
+        integer blue_value;
+        begin
+            y = (77 * rgb[23:16] + 150 * rgb[15:8] + 29 * rgb[7:0] + 128) >> 8;
+            mapped_y = gamma_lut(y[7:0]);
+            offset = mapped_y - y;
+            red_value = rgb[23:16] + offset;
+            green_value = rgb[15:8] + offset;
+            blue_value = rgb[7:0] + offset;
+            if (red_value < 0) red_value = 0;
+            else if (red_value > 255) red_value = 255;
+            if (green_value < 0) green_value = 0;
+            else if (green_value > 255) green_value = 255;
+            if (blue_value < 0) blue_value = 0;
+            else if (blue_value > 255) blue_value = 255;
+            gamma_pixel = {red_value[7:0], green_value[7:0], blue_value[7:0]};
+        end
+    endfunction
+
     wire [23:0] left_sample = left_protect ? center_rgb : left_rgb;
     wire [23:0] right_sample = (in_de && !in_protect) ? prepare_pixel(in_rgb) : center_rgb;
 
@@ -438,12 +469,7 @@ module video_enhance #(
             out_hsync <= sharp_hs;
             if (!sharp_de) out_rgb <= 24'd0;
             else if (!ENABLE || !GAMMA_ENABLE || sharp_protect) out_rgb <= sharp_rgb;
-            else
-                out_rgb <= {
-                    gamma_lut(sharp_rgb[23:16]),
-                    gamma_lut(sharp_rgb[15:8]),
-                    gamma_lut(sharp_rgb[7:0])
-                };
+            else out_rgb <= gamma_pixel(sharp_rgb);
         end
     end
 endmodule

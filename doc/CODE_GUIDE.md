@@ -150,7 +150,7 @@
 | [hdl_source/uiisp_beta/csi_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/csi_unpacket_2lane.v) | csi_unpacket_2lane | 否/IP间接 | 两通道CSI解包器的历史副本。 与isp/csi_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/uiisp_beta/raw10_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 否/IP间接 | 两通道RAW10解包器的历史副本。 与isp/raw10_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/video/hdmi_output_wrapper.v](../user_source/hdl_source/video/hdmi_output_wrapper.v) | hdmi_output_wrapper | 否/IP间接 | 显示信号直通占位封装。 仅组合透传VS/HS/DE/RGB，不实现TMDS编码，也未接入当前顶层。 |
-| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | 显示RGB依次做黑白场扩展、色差饱和度增强、限幅水平锐化和gamma=1.8映射。三级流水使同步与数据严格等延迟；DE边界复制邻点，OSD及测试图可保护；各处理可独立关闭。 |
+| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | 在亮度Y上扩展黑白场、限制黑白端色差并运行gamma=1.8，再做限幅水平锐化。三级流水使同步与数据严格等延迟；DE边界复制邻点，OSD及测试图可保护；处理可单独关闭。 |
 | [hdl_source/video_cuttting.v](../user_source/hdl_source/video_cuttting.v) | video_cutting | 否/IP间接 | 旧RAW8固定区域裁剪，按行有效边沿计数并选择固定行列区间。 模块名video_cutting，输出258组×602行供旧插值路径使用，当前未启用。 |
 | [hdl_source/video_in.v](../user_source/hdl_source/video_in.v) | video_in | 是 | 摄像头到DDR写通路：异步FIFO跨时钟，按240字突发写入四帧轮转缓存。 frame_start为提前复位FIFO的通知，不能随意改成首像素同拍；写地址每次加8，四帧基地址与video_out必须一致。 |
 | [hdl_source/video_out.v](../user_source/hdl_source/video_out.v) | video_out | 是 | DDR到HDMI读通路：预读128位字到异步FIFO，再按24位RGB顺序输出。 每16像素读取3个128位字；读请求到RGB经过FIFO及输出寄存级，hdmi_mixer的DE必须与这两级一致。 |

@@ -18,7 +18,9 @@ module design_top_wrapper #(
     parameter integer VIDEO_SATURATION_ENABLE = 1,
     parameter integer VIDEO_BLACK_LEVEL       = 12,
     parameter integer VIDEO_WHITE_LEVEL       = 238,
-    parameter integer VIDEO_SATURATION_Q8     = 320
+    parameter integer VIDEO_SATURATION_Q8     = 256,
+    parameter integer VIDEO_DETAIL_LIMIT       = 20,
+    parameter integer VIDEO_NOISE_THRESHOLD    = 4
 ) (
     input wire I_sys_clk,
     input wire I_rst_n,
@@ -794,7 +796,9 @@ module design_top_wrapper #(
         .SATURATION_ENABLE(VIDEO_SATURATION_ENABLE),
         .BLACK_LEVEL(VIDEO_BLACK_LEVEL),
         .WHITE_LEVEL(VIDEO_WHITE_LEVEL),
-        .SATURATION_Q8(VIDEO_SATURATION_Q8)
+        .SATURATION_Q8(VIDEO_SATURATION_Q8),
+        .DETAIL_LIMIT(VIDEO_DETAIL_LIMIT),
+        .NOISE_THRESHOLD(VIDEO_NOISE_THRESHOLD)
     ) u_video_enhance (
         .clk(S_hdmi_pixel_clk),
         .rst_n(S_hdmi_rst_n),
