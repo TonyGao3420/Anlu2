@@ -778,7 +778,8 @@ module hdmi_mixer #(
                (S_y_2d >= LOGO_Y) && (S_y_2d < (LOGO_Y + LOGO_H))) begin
                 S_logo_x = S_x_2d - LOGO_X;
                 S_logo_y = S_y_2d - LOGO_Y;
-                S_logo_addr = S_logo_y * LOGO_W + S_logo_x;
+                // LOGO_W=160=128+32：显式移位相加，避免地址路径映射为DSP乘法器。
+                S_logo_addr = {S_logo_y, 7'b0} + {S_logo_y, 5'b0} + S_logo_x;
                 if (S_logo_pixel[24]) begin
                     S_osd_hit   = 1'b1;
                     S_osd_color = S_logo_pixel[23:0];

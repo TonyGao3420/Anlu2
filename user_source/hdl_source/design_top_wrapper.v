@@ -1,5 +1,5 @@
 // Anlu2 源码说明：板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。
-// 接口与使用约定：50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。顶层 VIDEO_* 参数控制显示增强；Track2 信号目前未接入。
+// 接口与使用约定：50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。显示端直通mixer RGB；Track2信号目前未接入。
 // 工程状态：已列入TD编译清单。
 
 // ================================================================
@@ -10,18 +10,7 @@
 // Layer 2: Track2 extension for target detection and bbox overlay
 // ================================================================
 
-module design_top_wrapper #(
-    parameter integer VIDEO_ENHANCE_ENABLE = 1,
-    parameter integer VIDEO_GAMMA_ENABLE      = 1,
-    parameter integer VIDEO_SHARPEN_ENABLE    = 1,
-    parameter integer VIDEO_CONTRAST_ENABLE   = 1,
-    parameter integer VIDEO_SATURATION_ENABLE = 1,
-    parameter integer VIDEO_BLACK_LEVEL       = 12,
-    parameter integer VIDEO_WHITE_LEVEL       = 238,
-    parameter integer VIDEO_SATURATION_Q8     = 256,
-    parameter integer VIDEO_DETAIL_LIMIT       = 20,
-    parameter integer VIDEO_NOISE_THRESHOLD    = 4
-) (
+module design_top_wrapper (
     input wire I_sys_clk,
     input wire I_rst_n,
 
@@ -179,7 +168,6 @@ module design_top_wrapper #(
     wire         S_hdmi_out_hsync;
     wire         S_hdmi_out_de;
     wire [ 23:0] S_hdmi_out_data;
-    wire         S_hdmi_out_protect;
 
     wire [ 23:0] S_video_rd_data;
     wire         S_track2_vsync;
@@ -199,10 +187,6 @@ module design_top_wrapper #(
     wire         S_track2_bbox_drawn;
     wire         S_track2_selfcheck_ok;
     wire [  3:0] S_track2_selfcheck_status;
-    wire [ 23:0] S_hdmi_final_data;
-    wire         S_hdmi_final_vsync;
-    wire         S_hdmi_final_hsync;
-    wire         S_hdmi_final_de;
 
     reg          S_dbg_raw_seen;
     reg          S_dbg_isp_seen;
@@ -782,37 +766,12 @@ module design_top_wrapper #(
         .O_hdmi_vsync   (S_hdmi_out_vsync),
         .O_hdmi_hsync   (S_hdmi_out_hsync),
         .O_hdmi_de      (S_hdmi_out_de),
-        .O_hdmi_protect (S_hdmi_out_protect),
+        .O_hdmi_protect (),
         .O_hdmi_data    (S_hdmi_out_data)
     );
 
-    // 显示增强只位于读帧/OSD之后，三级流水同步延迟 VS/HS/DE。
-    // DDR读请求继续来自原VTC，增强模块不反压摄像头或帧缓存。
-    video_enhance #(
-        .ENABLE(VIDEO_ENHANCE_ENABLE),
-        .GAMMA_ENABLE(VIDEO_GAMMA_ENABLE),
-        .SHARPEN_ENABLE(VIDEO_SHARPEN_ENABLE),
-        .CONTRAST_ENABLE(VIDEO_CONTRAST_ENABLE),
-        .SATURATION_ENABLE(VIDEO_SATURATION_ENABLE),
-        .BLACK_LEVEL(VIDEO_BLACK_LEVEL),
-        .WHITE_LEVEL(VIDEO_WHITE_LEVEL),
-        .SATURATION_Q8(VIDEO_SATURATION_Q8),
-        .DETAIL_LIMIT(VIDEO_DETAIL_LIMIT),
-        .NOISE_THRESHOLD(VIDEO_NOISE_THRESHOLD)
-    ) u_video_enhance (
-        .clk(S_hdmi_pixel_clk),
-        .rst_n(S_hdmi_rst_n),
-        .in_vsync(S_hdmi_out_vsync),
-        .in_hsync(S_hdmi_out_hsync),
-        .in_de(S_hdmi_out_de),
-        .in_protect(S_hdmi_out_protect),
-        .in_rgb(S_hdmi_out_data),
-        .out_vsync(S_hdmi_final_vsync),
-        .out_hsync(S_hdmi_final_hsync),
-        .out_de(S_hdmi_final_de),
-        .out_rgb(S_hdmi_final_data)
-    );
-
+    // 直通mixer的原始RGB与同步信号，避免显示后处理造成色偏、灰阶或过度锐化。
+    // 同时省去逐像素增强运算和流水寄存器；摄像头/ISP/DDR/OSD/HDMI主链路保持不变。
     hdmi_tx u_hdmi_tx (
         .I_pixel_clk       (S_hdmi_pixel_clk),
         .I_serial_clk      (S_hdmi_serial_clk),
@@ -822,13 +781,13 @@ module design_top_wrapper #(
         .O_edid_read_valid (),
         .O_edid_read_data  (),
         .I_video_rgb_enable(1'b1),
-        .I_video_in_vs     (S_hdmi_final_vsync),
-        .I_video_in_de     (S_hdmi_final_de),
+        .I_video_in_vs     (S_hdmi_out_vsync),
+        .I_video_in_de     (S_hdmi_out_de),
         .I_video_in_user   (1'b0),
         .I_video_in_valid  (1'b0),
         .I_video_in_last   (1'b0),
         .O_video_in_ready  (),
-        .I_video_in_data   (S_hdmi_final_data),
+        .I_video_in_data   (S_hdmi_out_data),
         .I_audio_valid     (1'b0),
         .I_audio_left_data (24'd0),
         .I_audio_right_data(24'd0),

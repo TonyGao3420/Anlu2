@@ -41,7 +41,6 @@ add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/hdmi_1_4b_tran
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/hdmi_phy_warpper.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/lane_lvds_10_1.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/hdmi_tx.v}
-add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/video/video_enhance.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/mipi_dphy_rx/mipi_dphy_rx_ph1p_mipiio_wrapper.sv}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/mipi_dphy_rx/ph1p_mipiio_rx_wrapper.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/mipi_dphy_rx/byte_aligner.enc.v}

@@ -1,7 +1,7 @@
 {
   "design_top_wrapper.v": [
     "板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。",
-    "50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。顶层 VIDEO_* 参数控制显示增强；Track2 信号目前未接入。"
+    "50 MHz板钟输入；摄像头/ISP/DDR/OSD/HDMI主链路保持原样，HDMI直接接收mixer的RGB与同步信号；Track2目前未接入。"
   ],
   "isp/isp_top.v": [
     "ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。",
@@ -97,11 +97,11 @@
   ],
   "hdmi_mixer.v": [
     "接收DDR输出像素，叠加Logo、中文字符和六位帧计数，或选择调试图案。",
-    "读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志让后级增强保留OSD原色。"
+    "读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志保留为兼容输出，当前显示端不接后处理。"
   ],
   "video/video_enhance.v": [
-    "显示RGB通路先在亮度Y域扩展黑白场并限制黑白端色差，再做gamma=1.8亮度映射和限幅水平锐化。",
-    "RGB与VS/HS/DE三级流水严格对齐；保护OSD/调试色，DE边界复制邻点。对比度、饱和度、gamma和锐化可独立配置。"
+    "显示增强实验模块，支持黑白场扩展、色度增强、锐化和gamma映射。",
+    "当前未列入TD工程清单且顶层无实例，因此不参与当前综合，也不改变输出颜色。"
   ],
   "hdmi_tx.v": [
     "把RGB时序转为HDMI核使用的user/valid/last流，并连接TMDS发送物理层。",

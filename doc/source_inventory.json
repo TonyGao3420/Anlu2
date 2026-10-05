@@ -114,7 +114,7 @@
     "direct": true,
     "lines": 835,
     "sha256": "03f9e5e0400da2d510e0cf23c0f755f90a29b3d3872b96adab07e1b2a8a712f6",
-    "purpose": "板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。 50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。顶层 VIDEO_* 参数控制显示增强；Track2 信号目前未接入。"
+    "purpose": "板级顶层：连接摄像头、两路MIPI接收、ISP、DDR2帧缓存、OSD和HDMI输出。HDMI直接接收mixer的RGB与同步信号；显示增强旁路，Track2目前未接入。"
   },
   {
     "file": "user_source/hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v",
@@ -136,7 +136,7 @@
     "direct": true,
     "lines": 1041,
     "sha256": "faf21a26018eeb55ebc25e06fc64b5f3c3c10f398e7117de486481d360d05701",
-    "purpose": "接收DDR输出像素，叠加Logo、中文字符和六位帧计数，或选择调试图案。 读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志让后级增强保留OSD原色。"
+    "purpose": "接收DDR输出像素，叠加Logo、中文字符和帧计数，或选择调试图案。读使能直接取VTC的DE；protect输出保留作兼容信号，当前显示端不接后处理。"
   },
   {
     "file": "user_source/hdl_source/hdmi_phy_warpper.v",
@@ -1511,7 +1511,7 @@
     "direct": true,
     "lines": 382,
     "sha256": "77bb369ec1f39b87ec4e262dc2b22fdc7626a93ea27bb9c719abb27511ca7670",
-    "purpose": "对显示RGB做限幅水平锐化和gamma=2.2提亮，改善暗部层次和横向细节。 三级流水；同步与数据严格等延迟。DE边界复制邻居，OSD及测试图可保护；ENABLE=0保持同样延迟的旁路。"
+    "purpose": "显示增强实验源码，支持黑白场扩展、色度增强、锐化和gamma映射；当前未加入TD编译清单且顶层不实例化，不消耗当前设计资源。"
   },
   {
     "file": "user_source/hdl_source/video_cuttting.v",

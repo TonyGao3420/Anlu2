@@ -16,9 +16,9 @@
 | [hdl_source/csi_unpacket.v](../user_source/hdl_source/csi_unpacket.v) | csi_unpacket | 否/IP间接 | 旧CSI载荷解析器，含cwc3调试探针实例。 未加入当前工程，若单独综合需要补齐调试核依赖。 |
 | [hdl_source/data_96bit_to_128bit.v](../user_source/hdl_source/data_96bit_to_128bit.v) | data_96bit_to_128bit | 否/IP间接 | 96→128位RGB打包器的根目录备份。 与isp/data96_128/data96_128.v同名模块，当前.al只编译后者；不要同时加入工程。 |
 | [hdl_source/debug/video_path_debug.v](../user_source/hdl_source/debug/video_path_debug.v) | video_path_debug | 否/IP间接 | 视频状态组合显示占位模块。 path_valid=VS&&DE不能作为当前极性下通路通过的判据；status_code只反映瞬时电平，非完整自检。 |
-| [hdl_source/design_top_wrapper.v](../user_source/hdl_source/design_top_wrapper.v) | design_top_wrapper | 是 | 板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。 50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。顶层 VIDEO_* 参数控制显示增强；Track2 信号目前未接入。 |
+| [hdl_source/design_top_wrapper.v](../user_source/hdl_source/design_top_wrapper.v) | design_top_wrapper | 是 | 板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。 50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。HDMI直接接收mixer RGB；显示增强模块已旁路；Track2信号目前未接入。 |
 | [hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v](../user_source/hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v) | hdmi_1_4b_transmitter_core_wrapper | 是 | HDMI协议编码/数据包核；厂商加密源码，无法检查内部算法。 |
-| [hdl_source/hdmi_mixer.v](../user_source/hdl_source/hdmi_mixer.v) | hdmi_mixer | 是 | 接收DDR输出像素，叠加Logo、中文字符和六位帧计数，或选择调试图案。 读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志让后级增强保留OSD原色。 |
+| [hdl_source/hdmi_mixer.v](../user_source/hdl_source/hdmi_mixer.v) | hdmi_mixer | 是 | 接收DDR输出像素，叠加Logo、中文字符和六位帧计数，或选择调试图案。 读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志保留为兼容输出，当前显示端不再接增强模块。 |
 | [hdl_source/hdmi_phy_warpper.v](../user_source/hdl_source/hdmi_phy_warpper.v) | hdmi_phy_wrapper | 是 | 调整TMDS十位编码字的位序，实例化三个数据通道和一个时钟通道串行器。 文件名沿用warp拼写，模块名为hdmi_phy_wrapper；必须保留每个10位字的位序与ODDR配合。 |
 | [hdl_source/hdmi_tx.v](../user_source/hdl_source/hdmi_tx.v) | hdmi_tx | 是 | 把RGB时序转为HDMI核使用的user/valid/last流，并连接TMDS发送物理层。 RGB模式由VS上升沿等待下一有效像素作为帧首；加密HDMI核固定1280×720。当前顶层关闭音频和EDID触发。 |
 | [hdl_source/I2S_receiver.v](../user_source/hdl_source/I2S_receiver.v) | I2S_receiver | 是 | 同步外部I2S时钟与串行数据，移位拼接左右声道24位采样。 HDMI像素钟域采样；当前视频工程将I2S输入置0，音频支路未启用。 |
@@ -150,7 +150,7 @@
 | [hdl_source/uiisp_beta/csi_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/csi_unpacket_2lane.v) | csi_unpacket_2lane | 否/IP间接 | 两通道CSI解包器的历史副本。 与isp/csi_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/uiisp_beta/raw10_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 否/IP间接 | 两通道RAW10解包器的历史副本。 与isp/raw10_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/video/hdmi_output_wrapper.v](../user_source/hdl_source/video/hdmi_output_wrapper.v) | hdmi_output_wrapper | 否/IP间接 | 显示信号直通占位封装。 仅组合透传VS/HS/DE/RGB，不实现TMDS编码，也未接入当前顶层。 |
-| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | 在亮度Y上扩展黑白场、限制黑白端色差并运行gamma=1.8，再做限幅水平锐化。三级流水使同步与数据严格等延迟；DE边界复制邻点，OSD及测试图可保护；处理可单独关闭。 |
+| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 否 | 保留的显示增强实验源码；当前未列入TD工程清单且顶层无实例，不影响当前颜色与资源。 |
 | [hdl_source/video_cuttting.v](../user_source/hdl_source/video_cuttting.v) | video_cutting | 否/IP间接 | 旧RAW8固定区域裁剪，按行有效边沿计数并选择固定行列区间。 模块名video_cutting，输出258组×602行供旧插值路径使用，当前未启用。 |
 | [hdl_source/video_in.v](../user_source/hdl_source/video_in.v) | video_in | 是 | 摄像头到DDR写通路：异步FIFO跨时钟，按240字突发写入四帧轮转缓存。 frame_start为提前复位FIFO的通知，不能随意改成首像素同拍；写地址每次加8，四帧基地址与video_out必须一致。 |
 | [hdl_source/video_out.v](../user_source/hdl_source/video_out.v) | video_out | 是 | DDR到HDMI读通路：预读128位字到异步FIFO，再按24位RGB顺序输出。 每16像素读取3个128位字；读请求到RGB经过FIFO及输出寄存级，hdmi_mixer的DE必须与这两级一致。 |
