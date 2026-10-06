@@ -170,6 +170,11 @@ module design_top_wrapper (
     wire         S_hdmi_out_hsync;
     wire         S_hdmi_out_de;
     wire [ 23:0] S_hdmi_out_data;
+    wire         S_hdmi_out_protect;
+    wire         S_hdmi_enhanced_vsync;
+    wire         S_hdmi_enhanced_hsync;
+    wire         S_hdmi_enhanced_de;
+    wire [ 23:0] S_hdmi_enhanced_data;
 
     wire [ 23:0] S_video_rd_data;
     wire         S_track2_valid;
@@ -843,12 +848,38 @@ module design_top_wrapper (
         .O_hdmi_vsync   (S_hdmi_out_vsync),
         .O_hdmi_hsync   (S_hdmi_out_hsync),
         .O_hdmi_de      (S_hdmi_out_de),
-        .O_hdmi_protect (),
+        .O_hdmi_protect (S_hdmi_out_protect),
         .O_hdmi_data    (S_hdmi_out_data)
     );
 
-    // 直通mixer的原始RGB与同步信号，避免显示后处理造成色偏、灰阶或过度锐化。
-    // 同时省去逐像素增强运算和流水寄存器；摄像头/ISP/DDR/OSD/HDMI主链路保持不变。
+    // Correct display brightness/contrast and detail after composition. The
+    // detector keeps using the pre-display RGB tap, while the mixer protects
+    // OSD pixels from enhancement and delays all timing signals with RGB.
+    video_enhance #(
+        .ENABLE(1),
+        .GAMMA_ENABLE(1),
+        .SHARPEN_ENABLE(1),
+        .CONTRAST_ENABLE(1),
+        .SATURATION_ENABLE(1),
+        .BLACK_LEVEL(12),
+        .WHITE_LEVEL(238),
+        .SATURATION_Q8(320),
+        .DETAIL_LIMIT(12),
+        .NOISE_THRESHOLD(8)
+    ) u_video_enhance (
+        .clk       (S_hdmi_pixel_clk),
+        .rst_n     (S_hdmi_rst_n),
+        .in_vsync  (S_hdmi_out_vsync),
+        .in_hsync  (S_hdmi_out_hsync),
+        .in_de     (S_hdmi_out_de),
+        .in_protect(S_hdmi_out_protect),
+        .in_rgb    (S_hdmi_out_data),
+        .out_vsync (S_hdmi_enhanced_vsync),
+        .out_hsync (S_hdmi_enhanced_hsync),
+        .out_de    (S_hdmi_enhanced_de),
+        .out_rgb   (S_hdmi_enhanced_data)
+    );
+
     hdmi_tx u_hdmi_tx (
         .I_pixel_clk       (S_hdmi_pixel_clk),
         .I_serial_clk      (S_hdmi_serial_clk),
@@ -858,13 +889,13 @@ module design_top_wrapper (
         .O_edid_read_valid (),
         .O_edid_read_data  (),
         .I_video_rgb_enable(1'b1),
-        .I_video_in_vs     (S_hdmi_out_vsync),
-        .I_video_in_de     (S_hdmi_out_de),
+        .I_video_in_vs     (S_hdmi_enhanced_vsync),
+        .I_video_in_de     (S_hdmi_enhanced_de),
         .I_video_in_user   (1'b0),
         .I_video_in_valid  (1'b0),
         .I_video_in_last   (1'b0),
         .O_video_in_ready  (),
-        .I_video_in_data   (S_hdmi_out_data),
+        .I_video_in_data   (S_hdmi_enhanced_data),
         .I_audio_valid     (1'b0),
         .I_audio_left_data (24'd0),
         .I_audio_right_data(24'd0),

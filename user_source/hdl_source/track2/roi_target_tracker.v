@@ -62,8 +62,17 @@ module roi_target_tracker #(
     reg [19:0] pixel_count;
     reg [11:0] min_x, min_y, max_x, max_y;
 
-    // RGB-to-HSV red-sector test. With R=max, |G-B| <= chroma/2 selects
-    // H within 30 degrees of red; chroma >= V/4 enforces S >= 0.25.
+    // 3x3 majority filter for red-mask cleanup. Two one-bit line stores keep
+    // the detector streaming at one pixel per clock with modest memory cost.
+    reg [IMG_W-1:0] mask_line_1;
+    reg [IMG_W-1:0] mask_line_2;
+    reg mask_top_x1, mask_top_x2;
+    reg mask_mid_x1, mask_mid_x2;
+    reg mask_bot_x1, mask_bot_x2;
+
+    // RGB-to-HSV red-sector approximation. The widened |G-B| limit tolerates
+    // moderate hue shifts (about 37 degrees from red); chroma >= V/4 enforces
+    // a minimum saturation while rejecting near-gray pixels.
     wire [7:0] green_blue_min = (rgb_pipe[15:8] < rgb_pipe[7:0])
                                 ? rgb_pipe[15:8] : rgb_pipe[7:0];
     wire [7:0] green_blue_diff = (rgb_pipe[15:8] < rgb_pipe[7:0])
@@ -72,8 +81,9 @@ module roi_target_tracker #(
     wire [7:0] red_chroma = rgb_pipe[23:16] - green_blue_min;
     wire red_is_max = (rgb_pipe[23:16] >= rgb_pipe[15:8]) &&
                       (rgb_pipe[23:16] >= rgb_pipe[7:0]);
+    wire [7:0] red_hue_tolerance = red_chroma - (red_chroma >> 2);
     wire red_hue_match = red_is_max &&
-                         (green_blue_diff <= (red_chroma >> 1));
+                         (green_blue_diff <= red_hue_tolerance);
     wire red_sat_match = red_chroma >= (rgb_pipe[23:16] >> 2);
     wire red_value_match = rgb_pipe[23:16] >= MIN_VALUE;
     wire hsv_red_match = red_hue_match && red_sat_match && red_value_match;
@@ -113,12 +123,23 @@ module roi_target_tracker #(
                                      : div_remainder_shift;
     wire [31:0] div_quotient_next = {div_quotient[30:0], div_subtract};
 
-    // Export the threshold mask with its matching active-pixel coordinates.
-    // The contour stage consumes this stream without touching the video path.
-    assign mask_valid = de_pipe;
-    assign red_mask   = match_pipe;
-    assign mask_x     = x_match_pipe;
-    assign mask_y     = y_match_pipe;
+    wire mask_top_now = (y_match_pipe >= 2) ? mask_line_2[x_match_pipe] : 1'b0;
+    wire mask_mid_now = (y_match_pipe >= 1) ? mask_line_1[x_match_pipe] : 1'b0;
+    wire [3:0] red_neighborhood_count =
+        {3'd0, mask_top_x2} + {3'd0, mask_top_x1} + {3'd0, mask_top_now} +
+        {3'd0, mask_mid_x2} + {3'd0, mask_mid_x1} + {3'd0, mask_mid_now} +
+        {3'd0, mask_bot_x2} + {3'd0, mask_bot_x1} + {3'd0, match_pipe};
+    wire filtered_pixel_valid = de_pipe && (x_match_pipe >= 1) && (y_match_pipe >= 1);
+    wire filtered_red_pixel = filtered_pixel_valid && mask_mid_x1 &&
+                              (red_neighborhood_count >= 3);
+    wire [11:0] filtered_x = x_match_pipe - 12'd1;
+    wire [11:0] filtered_y = y_match_pipe - 12'd1;
+
+    // Expose the denoised one-pixel-per-clock mask to the silhouette stage.
+    assign mask_valid = filtered_pixel_valid;
+    assign red_mask   = filtered_red_pixel;
+    assign mask_x     = filtered_x;
+    assign mask_y     = filtered_y;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -128,7 +149,9 @@ module roi_target_tracker #(
             roi_center_y       <= FRAME_CENTER_Y;
             roi_half_w_live    <= ROI_HALF_W;
             roi_half_h_live    <= ROI_HALF_H;
-            full_frame_search <= 1'b1;
+            // Start near the expected centered target to avoid distant red
+            // distractors. The acquisition assumes the target begins in ROI.
+            full_frame_search <= 1'b0;
             x_pipe             <= 12'd0;
             y_pipe             <= 12'd0;
             x_match_pipe       <= 12'd0;
@@ -144,6 +167,12 @@ module roi_target_tracker #(
             min_y              <= 12'hfff;
             max_x              <= 12'd0;
             max_y              <= 12'd0;
+            mask_top_x1        <= 1'b0;
+            mask_top_x2        <= 1'b0;
+            mask_mid_x1        <= 1'b0;
+            mask_mid_x2        <= 1'b0;
+            mask_bot_x1        <= 1'b0;
+            mask_bot_x2        <= 1'b0;
             target_valid       <= 1'b0;
             bbox_x0            <= 16'd0;
             bbox_y0            <= 16'd0;
@@ -169,7 +198,34 @@ module roi_target_tracker #(
             frame_done      <= 1'b0;
             result_update  <= 1'b0;
             dbg_roi_valid   <= in_de && in_roi;
-            dbg_color_match <= match_pipe;
+            dbg_color_match <= filtered_red_pixel;
+
+            // Keep the mask neighborhood aligned with the threshold pipeline.
+            if (de_pipe) begin
+                if (x_match_pipe == 0) begin
+                    mask_top_x1 <= mask_top_now;
+                    mask_top_x2 <= 1'b0;
+                    mask_mid_x1 <= mask_mid_now;
+                    mask_mid_x2 <= 1'b0;
+                    mask_bot_x1 <= match_pipe;
+                    mask_bot_x2 <= 1'b0;
+                end else begin
+                    mask_top_x2 <= mask_top_x1;
+                    mask_top_x1 <= mask_top_now;
+                    mask_mid_x2 <= mask_mid_x1;
+                    mask_mid_x1 <= mask_mid_now;
+                    mask_bot_x2 <= mask_bot_x1;
+                    mask_bot_x1 <= match_pipe;
+                end
+
+                if (y_match_pipe == 0) begin
+                    mask_line_2[x_match_pipe] <= 1'b0;
+                    mask_line_1[x_match_pipe] <= match_pipe;
+                end else begin
+                    mask_line_2[x_match_pipe] <= mask_line_1[x_match_pipe];
+                    mask_line_1[x_match_pipe] <= match_pipe;
+                end
+            end
 
             // Coordinates use the same frame-start, active-pixel and line-last
             // signals as hdmi_mixer, keeping the detection tap aligned to its RGB.
@@ -195,14 +251,14 @@ module roi_target_tracker #(
             y_match_pipe <= y_pipe;
             match_pipe <= de_pipe && roi_pipe && hsv_red_match;
 
-            if (match_pipe) begin
-                sum_x       <= sum_x + x_match_pipe;
-                sum_y       <= sum_y + y_match_pipe;
+            if (filtered_red_pixel) begin
+                sum_x       <= sum_x + filtered_x;
+                sum_y       <= sum_y + filtered_y;
                 pixel_count <= pixel_count + 20'd1;
-                if (x_match_pipe < min_x) min_x <= x_match_pipe;
-                if (y_match_pipe < min_y) min_y <= y_match_pipe;
-                if (x_match_pipe > max_x) max_x <= x_match_pipe;
-                if (y_match_pipe > max_y) max_y <= y_match_pipe;
+                if (filtered_x < min_x) min_x <= filtered_x;
+                if (filtered_y < min_y) min_y <= filtered_y;
+                if (filtered_x > max_x) max_x <= filtered_x;
+                if (filtered_y > max_y) max_y <= filtered_y;
             end
 
             // At frame start, publish the completed frame and begin collecting

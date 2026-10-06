@@ -969,10 +969,11 @@ module hdmi_mixer #(
             end
         end
 
-        // Keep the pixel-accurate red-object contour above the static OSD.
+        // Use a high-contrast magenta outline so the detector result is visible
+        // on the green-cast camera image and distinct from the red target.
         if (I_target_contour_pixel) begin
             S_osd_hit   = 1'b1;
-            S_osd_color = 24'h00ff00;
+            S_osd_color = 24'hff00ff;
         end
     end
 
