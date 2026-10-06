@@ -842,15 +842,15 @@ module design_top_wrapper (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
-    // Correct display brightness/contrast and detail after composition. The
-    // detector keeps using the pre-display RGB tap, while the mixer protects
-    // OSD pixels from enhancement and delays all timing signals with RGB.
+    // Preserve the official camera color path at the display output. Keep the
+    // six-stage timing pipeline aligned, but bypass the experimental tone,
+    // saturation, and sharpening adjustments until board colors are calibrated.
     video_enhance #(
-        .ENABLE(1),
-        .GAMMA_ENABLE(1),
-        .SHARPEN_ENABLE(1),
-        .CONTRAST_ENABLE(1),
-        .SATURATION_ENABLE(1),
+        .ENABLE(0),
+        .GAMMA_ENABLE(0),
+        .SHARPEN_ENABLE(0),
+        .CONTRAST_ENABLE(0),
+        .SATURATION_ENABLE(0),
         .BLACK_LEVEL(12),
         .WHITE_LEVEL(238),
         .SATURATION_Q8(320),

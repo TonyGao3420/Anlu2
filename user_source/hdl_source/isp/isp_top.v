@@ -79,9 +79,9 @@ module isp_top (
     awb #(
         .IMG_HEIGHT(720),
         .IMG_WIDTH (1280),
-        // Disable scene-dependent frame AWB: nearby occlusion changed its
-        // gray-world statistics and caused visible green/blue frame-to-frame casts.
-        .AUTO_GAIN_ENABLE(0)
+        // Retain the official ISP white-balance stage; awb.v slews each frame
+        // toward the measured neutral balance to reduce abrupt occlusion shifts.
+        .AUTO_GAIN_ENABLE(1)
     ) u_awb (
         .I_clk   (axi4s_video_aclk),
         .I_rst_n (I_rst_n),

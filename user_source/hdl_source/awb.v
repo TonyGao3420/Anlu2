@@ -169,44 +169,9 @@ module awb #(
                            计算增益                                       
 *****************************************************************/
 
-    wire [47:0] dout_R[3:0];
-    wire [47:0] dout_B[3:0];
-
-    wire done[3:0];
-
-    wire [47:0] in_r_x1;
-    wire [47:0] in_b_x1;
-    assign in_r_x1 = dout_R[0][47:0];
-    assign in_b_x1 = dout_B[0][47:0];
-
-
-
-    /*****************************************************************
-                   IP 调用                                    
-*****************************************************************/
-    //为了保证合理的延迟，这里使用了除法器
-
-    divider div_gen_G_R_r1 (
-        .clk(I_clk),  // input wire aclk
-        .rst(!I_rst_n),
-        // One calculation per frame uses the completed previous-frame sums.
-        .start(I_tuser),
-        .denominator(sum_r[0]),  // input wire [31 : 0] s_axis_divisor_tdata
-        .numerator({sum_g[0], 16'd0}),  // input wire [47 : 0] s_axis_dividend_tdata
-        .quotient(dout_R[0]),  // output wire [79 : 0] m_axis_dout_tdata
-        .done(done[0])
-    );
-
-    divider divide_G_B_r1 (
-        .clk(I_clk),  // input wire aclk
-        .rst(!I_rst_n),
-        .start(I_tuser),
-        .denominator(sum_b[0]),  // input wire [31 : 0] s_axis_divisor_tdata
-        .numerator({sum_g[0], 16'd0}),  // input wire [47 : 0] s_axis_dividend_tdata
-        .quotient(dout_B[0]),  // output wire [79 : 0] m_axis_dout_tdata
-        .done()
-    );
-
+    // R and B gains are needed only once per frame. A single 16-step
+    // fractional divider is time-multiplexed across both channels instead of
+    // instantiating two wide, fully-pipelined divider IP blocks.
 
     signal_delay #(
         .IMG_HEIGHT (IMG_HEIGHT),
@@ -230,30 +195,151 @@ module awb #(
                             ��������                                      
 *****************************************************************/
 
+    localparam [2:0] AWB_IDLE  = 3'd0;
+    localparam [2:0] AWB_R_INIT = 3'd1;
+    localparam [2:0] AWB_R_DIV  = 3'd2;
+    localparam [2:0] AWB_B_INIT = 3'd3;
+    localparam [2:0] AWB_B_DIV  = 3'd4;
+    localparam [2:0] AWB_UPDATE = 3'd5;
+
+    reg [2:0]  awb_div_state;
+    reg [31:0] awb_sum_g_hold;
+    reg [31:0] awb_sum_r_hold;
+    reg [31:0] awb_sum_b_hold;
+    reg [31:0] awb_divisor;
+    reg [32:0] awb_remainder;
+    reg        awb_integer_bit;
+    reg [15:0] awb_fraction;
+    reg [4:0]  awb_bit_count;
+    reg [19:0] awb_r_target;
+    reg [19:0] awb_b_target;
     reg [19:0] in_r_r1;
     reg [19:0] in_b_r1;
+
+    // Ratio bounds expressed as cross-multiplication avoid a second divider.
+    // Within [0.8, 1.25], the integer part is either zero or one, so 16
+    // restoring steps produce the exact floor((G << 16) / channel).
+    wire [31:0] awb_selected_den = (awb_div_state == AWB_R_INIT)
+                                   ? awb_sum_r_hold : awb_sum_b_hold;
+    wire [34:0] awb_sum_g_x4 = {1'b0, awb_sum_g_hold, 2'b00};
+    wire [34:0] awb_sum_g_x5 = {3'b000, awb_sum_g_hold} +
+                                ({3'b000, awb_sum_g_hold} << 2);
+    wire [34:0] awb_den_x4 = {1'b0, awb_selected_den, 2'b00};
+    wire [34:0] awb_den_x5 = {3'b000, awb_selected_den} +
+                              ({3'b000, awb_selected_den} << 2);
+    wire awb_ratio_below_min = awb_sum_g_x5 < awb_den_x4;
+    wire awb_ratio_above_max = awb_sum_g_x4 > awb_den_x5;
+    wire [32:0] awb_remainder_shifted = {awb_remainder[31:0], 1'b0};
+    wire [32:0] awb_den_extended = {1'b0, awb_divisor};
+    wire awb_fraction_bit = awb_remainder_shifted >= awb_den_extended;
+    wire [32:0] awb_remainder_next = awb_fraction_bit
+                                      ? awb_remainder_shifted - awb_den_extended
+                                      : awb_remainder_shifted;
+    wire [15:0] awb_fraction_next = {awb_fraction[14:0], awb_fraction_bit};
+    wire [19:0] r_gain_delta = (awb_r_target >= in_r_r1)
+                               ? (awb_r_target - in_r_r1)
+                               : (in_r_r1 - awb_r_target);
+    wire [19:0] b_gain_delta = (awb_b_target >= in_b_r1)
+                               ? (awb_b_target - in_b_r1)
+                               : (in_b_r1 - awb_b_target);
+
     always @(posedge I_clk or negedge I_rst_n) begin
-        // Keep the previous frame's gain while the next frame's ratio is calculated.
         if (!I_rst_n) begin
+            awb_div_state <= AWB_IDLE;
+            awb_sum_g_hold <= 32'd1;
+            awb_sum_r_hold <= 32'd1;
+            awb_sum_b_hold <= 32'd1;
+            awb_divisor <= 32'd1;
+            awb_remainder <= 33'd0;
+            awb_integer_bit <= 1'b0;
+            awb_fraction <= 16'd0;
+            awb_bit_count <= 5'd0;
+            awb_r_target <= 20'h10000;
+            awb_b_target <= 20'h10000;
             in_r_r1 <= 20'h10000;
             in_b_r1 <= 20'h10000;
-        end else if (AUTO_GAIN_ENABLE && done[0]) begin
-            if ((|in_r_x1[47:20]) || (in_r_x1[19:0] > AWB_MAX_GAIN_Q16))
-                in_r_r1 <= AWB_MAX_GAIN_Q16;
-            else if (in_r_x1[19:0] < AWB_MIN_GAIN_Q16)
-                in_r_r1 <= AWB_MIN_GAIN_Q16;
-            else
-                in_r_r1 <= in_r_x1[19:0];
+        end else begin
+            case (awb_div_state)
+                AWB_IDLE: begin
+                    if (AUTO_GAIN_ENABLE && I_tuser) begin
+                        // Capture the completed frame before the accumulators reset.
+                        awb_sum_g_hold <= sum_g[0];
+                        awb_sum_r_hold <= sum_r[0];
+                        awb_sum_b_hold <= sum_b[0];
+                        awb_div_state <= AWB_R_INIT;
+                    end
+                end
 
-            if ((|in_b_x1[47:20]) || (in_b_x1[19:0] > AWB_MAX_GAIN_Q16))
-                in_b_r1 <= AWB_MAX_GAIN_Q16;
-            else if (in_b_x1[19:0] < AWB_MIN_GAIN_Q16)
-                in_b_r1 <= AWB_MIN_GAIN_Q16;
-            else
-                in_b_r1 <= in_b_x1[19:0];
+                AWB_R_INIT, AWB_B_INIT: begin
+                    if (awb_ratio_below_min) begin
+                        if (awb_div_state == AWB_R_INIT)
+                            awb_r_target <= AWB_MIN_GAIN_Q16;
+                        else
+                            awb_b_target <= AWB_MIN_GAIN_Q16;
+                        awb_div_state <= (awb_div_state == AWB_R_INIT)
+                                         ? AWB_B_INIT : AWB_UPDATE;
+                    end else if (awb_ratio_above_max) begin
+                        if (awb_div_state == AWB_R_INIT)
+                            awb_r_target <= AWB_MAX_GAIN_Q16;
+                        else
+                            awb_b_target <= AWB_MAX_GAIN_Q16;
+                        awb_div_state <= (awb_div_state == AWB_R_INIT)
+                                         ? AWB_B_INIT : AWB_UPDATE;
+                    end else begin
+                        awb_divisor <= awb_selected_den;
+                        if (awb_sum_g_hold >= awb_selected_den) begin
+                            awb_remainder <= {1'b0, awb_sum_g_hold - awb_selected_den};
+                            awb_integer_bit <= 1'b1;
+                        end else begin
+                            awb_remainder <= {1'b0, awb_sum_g_hold};
+                            awb_integer_bit <= 1'b0;
+                        end
+                        awb_fraction <= 16'd0;
+                        awb_bit_count <= 5'd16;
+                        awb_div_state <= (awb_div_state == AWB_R_INIT)
+                                         ? AWB_R_DIV : AWB_B_DIV;
+                    end
+                end
+
+                AWB_R_DIV: begin
+                    awb_remainder <= awb_remainder_next;
+                    awb_fraction <= awb_fraction_next;
+                    if (awb_bit_count == 5'd1) begin
+                        awb_r_target <= {3'b000, awb_integer_bit, awb_fraction_next};
+                        awb_div_state <= AWB_B_INIT;
+                    end else begin
+                        awb_bit_count <= awb_bit_count - 5'd1;
+                    end
+                end
+
+                AWB_B_DIV: begin
+                    awb_remainder <= awb_remainder_next;
+                    awb_fraction <= awb_fraction_next;
+                    if (awb_bit_count == 5'd1) begin
+                        awb_b_target <= {3'b000, awb_integer_bit, awb_fraction_next};
+                        awb_div_state <= AWB_UPDATE;
+                    end else begin
+                        awb_bit_count <= awb_bit_count - 5'd1;
+                    end
+                end
+
+                AWB_UPDATE: begin
+                    // Preserve the 1/8 frame-to-frame gain slew.
+                    if (awb_r_target >= in_r_r1)
+                        in_r_r1 <= in_r_r1 + (r_gain_delta >> 3);
+                    else
+                        in_r_r1 <= in_r_r1 - (r_gain_delta >> 3);
+                    if (awb_b_target >= in_b_r1)
+                        in_b_r1 <= in_b_r1 + (b_gain_delta >> 3);
+                    else
+                        in_b_r1 <= in_b_r1 - (b_gain_delta >> 3);
+                    awb_div_state <= AWB_IDLE;
+                end
+
+                default: awb_div_state <= AWB_IDLE;
+            endcase
         end
     end
-
 
     ////信号同步
     always @(posedge I_clk or negedge I_rst_n) begin

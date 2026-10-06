@@ -5,7 +5,7 @@
   ],
   "isp/isp_top.v": [
     "ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。",
-    "IMG=1280×720、BAYER_MODE=BGGR；当前AWB动态增益关闭且使用单位增益。连续流接口，不支持背压。"
+    "IMG=1280×720、BAYER_MODE=BGGR；当前isp_top启用带帧间平滑的AWB增益。连续流接口，不支持背压。"
   ],
   "isp/csi_unpacket_2lane.v": [
     "解析两通道CSI-2数据包，识别DT=0x2B的RAW10载荷和帧开始/结束短包。",
@@ -57,7 +57,7 @@
   ],
   "awb.v": [
     "四像素RGB流白平衡节点；默认采用单位Q16增益，保持原色和原有流水延迟。",
-    "AUTO_GAIN_ENABLE=1时，才根据上一帧通道统计更新R/B增益；当前isp_top显式关闭动态增益。"
+    "AUTO_GAIN_ENABLE=1时，才根据上一帧通道统计更新R/B增益；当前isp_top启用动态增益并按每帧1/8误差量平滑。"
   ],
   "signal_delay.v": [
     "白平衡流水使用的RAM延迟/行有效重建模块。",

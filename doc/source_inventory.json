@@ -59,7 +59,7 @@
     "direct": true,
     "lines": 393,
     "sha256": "edd0858e2c9d21fa81128135615ff768e2a9f25b70b9957255b64e7b599c35ef",
-    "purpose": "四像素RGB流白平衡节点；当前 AUTO_GAIN_ENABLE=0，采用单位Q16增益保持原色和原有流水延迟。设为1后启用上一帧统计及R/B动态校正。"
+    "purpose": "四像素RGB流白平衡节点；AUTO_GAIN_ENABLE参数默认0，但当前isp_top显式设为1，增益限制在0.8至1.25倍并按每帧1/8误差量平滑。"
   },
   {
     "file": "user_source/hdl_source/camera/camera_frontend_wrapper.v",
@@ -543,7 +543,7 @@
     "direct": true,
     "lines": 118,
     "sha256": "92ecc171ffc45ede0e901c5b01990999b12d402c3d021a2c9b2f1122970d9c71",
-    "purpose": "ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；当前AWB动态增益关闭，采用单位增益。连续流接口，不支持背压。"
+    "purpose": "ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；当前启用帧间平滑的AWB动态增益。连续流接口，不支持背压。"
   },
   {
     "file": "user_source/hdl_source/isp/raw10_unpacket_2lane.v",
