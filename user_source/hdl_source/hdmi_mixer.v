@@ -1,5 +1,5 @@
-// Anlu2 源码说明：接收DDR输出像素，叠加Logo、中文字符和六位帧计数，或选择调试图案。
-// 接口与使用约定：读使能直接取VTC的DE，输出同步延迟三个寄存级。OSD_ENABLE=0关闭叠字；protect标志让后级增强保留OSD原色。
+// Anlu2 源码说明：接收DDR输出像素，叠加Logo、中文字符、帧计数和检测目标框，或选择调试图案。
+// 接口与使用约定：读使能直接取VTC的DE，目标框坐标来自同一像素时钟域；OSD_ENABLE控制静态OSD。
 // 工程状态：已列入TD编译清单。
 
 module hdmi_mixer #(
@@ -20,6 +20,9 @@ module hdmi_mixer #(
     input wire I_video_last,
 
     input wire [3:0] I_debug_status,
+
+    // 3x3 red-mask contour pulse from the display-only detector tap.
+    input wire        I_target_contour_pixel,
 
     output wire        O_video_rd_en,
     input  wire [23:0] I_video_rd_data,
@@ -964,6 +967,12 @@ module hdmi_mixer #(
                     S_osd_color = COLOR_DYN_TEXT;
                 end
             end
+        end
+
+        // Keep the pixel-accurate red-object contour above the static OSD.
+        if (I_target_contour_pixel) begin
+            S_osd_hit   = 1'b1;
+            S_osd_color = 24'h00ff00;
         end
     end
 

@@ -57,9 +57,9 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 379,
-    "sha256": "6d1f4113c21d8c5ddfb0dc220e66b152708d1f79607f0d5c895dc99878d16a8d",
-    "purpose": "当前使用的自动白平衡：统计RGB通道总和，以G/R和G/B生成Q16增益。 每组仅采样最低24位做统计，排除RGB和≥720的高亮样本；50级除法配合BRAM延迟。帧首信号是提前通知，不与输出首像素同拍。"
+    "lines": 393,
+    "sha256": "edd0858e2c9d21fa81128135615ff768e2a9f25b70b9957255b64e7b599c35ef",
+    "purpose": "四像素RGB流白平衡节点；当前 AUTO_GAIN_ENABLE=0，采用单位Q16增益保持原色和原有流水延迟。设为1后启用上一帧统计及R/B动态校正。"
   },
   {
     "file": "user_source/hdl_source/camera/camera_frontend_wrapper.v",
@@ -112,9 +112,9 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 835,
-    "sha256": "03f9e5e0400da2d510e0cf23c0f755f90a29b3d3872b96adab07e1b2a8a712f6",
-    "purpose": "板级顶层：连接摄像头、两路MIPI接收、ISP、DDR2帧缓存、OSD和HDMI输出。HDMI直接接收mixer的RGB与同步信号；显示增强旁路，Track2目前未接入。"
+    "lines": 837,
+    "sha256": "b78ede50a6c916ec580dfe2d7e79bafa14f1874bfb114323061a4f6bc8640909",
+    "purpose": "板级顶层：连接SC520双路MIPI、ISP、DDR帧缓存、OSD和HDMI；官方视频链路保持，ROI检测器只读观察DDR读像素并向mixer输出目标框。"
   },
   {
     "file": "user_source/hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v",
@@ -134,9 +134,9 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 1041,
-    "sha256": "faf21a26018eeb55ebc25e06fc64b5f3c3c10f398e7117de486481d360d05701",
-    "purpose": "接收DDR输出像素，叠加Logo、中文字符和帧计数，或选择调试图案。读使能直接取VTC的DE；protect输出保留作兼容信号，当前显示端不接后处理。"
+    "lines": 1066,
+    "sha256": "d5b0be932a354ced3355feabe2e5f3a6529889daf6607f2cdd85aea0b157f27c",
+    "purpose": "接收DDR输出像素并叠加Logo、字符、帧计数和目标掩码轮廓；轮廓像素覆盖在静态OSD之上。"
   },
   {
     "file": "user_source/hdl_source/hdmi_phy_warpper.v",
@@ -541,9 +541,9 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 117,
-    "sha256": "55ef6639180325a98730386cbd33174d86118189ab0477ed6e85d19d2c76f313",
-    "purpose": "ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；这是连续流接口，不支持背压。O_tready 是下游就绪输入，I_tready 是上游就绪输出。"
+    "lines": 118,
+    "sha256": "92ecc171ffc45ede0e901c5b01990999b12d402c3d021a2c9b2f1122970d9c71",
+    "purpose": "ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；当前AWB动态增益关闭，采用单位增益。连续流接口，不支持背压。"
   },
   {
     "file": "user_source/hdl_source/isp/raw10_unpacket_2lane.v",
@@ -2063,5 +2063,27 @@
     "lines": 169,
     "sha256": "2dbc6e71f314d926009b693a3ab14c36a42ed40af5984c202ec8449439e6291d",
     "purpose": "40位RAW数据FIFO及生成元数据；当前主通路未选用。"
+  },
+  {
+    "file": "user_source/hdl_source/track2/roi_target_tracker.v",
+    "modules": [
+      "roi_target_tracker"
+    ],
+    "kind": "可维护RTL",
+    "direct": true,
+    "lines": 274,
+    "sha256": "B413D5F7EEB3DD479E160941E5CB45715EF1819B930E1E4EF1676C94A3EC8679",
+    "purpose": "显示像素时钟域单红色目标原型：HSV扇区近似、面积筛选、像素外接框/质心和自适应搜索ROI；阈值掩码送入3×3轮廓模块，ROI内多个红色区域仍会合并。"
+  },
+  {
+    "file": "user_source/hdl_source/track2/red_mask_contour.v",
+    "modules": [
+      "red_mask_contour"
+    ],
+    "kind": "可维护RTL",
+    "direct": true,
+    "lines": 70,
+    "sha256": "DD2CDCB9613252BE054BAFAEB6F626CCE15449BF0520686B8ECC8E8A75818649",
+    "purpose": "用两条1-bit行缓存构造3×3红色掩码窗口，输出红色前景边界标记；显示叠加时序偏移需板级验证。"
   }
 ]

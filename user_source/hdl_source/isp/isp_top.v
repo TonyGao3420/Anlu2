@@ -78,7 +78,8 @@ module isp_top (
 
     awb #(
         .IMG_HEIGHT(720),
-        .IMG_WIDTH (1280)
+        .IMG_WIDTH (1280),
+        .AUTO_GAIN_ENABLE(0)
     ) u_awb (
         .I_clk   (axi4s_video_aclk),
         .I_rst_n (I_rst_n),

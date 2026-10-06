@@ -34,6 +34,9 @@ add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/vtc/uivtc.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/osd_char_lib.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/anlogic_logo_rom.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/hdmi_mixer.v}
+  add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/track2/roi_target_tracker.v}
+  add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/track2/red_mask_contour.v}
+  add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/track2/visual_servo_pwm.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/audio_arc_calculate.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/I2S_receiver.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/key_remove_shakes.v}

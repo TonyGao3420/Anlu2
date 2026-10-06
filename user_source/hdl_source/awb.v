@@ -1,5 +1,5 @@
-// Anlu2 源码说明：当前使用的自动白平衡：统计RGB通道总和，以G/R和G/B生成Q16增益。
-// 接口与使用约定：每组仅采样最低24位做统计，排除RGB和≥720的高亮样本；50级除法配合BRAM延迟。帧首信号是提前通知，不与输出首像素同拍。
+// Anlu2 源码说明：四像素RGB流白平衡节点；默认关闭动态通道增益，采用单位增益。
+// 接口与使用约定：数据延迟/打包接口保持不变；AUTO_GAIN_ENABLE=1时才按上一帧统计更新R/B的Q16增益。
 // 工程状态：已列入TD编译清单。
 
 /*****************************************************************
@@ -23,7 +23,9 @@ version:     :
 *****************************************************************/
 module awb #(
     parameter IMG_HEIGHT = 1080,
-    parameter IMG_WIDTH  = 1920
+    parameter IMG_WIDTH  = 1920,
+    // Keep the color baseline neutral until the sensor/AWB response is verified on board.
+    parameter integer AUTO_GAIN_ENABLE = 0
 ) (
     input I_clk,
     input I_rst_n,
@@ -41,6 +43,10 @@ module awb #(
     output        O_tvalid,
     input         O_tready
 );
+
+    // Q16 limits reject extreme ratios that amplify noise and cause strong channel casts.
+    localparam [19:0] AWB_MIN_GAIN_Q16 = 20'h08000; // 0.5x
+    localparam [19:0] AWB_MAX_GAIN_Q16 = 20'h20000; // 2.0x
 
     /*****************************************************************
                           RGB565תRGB888                                        
@@ -167,7 +173,8 @@ module awb #(
     divider div_gen_G_R_r1 (
         .clk(I_clk),  // input wire aclk
         .rst(!I_rst_n),
-        .start(I_tvalid_r1),
+        // One calculation per frame uses the completed previous-frame sums.
+        .start(I_tuser),
         .denominator(sum_r[0]),  // input wire [31 : 0] s_axis_divisor_tdata
         .numerator({sum_g[0], 16'd0}),  // input wire [47 : 0] s_axis_dividend_tdata
         .quotient(dout_R[0]),  // output wire [79 : 0] m_axis_dout_tdata
@@ -177,7 +184,7 @@ module awb #(
     divider divide_G_B_r1 (
         .clk(I_clk),  // input wire aclk
         .rst(!I_rst_n),
-        .start(I_tvalid_r1),
+        .start(I_tuser),
         .denominator(sum_b[0]),  // input wire [31 : 0] s_axis_divisor_tdata
         .numerator({sum_g[0], 16'd0}),  // input wire [47 : 0] s_axis_dividend_tdata
         .quotient(dout_B[0]),  // output wire [79 : 0] m_axis_dout_tdata
@@ -210,14 +217,24 @@ module awb #(
     reg [19:0] in_r_r1;
     reg [19:0] in_b_r1;
     always @(posedge I_clk or negedge I_rst_n) begin
-        if (!I_rst_n || I_tuser) begin
+        // Keep the previous frame's gain while the next frame's ratio is calculated.
+        if (!I_rst_n) begin
             in_r_r1 <= 20'h10000;
             in_b_r1 <= 20'h10000;
-        end else if (done[0]) begin
-            if (|in_r_x1[47:20]) in_r_r1 <= 20'hfffff;
-            else in_r_r1 <= in_r_x1[19:0];
-            if (|in_b_x1[47:20]) in_b_r1 <= 20'hfffff;
-            else in_b_r1 <= in_b_x1[19:0];
+        end else if (AUTO_GAIN_ENABLE && done[0]) begin
+            if ((|in_r_x1[47:20]) || (in_r_x1[19:0] > AWB_MAX_GAIN_Q16))
+                in_r_r1 <= AWB_MAX_GAIN_Q16;
+            else if (in_r_x1[19:0] < AWB_MIN_GAIN_Q16)
+                in_r_r1 <= AWB_MIN_GAIN_Q16;
+            else
+                in_r_r1 <= in_r_x1[19:0];
+
+            if ((|in_b_x1[47:20]) || (in_b_x1[19:0] > AWB_MAX_GAIN_Q16))
+                in_b_r1 <= AWB_MAX_GAIN_Q16;
+            else if (in_b_x1[19:0] < AWB_MIN_GAIN_Q16)
+                in_b_r1 <= AWB_MIN_GAIN_Q16;
+            else
+                in_b_r1 <= in_b_x1[19:0];
         end
     end
 
@@ -374,6 +391,3 @@ module awb #(
     assign I_tready = O_tready;
 
 endmodule
-
-
-

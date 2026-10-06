@@ -1,5 +1,5 @@
 // Anlu2 源码说明：板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。
-// 接口与使用约定：50 MHz 板钟输入；内部有摄像头像素、DDR、HDMI像素与串行多个时钟域。显示端直通mixer RGB；Track2信号目前未接入。
+// 接口与使用约定：50 MHz板钟输入；显示端沿用官方mixer通路，ROI检测器只读观察DDR输出RGB并提供框坐标。
 // 工程状态：已列入TD编译清单。
 
 // ================================================================
@@ -22,6 +22,8 @@ module design_top_wrapper (
     inout wire [1:0] I_button,
 
     output wire O_screen_pwm,
+    output wire O_servo_pan,
+    output wire O_servo_tilt,
     output wire O_tmds_ch0_p,
     output wire O_tmds_ch1_p,
     output wire O_tmds_ch2_p,
@@ -170,23 +172,21 @@ module design_top_wrapper (
     wire [ 23:0] S_hdmi_out_data;
 
     wire [ 23:0] S_video_rd_data;
-    wire         S_track2_vsync;
-    wire         S_track2_hsync;
-    wire         S_track2_de;
-    wire [ 23:0] S_track2_pixel;
     wire         S_track2_valid;
-    wire [ 15:0] S_track2_bbox_x0;
-    wire [ 15:0] S_track2_bbox_y0;
-    wire [ 15:0] S_track2_bbox_x1;
-    wire [ 15:0] S_track2_bbox_y1;
     wire [ 15:0] S_track2_cx;
     wire [ 15:0] S_track2_cy;
     wire [ 15:0] S_track2_area;
-    wire         S_track2_roi_valid;
-    wire         S_track2_color_match_ok;
-    wire         S_track2_bbox_drawn;
-    wire         S_track2_selfcheck_ok;
-    wire [  3:0] S_track2_selfcheck_status;
+    wire         S_track2_frame_done;
+    wire         S_track2_result_update;
+    wire         S_track2_mask_valid;
+    wire         S_track2_red_mask;
+    wire [11:0]   S_track2_mask_x;
+    wire [11:0]   S_track2_mask_y;
+    wire         S_track2_contour;
+    wire         S_track2_contour_raw;
+    wire         S_track2_dbg_roi_valid;
+    wire         S_track2_dbg_color_match;
+    reg          S_track2_result_toggle;
 
     reg          S_dbg_raw_seen;
     reg          S_dbg_isp_seen;
@@ -746,6 +746,82 @@ module design_top_wrapper (
         .O_vtc_last    (S_hdmi_last)
     );
 
+    // Read-only detector tap: it observes the exact RGB/DE stream consumed by
+    // the mixer and cannot stall or alter the official DDR-to-HDMI video path.
+    roi_target_tracker #(
+        .IMG_W       (1280),
+        .IMG_H       (720),
+        .ROI_HALF_W  (320),
+        .ROI_HALF_H  (180),
+        .MIN_VALUE   (32),
+        .MIN_AREA    (64),
+        .MAX_AREA    (20000)
+    ) u_roi_target_tracker (
+        .clk             (S_hdmi_pixel_clk),
+        .rst_n           (S_hdmi_rst_n),
+        .in_frame_start  (S_hdmi_user),
+        .in_de           (S_hdmi_window_rd_en),
+        .in_line_last    (S_hdmi_last),
+        .in_rgb          (S_video_rd_data),
+        .target_valid    (S_track2_valid),
+        .bbox_x0         (),
+        .bbox_y0         (),
+        .bbox_x1         (),
+        .bbox_y1         (),
+        .centroid_x      (S_track2_cx),
+        .centroid_y      (S_track2_cy),
+        .target_area     (S_track2_area),
+        .frame_done      (S_track2_frame_done),
+        .result_update   (S_track2_result_update),
+        .mask_valid      (S_track2_mask_valid),
+        .red_mask        (S_track2_red_mask),
+        .mask_x          (S_track2_mask_x),
+        .mask_y          (S_track2_mask_y),
+        .dbg_roi_valid   (S_track2_dbg_roi_valid),
+        .dbg_color_match (S_track2_dbg_color_match)
+    );
+
+    // A 3x3 mask contour follows the red object's observed silhouette.
+    // It is a display-only tap; the original RGB stream remains untouched.
+    red_mask_contour #(
+        .IMG_W(1280)
+    ) u_red_mask_contour (
+        .clk         (S_hdmi_pixel_clk),
+        .rst_n       (S_hdmi_rst_n),
+        .in_valid    (S_track2_mask_valid),
+        .in_x        (S_track2_mask_x),
+        .in_y        (S_track2_mask_y),
+        .in_mask     (S_track2_red_mask),
+        .out_contour (S_track2_contour_raw)
+    );
+    // Do not outline red OSD/logo pixels during initial full-frame acquisition.
+    assign S_track2_contour = S_track2_valid && S_track2_contour_raw;
+
+    // The tracker publishes only complete frame results. Toggle-based bundled
+    // data crosses safely to the independent 50 MHz servo timing domain.
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
+        if (!S_hdmi_rst_n)
+            S_track2_result_toggle <= 1'b0;
+        else if (S_track2_result_update)
+            S_track2_result_toggle <= ~S_track2_result_toggle;
+    end
+
+    visual_servo_pwm #(
+        .IMG_W(1280),
+        .IMG_H(720),
+        .PAN_REVERSE(0),
+        .TILT_REVERSE(0)
+    ) u_visual_servo_pwm (
+        .clk_50m          (I_sys_clk),
+        .rst_n            (I_rst_n),
+        .source_toggle    (S_track2_result_toggle),
+        .target_valid_async(S_track2_valid),
+        .target_x_async   (S_track2_cx),
+        .target_y_async   (S_track2_cy),
+        .servo_pan        (O_servo_pan),
+        .servo_tilt       (O_servo_tilt)
+    );
+
     hdmi_mixer #(
         .H_OFFSET  (0),
         .V_OFFSET  (0),
@@ -761,6 +837,7 @@ module design_top_wrapper (
         .I_video_user   (S_hdmi_user),
         .I_video_last   (S_hdmi_last),
         .I_debug_status (S_hdmi_debug_status),
+        .I_target_contour_pixel(S_track2_contour),
         .O_video_rd_en  (S_hdmi_window_rd_en),
         .I_video_rd_data(S_video_rd_data),
         .O_hdmi_vsync   (S_hdmi_out_vsync),
