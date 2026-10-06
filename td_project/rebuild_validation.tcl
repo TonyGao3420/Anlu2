@@ -1,9 +1,12 @@
 set root {D:/HX1P35A_Contest_202606/Anlu2}
-set out [file join $root sim build td_validation]
+set out [file join $root sim build td_validation_split_rgb]
 file mkdir $out
 cd $out
-create_project video_check $out -family PH1 -device PH1P35MDG324 -speed -3
-open_project {D:/HX1P35A_Contest_202606/Anlu2/sim/build/td_validation/video_check.al}
+if {![file exists [file join $out video_check.al]]} {
+    create_project video_check $out -family PH1 -device PH1P35MDG324 -speed -3
+}
+open_project {D:/HX1P35A_Contest_202606/Anlu2/sim/build/td_validation_split_rgb/video_check.al}
+import_device ph1_35p.db -package PH1P35MDG324
 top_module design_top_wrapper
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/design_top_wrapper.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/video_in.v}
@@ -37,6 +40,7 @@ add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/hdmi_mixer.v}
   add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/track2/roi_target_tracker.v}
   add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/track2/red_mask_contour.v}
   add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/track2/visual_servo_pwm.v}
+add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/video/video_enhance.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/audio_arc_calculate.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/I2S_receiver.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/key_remove_shakes.v}

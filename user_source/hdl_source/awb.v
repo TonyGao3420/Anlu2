@@ -44,9 +44,10 @@ module awb #(
     input         O_tready
 );
 
-    // Q16 limits reject extreme ratios that amplify noise and cause strong channel casts.
-    localparam [19:0] AWB_MIN_GAIN_Q16 = 20'h08000; // 0.5x
-    localparam [19:0] AWB_MAX_GAIN_Q16 = 20'h20000; // 2.0x
+    // Keep the correction deliberately modest; aggressive gray-world gains
+    // clip red highlights and amplify channel noise in shadows.
+    localparam [19:0] AWB_MIN_GAIN_Q16 = 20'h0CCCC; // about 0.8x
+    localparam [19:0] AWB_MAX_GAIN_Q16 = 20'h14000; // 1.25x
 
     /*****************************************************************
                           RGB565תRGB888                                        
@@ -124,6 +125,21 @@ module awb #(
     assign rgb888_g_d0[0] = I_tdata_d0[8+:8];
     assign rgb888_b_d0[0] = I_tdata_d0[0+:8];
 
+    // Estimate white balance from mid-level, low-chroma samples only.
+    // Colored objects/backgrounds must not steer the gray-world statistics.
+    wire [7:0] neutral_max_rg = (rgb888_r_d0[0] > rgb888_g_d0[0])
+                               ? rgb888_r_d0[0] : rgb888_g_d0[0];
+    wire [7:0] neutral_max = (neutral_max_rg > rgb888_b_d0[0])
+                            ? neutral_max_rg : rgb888_b_d0[0];
+    wire [7:0] neutral_min_rg = (rgb888_r_d0[0] < rgb888_g_d0[0])
+                               ? rgb888_r_d0[0] : rgb888_g_d0[0];
+    wire [7:0] neutral_min = (neutral_min_rg < rgb888_b_d0[0])
+                            ? neutral_min_rg : rgb888_b_d0[0];
+    wire [7:0] neutral_chroma = neutral_max - neutral_min;
+    wire neutral_sample = (rgb_sum[0] >= 10'd96) &&
+                          (rgb_sum[0] < 10'd720) &&
+                          (neutral_chroma <= (neutral_max >> 2));
+
 
     ///削弱白色
     always @(posedge I_clk or negedge I_rst_n) begin
@@ -141,8 +157,8 @@ module awb #(
             sum_r[0] <= 1;
             sum_g[0] <= 1;
             sum_b[0] <= 1;
-        end else if (I_tvalid_r0 && (rgb_sum[0] < 720)) begin
-            // 当输入有效时，累加RGB分量的值
+        end else if (I_tvalid_r0 && neutral_sample) begin
+            // Only neutral, non-dark, non-clipped pixels contribute to AWB.
             sum_r[0] <= sum_r[0] + rgb888_r_d0[0];
             sum_g[0] <= sum_g[0] + rgb888_g_d0[0];
             sum_b[0] <= sum_b[0] + rgb888_b_d0[0];

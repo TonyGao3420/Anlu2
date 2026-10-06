@@ -12,7 +12,7 @@ module roi_target_tracker #(
     parameter integer ROI_MARGIN_X = 48,
     parameter integer ROI_MARGIN_Y = 32,
     parameter integer MIN_VALUE = 32,
-    parameter integer MIN_AREA = 64,
+    parameter integer MIN_AREA = 256,
     parameter integer MAX_AREA = 20000
 ) (
     input  wire        clk,
@@ -84,9 +84,43 @@ module roi_target_tracker #(
     wire [7:0] red_hue_tolerance = red_chroma - (red_chroma >> 2);
     wire red_hue_match = red_is_max &&
                          (green_blue_diff <= red_hue_tolerance);
-    wire red_sat_match = red_chroma >= (rgb_pipe[23:16] >> 2);
+    // A quarter-of-red saturation floor rejected faded reds and pinks.
+    // Keep a small absolute floor for noise rejection and a gentler relative floor.
+    wire red_sat_match = (red_chroma >= 8'd16) &&
+                         (red_chroma >= (rgb_pipe[23:16] >> 3));
     wire red_value_match = rgb_pipe[23:16] >= MIN_VALUE;
     wire hsv_red_match = red_hue_match && red_sat_match && red_value_match;
+
+    // The observed center is greener and the outer field warmer. Apply a mild,
+    // position-dependent neutral correction before classifying red: reduce G
+    // in the center, and add a little B toward the warmer outer field. This is
+    // intentionally shift/add only; tune these small gains from a neutral card.
+    function [23:0] spatial_color_correction;
+        input [23:0] rgb;
+        input [11:0] px;
+        input [11:0] py;
+        reg [7:0] red, green, blue;
+        reg [8:0] blue_adjusted;
+        begin
+            red = rgb[23:16];
+            green = rgb[15:8];
+            blue = rgb[7:0];
+            blue_adjusted = {1'b0, blue};
+            if ((px >= IMG_W/4) && (px < (IMG_W*3)/4) &&
+                (py >= IMG_H/4) && (py < (IMG_H*3)/4)) begin
+                green = green - (green >> 4); // center: -6.25% green
+            end else if ((px >= IMG_W/8) && (px < (IMG_W*7)/8) &&
+                         (py >= IMG_H/8) && (py < (IMG_H*7)/8)) begin
+                green = green - (green >> 5); // transition region: -3.125% green
+                blue_adjusted = {1'b0, blue} + {6'b0, blue[7:5]};
+                blue = (blue_adjusted > 9'd255) ? 8'hff : blue_adjusted[7:0];
+            end else begin
+                blue_adjusted = {1'b0, blue} + {5'b0, blue[7:4]};
+                blue = (blue_adjusted > 9'd255) ? 8'hff : blue_adjusted[7:0];
+            end
+            spatial_color_correction = {red, green, blue};
+        end
+    endfunction
 
     wire [11:0] dx = (x_count >= roi_center_x)
                      ? (x_count - roi_center_x) : (roi_center_x - x_count);
@@ -103,8 +137,16 @@ module roi_target_tracker #(
     wire [12:0] roi_half_w_candidate = (bbox_width >> 1) + ROI_MARGIN_X;
     wire [12:0] roi_half_h_candidate = (bbox_height >> 1) + ROI_MARGIN_Y;
 
+    // Pixel occupancy of the red-pixel bounding rectangle. Requiring at least
+    // half occupancy suppresses isolated specks and sparse red texture.
+    wire [25:0] bbox_pixel_area = {13'd0, bbox_width} * {13'd0, bbox_height};
+    wire [20:0] red_pixel_count_x2 = {pixel_count, 1'b0};
+
     wire frame_candidate_valid = (pixel_count >= MIN_AREA) &&
-                                 (pixel_count <= MAX_AREA);
+                                 (pixel_count <= MAX_AREA) &&
+                                 (bbox_width >= 13'd12) &&
+                                 (bbox_height >= 13'd12) &&
+                                 ({5'd0, red_pixel_count_x2} >= bbox_pixel_area);
 
     // Iterative restoring divider; two coordinates share one 32-cycle datapath.
     reg        div_busy;
@@ -244,7 +286,7 @@ module roi_target_tracker #(
             // Detection-only pipeline. It never stalls or alters display data.
             x_pipe     <= x_count;
             y_pipe     <= y_count;
-            rgb_pipe   <= in_rgb;
+            rgb_pipe   <= spatial_color_correction(in_rgb, x_count, y_count);
             roi_pipe   <= in_roi;
             de_pipe    <= in_de;
             x_match_pipe <= x_pipe;

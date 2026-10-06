@@ -1,10 +1,10 @@
 // Anlu2 源码说明：对显示RGB做黑白场扩展、饱和度调整、限幅水平锐化和gamma提亮。
-// 接口与使用约定：五级流水；同步与数据严格等延迟。DE边界复制邻居，OSD及测试图可保护。
+// 接口与使用约定：六级流水；同步、坐标与数据严格等延迟。DE边界复制邻居，OSD及测试图可保护。
 // 工程状态：已列入TD编译清单。
 
-// Anlu2 视频显示增强：五级流水，输入/输出均为每拍一个 RGB888 像素。
+// Anlu2 视频显示增强：六级流水，输入/输出均为每拍一个 RGB888 像素。
 // clk=HDMI 像素时钟；rst_n=低有效复位。VS/HS/DE 与 RGB 一起延迟。
-// 依次做黑白场伸展、色度饱和度增强、限幅水平锐化和gamma显示曲线。
+// 依次做黑白场伸展、限幅锐化、色度饱和度增强、gamma和空间色偏校正。
 // protect 用于 OSD/测试图：原样输出并隔离邻接像素，避免文字边缘光晕。
 // 左右边界复制中心像素；DE=0 清除邻域，绝不跨行取样。
 // ENABLE=0 仍保持同样的流水延迟，可直接进行同场景 A/B 对比。
@@ -30,7 +30,9 @@ module video_enhance #(
     output reg         out_vsync,
     output reg         out_hsync,
     output reg         out_de,
-    output reg  [23:0] out_rgb
+    output reg  [23:0] out_rgb,
+    input  wire [11:0] in_x,
+    input  wire [11:0] in_y
 );
     // 黑白场增益在 elaboration 阶段计算，像素路径只包含常量乘法与移位。
     localparam integer CONTRAST_GAIN_Q8 =
@@ -46,8 +48,11 @@ module video_enhance #(
     reg contrast_left_protect, contrast_center_protect, contrast_right_protect;
     reg [23:0] prep_left_rgb, prep_center_rgb, prep_right_rgb;
     reg prep_de, prep_vs, prep_hs, prep_protect;
-    reg [23:0] sharp_rgb;
+    reg [23:0] sharp_rgb, grade_rgb;
     reg sharp_de, sharp_vs, sharp_hs, sharp_protect;
+    reg grade_de, grade_vs, grade_hs, grade_protect;
+    reg [11:0] x_d1, x_d2, x_d3, x_d4, x_d5;
+    reg [11:0] y_d1, y_d2, y_d3, y_d4, y_d5;
 
     // 有符号计算防止暗部减法下溢；最大修正幅度为 +/- DETAIL_LIMIT。
     // c + (2*c-l-r)/4 相当于轻量反锐化，不增加曝光时间或传感器噪声。
@@ -68,20 +73,25 @@ module video_enhance #(
     // 在近似亮度Y周围放大色差，灰阶的Cb/Cr为零，因此中性灰不偏色。
     function [23:0] color_grade;
         input [23:0] rgb;
-        integer y;
-        integer cb;
-        integer cr;
-        integer cb_scaled;
-        integer cr_scaled;
-        integer red_value;
-        integer green_value;
-        integer blue_value;
-        integer green_delta;
+        reg [9:0] y_sum;
+        reg [7:0] y;
+        reg signed [9:0] cb;
+        reg signed [9:0] cr;
+        reg signed [9:0] cb_scaled;
+        reg signed [9:0] cr_scaled;
+        reg signed [10:0] green_sum;
+        reg signed [9:0] green_delta;
+        reg signed [10:0] red_value;
+        reg signed [10:0] green_value;
+        reg signed [10:0] blue_value;
         begin
-            // Shift/add luminance approximation: exact for neutral greys, cheaper than three multipliers.
-            y = (rgb[23:16] + (rgb[15:8] << 1) + rgb[7:0] + 2) >> 2;
-            cb = $signed({1'b0, rgb[7:0]}) - y;
-            cr = $signed({1'b0, rgb[23:16]}) - y;
+            // Widen G before the shift: an 8-bit shift can wrap bright greens
+            // and create a luminance-dependent red/green cast.
+            y_sum = {2'b00, rgb[23:16]} + ({2'b00, rgb[15:8]} << 1) +
+                    {2'b00, rgb[7:0]} + 10'd2;
+            y = y_sum[9:2];
+            cr = $signed({1'b0, rgb[23:16]}) - $signed({1'b0, y});
+            cb = $signed({1'b0, rgb[7:0]}) - $signed({1'b0, y});
             // The default 1.25x saturation uses a shift/add, avoiding wide DSP chains in the pixel path.
             if (SATURATION_Q8 == 320) begin
                 cb_scaled = cb + (cb >>> 2);
@@ -90,10 +100,11 @@ module video_enhance #(
                 cb_scaled = (cb * SATURATION_Q8) >>> 8;
                 cr_scaled = (cr * SATURATION_Q8) >>> 8;
             end
-            green_delta = (cr_scaled + cb_scaled) >>> 1;
-            red_value = y + cr_scaled;
-            green_value = y - green_delta;
-            blue_value = y + cb_scaled;
+            green_sum = {cr_scaled[9], cr_scaled} + {cb_scaled[9], cb_scaled};
+            green_delta = green_sum >>> 1;
+            red_value = $signed({3'b000, y}) + $signed({cr_scaled[9], cr_scaled});
+            green_value = $signed({3'b000, y}) - $signed({green_delta[9], green_delta});
+            blue_value = $signed({3'b000, y}) + $signed({cb_scaled[9], cb_scaled});
             if (red_value < 0) red_value = 0;
             else if (red_value > 255) red_value = 255;
             if (green_value < 0) green_value = 0;
@@ -143,6 +154,51 @@ module video_enhance #(
         end
     endfunction
 
+    // Mild spatial white-balance trim for the measured green center / warm
+    // perimeter pattern. Shift-add gains cost little logic and affect only the
+    // camera image; mixer OSD pixels remain protected. Coordinates travel with
+    // the RGB pipeline, so the correction boundary cannot disturb video timing.
+    function [23:0] spatial_neutralize;
+        input [23:0] rgb;
+        input [11:0] px;
+        input [11:0] py;
+        reg [7:0] red, green, blue;
+        reg [8:0] blue_adjusted;
+        begin
+            red = rgb[23:16];
+            green = rgb[15:8];
+            blue = rgb[7:0];
+            blue_adjusted = {1'b0, blue};
+            if ((px >= 12'd320) && (px < 12'd960) &&
+                (py >= 12'd180) && (py < 12'd540)) begin
+                green = green - (green >> 4);
+            end else if ((px >= 12'd160) && (px < 12'd1120) &&
+                         (py >= 12'd90) && (py < 12'd630)) begin
+                green = green - (green >> 5);
+                blue_adjusted = {1'b0, blue} + {6'b0, blue[7:5]};
+                blue = (blue_adjusted > 9'd255) ? 8'hff : blue_adjusted[7:0];
+            end else begin
+                blue_adjusted = {1'b0, blue} + {5'b0, blue[7:4]};
+                blue = (blue_adjusted > 9'd255) ? 8'hff : blue_adjusted[7:0];
+            end
+            spatial_neutralize = {red, green, blue};
+        end
+    endfunction
+
+    function [23:0] finish_display_pixel;
+        input [23:0] rgb;
+        input [11:0] px;
+        input [11:0] py;
+        reg [23:0] gamma_rgb;
+        begin
+            if (GAMMA_ENABLE)
+                gamma_rgb = {gamma_lut(rgb[23:16]), gamma_lut(rgb[15:8]), gamma_lut(rgb[7:0])};
+            else
+                gamma_rgb = rgb;
+            finish_display_pixel = spatial_neutralize(gamma_rgb, px, py);
+        end
+    endfunction
+
     wire [23:0] left_window_raw = left_protect ? center_raw : left_raw;
     wire left_window_protect = left_protect ? center_protect : left_protect;
     wire [23:0] right_window_raw = (in_de && !in_protect) ? in_rgb : center_raw;
@@ -178,6 +234,13 @@ module video_enhance #(
             sharp_vs <= 0;
             sharp_hs <= 0;
             sharp_protect <= 0;
+            grade_rgb <= 0;
+            grade_de <= 0;
+            grade_vs <= 0;
+            grade_hs <= 0;
+            grade_protect <= 0;
+            x_d1 <= 0; x_d2 <= 0; x_d3 <= 0; x_d4 <= 0; x_d5 <= 0;
+            y_d1 <= 0; y_d2 <= 0; y_d3 <= 0; y_d4 <= 0; y_d5 <= 0;
             out_rgb <= 0;
             out_de <= 0;
             out_vsync <= 0;
@@ -185,6 +248,16 @@ module video_enhance #(
         end else begin
             // 第一级保存原始中心和左邻居；下一拍输入作为中心的右邻居。
             center_raw <= in_rgb;
+            x_d1 <= in_x;
+            x_d2 <= x_d1;
+            x_d3 <= x_d2;
+            x_d4 <= x_d3;
+            x_d5 <= x_d4;
+            y_d1 <= in_y;
+            y_d2 <= y_d1;
+            y_d3 <= y_d2;
+            y_d4 <= y_d3;
+            y_d5 <= y_d4;
             center_de <= in_de;
             center_vs <= in_vsync;
             center_hs <= in_hsync;
@@ -219,7 +292,7 @@ module video_enhance #(
             prep_center_rgb <= contrast_center_rgb;
             prep_right_rgb <= contrast_right_rgb;
 
-            // 第四级锐化已完成色彩预处理的窗口，控制信号使用同一流水级。
+            // 第四级只做限幅锐化，避免与饱和度矩阵挤在同一时钟周期。
             sharp_de <= prep_de;
             sharp_vs <= prep_vs;
             sharp_hs <= prep_hs;
@@ -227,13 +300,7 @@ module video_enhance #(
             if (!prep_de) sharp_rgb <= 24'd0;
             else if (!ENABLE || prep_protect) sharp_rgb <= prep_center_rgb;
             else if (!SHARPEN_ENABLE)
-                sharp_rgb <= (SATURATION_ENABLE) ? color_grade(prep_center_rgb) : prep_center_rgb;
-            else if (SATURATION_ENABLE)
-                sharp_rgb <= color_grade({
-                    sharpen(prep_left_rgb[23:16], prep_center_rgb[23:16], prep_right_rgb[23:16]),
-                    sharpen(prep_left_rgb[15:8], prep_center_rgb[15:8], prep_right_rgb[15:8]),
-                    sharpen(prep_left_rgb[7:0], prep_center_rgb[7:0], prep_right_rgb[7:0])
-                });
+                sharp_rgb <= prep_center_rgb;
             else
                 sharp_rgb <= {
                     sharpen(prep_left_rgb[23:16], prep_center_rgb[23:16], prep_right_rgb[23:16]),
@@ -241,18 +308,24 @@ module video_enhance #(
                     sharpen(prep_left_rgb[7:0], prep_center_rgb[7:0], prep_right_rgb[7:0])
                 };
 
-            // 第四级执行gamma曲线并输出，控制信号与像素严格同延迟。
-            out_de <= sharp_de;
-            out_vsync <= sharp_vs;
-            out_hsync <= sharp_hs;
-            if (!sharp_de) out_rgb <= 24'd0;
-            else if (!ENABLE || !GAMMA_ENABLE || sharp_protect) out_rgb <= sharp_rgb;
+            // 第五级仅计算饱和度，独立于空间锐化的加减链。
+            grade_de <= sharp_de;
+            grade_vs <= sharp_vs;
+            grade_hs <= sharp_hs;
+            grade_protect <= sharp_protect;
+            if (!sharp_de) grade_rgb <= 24'd0;
+            else if (!ENABLE || sharp_protect || !SATURATION_ENABLE)
+                grade_rgb <= sharp_rgb;
             else
-                out_rgb <= {
-                    gamma_lut(sharp_rgb[23:16]),
-                    gamma_lut(sharp_rgb[15:8]),
-                    gamma_lut(sharp_rgb[7:0])
-                };
+                grade_rgb <= color_grade(sharp_rgb);
+
+            // 第六级做Gamma和轻量位置校正；同步/坐标与RGB逐级对齐。
+            out_de <= grade_de;
+            out_vsync <= grade_vs;
+            out_hsync <= grade_hs;
+            if (!grade_de) out_rgb <= 24'd0;
+            else if (!ENABLE || grade_protect) out_rgb <= grade_rgb;
+            else out_rgb <= finish_display_pixel(grade_rgb, x_d5, y_d5);
         end
     end
 endmodule

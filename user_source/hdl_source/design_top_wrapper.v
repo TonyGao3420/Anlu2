@@ -170,6 +170,8 @@ module design_top_wrapper (
     wire         S_hdmi_out_hsync;
     wire         S_hdmi_out_de;
     wire [ 23:0] S_hdmi_out_data;
+    wire [ 11:0] S_hdmi_out_x;
+    wire [ 11:0] S_hdmi_out_y;
     wire         S_hdmi_out_protect;
     wire         S_hdmi_enhanced_vsync;
     wire         S_hdmi_enhanced_hsync;
@@ -183,12 +185,10 @@ module design_top_wrapper (
     wire [ 15:0] S_track2_area;
     wire         S_track2_frame_done;
     wire         S_track2_result_update;
-    wire         S_track2_mask_valid;
-    wire         S_track2_red_mask;
-    wire [11:0]   S_track2_mask_x;
-    wire [11:0]   S_track2_mask_y;
-    wire         S_track2_contour;
-    wire         S_track2_contour_raw;
+    wire [15:0]   S_track2_bbox_x0;
+    wire [15:0]   S_track2_bbox_y0;
+    wire [15:0]   S_track2_bbox_x1;
+    wire [15:0]   S_track2_bbox_y1;
     wire         S_track2_dbg_roi_valid;
     wire         S_track2_dbg_color_match;
     reg          S_track2_result_toggle;
@@ -759,7 +759,7 @@ module design_top_wrapper (
         .ROI_HALF_W  (320),
         .ROI_HALF_H  (180),
         .MIN_VALUE   (32),
-        .MIN_AREA    (64),
+        .MIN_AREA    (256),
         .MAX_AREA    (20000)
     ) u_roi_target_tracker (
         .clk             (S_hdmi_pixel_clk),
@@ -769,38 +769,22 @@ module design_top_wrapper (
         .in_line_last    (S_hdmi_last),
         .in_rgb          (S_video_rd_data),
         .target_valid    (S_track2_valid),
-        .bbox_x0         (),
-        .bbox_y0         (),
-        .bbox_x1         (),
-        .bbox_y1         (),
+        .bbox_x0         (S_track2_bbox_x0),
+        .bbox_y0         (S_track2_bbox_y0),
+        .bbox_x1         (S_track2_bbox_x1),
+        .bbox_y1         (S_track2_bbox_y1),
         .centroid_x      (S_track2_cx),
         .centroid_y      (S_track2_cy),
         .target_area     (S_track2_area),
         .frame_done      (S_track2_frame_done),
         .result_update   (S_track2_result_update),
-        .mask_valid      (S_track2_mask_valid),
-        .red_mask        (S_track2_red_mask),
-        .mask_x          (S_track2_mask_x),
-        .mask_y          (S_track2_mask_y),
+        .mask_valid      (),
+        .red_mask        (),
+        .mask_x          (),
+        .mask_y          (),
         .dbg_roi_valid   (S_track2_dbg_roi_valid),
         .dbg_color_match (S_track2_dbg_color_match)
     );
-
-    // A 3x3 mask contour follows the red object's observed silhouette.
-    // It is a display-only tap; the original RGB stream remains untouched.
-    red_mask_contour #(
-        .IMG_W(1280)
-    ) u_red_mask_contour (
-        .clk         (S_hdmi_pixel_clk),
-        .rst_n       (S_hdmi_rst_n),
-        .in_valid    (S_track2_mask_valid),
-        .in_x        (S_track2_mask_x),
-        .in_y        (S_track2_mask_y),
-        .in_mask     (S_track2_red_mask),
-        .out_contour (S_track2_contour_raw)
-    );
-    // Do not outline red OSD/logo pixels during initial full-frame acquisition.
-    assign S_track2_contour = S_track2_valid && S_track2_contour_raw;
 
     // The tracker publishes only complete frame results. Toggle-based bundled
     // data crosses safely to the independent 50 MHz servo timing domain.
@@ -842,14 +826,20 @@ module design_top_wrapper (
         .I_video_user   (S_hdmi_user),
         .I_video_last   (S_hdmi_last),
         .I_debug_status (S_hdmi_debug_status),
-        .I_target_contour_pixel(S_track2_contour),
+        .I_target_bbox_valid   (S_track2_valid),
+        .I_target_bbox_x0      (S_track2_bbox_x0),
+        .I_target_bbox_y0      (S_track2_bbox_y0),
+        .I_target_bbox_x1      (S_track2_bbox_x1),
+        .I_target_bbox_y1      (S_track2_bbox_y1),
         .O_video_rd_en  (S_hdmi_window_rd_en),
         .I_video_rd_data(S_video_rd_data),
         .O_hdmi_vsync   (S_hdmi_out_vsync),
         .O_hdmi_hsync   (S_hdmi_out_hsync),
         .O_hdmi_de      (S_hdmi_out_de),
         .O_hdmi_protect (S_hdmi_out_protect),
-        .O_hdmi_data    (S_hdmi_out_data)
+        .O_hdmi_data    (S_hdmi_out_data),
+        .O_hdmi_x       (S_hdmi_out_x),
+        .O_hdmi_y       (S_hdmi_out_y)
     );
 
     // Correct display brightness/contrast and detail after composition. The
@@ -874,6 +864,8 @@ module design_top_wrapper (
         .in_de     (S_hdmi_out_de),
         .in_protect(S_hdmi_out_protect),
         .in_rgb    (S_hdmi_out_data),
+        .in_x      (S_hdmi_out_x),
+        .in_y      (S_hdmi_out_y),
         .out_vsync (S_hdmi_enhanced_vsync),
         .out_hsync (S_hdmi_enhanced_hsync),
         .out_de    (S_hdmi_enhanced_de),

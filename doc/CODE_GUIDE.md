@@ -11,14 +11,14 @@
 | [hdl_source/anlogic_logo_rom.v](../user_source/hdl_source/anlogic_logo_rom.v) | anlogic_logo_rom | 是 | Logo像素ROM，地址对应160×160图像，25位输出为透明有效位及RGB888。 此文件主要是图像常量；修改图案时需同步尺寸和透明位规则。 |
 | [hdl_source/audio_arc_calculate.v](../user_source/hdl_source/audio_arc_calculate.v) | audio_arc_calculate | 是 | 根据音频有效节拍测量HDMI ACR所需CTS，并输出固定N。 默认N=6144用于48 kHz配置；当前顶层音频valid恒0，因此该功能不工作。 |
 | [hdl_source/auto_white_balance.v](../user_source/hdl_source/auto_white_balance.v) | auto_white_balance | 否/IP间接 | 旧版固定增益RGB校正，每组四个像素分别乘R/G/B增益。 使用Q12增益并做255饱和，与当前awb.v的Q16格式不同；当前工程未使用。 |
-| [hdl_source/awb.v](../user_source/hdl_source/awb.v) | awb | 是 | 四像素RGB流的白平衡节点；当前 `AUTO_GAIN_ENABLE=0`，以单位Q16增益保持原色和原流水延迟。置1后才启用上一帧统计与R/B动态校正。 |
+| [hdl_source/awb.v](../user_source/hdl_source/awb.v) | awb | 是 | 四像素RGB流白平衡；只用中亮度、低色度样本估计R/B增益，并限制在约0.8–1.25倍，避免强色背景驱动灰世界算法。 |
 | [hdl_source/camera/camera_frontend_wrapper.v](../user_source/hdl_source/camera/camera_frontend_wrapper.v) | camera_frontend_wrapper | 否/IP间接 | 相机接口占位封装。 只透传时钟/复位、SCL固定0、SDA高阻，cfg_done直接来自复位；没有配置传感器，当前顶层不用。 |
 | [hdl_source/csi_unpacket.v](../user_source/hdl_source/csi_unpacket.v) | csi_unpacket | 否/IP间接 | 旧CSI载荷解析器，含cwc3调试探针实例。 未加入当前工程，若单独综合需要补齐调试核依赖。 |
 | [hdl_source/data_96bit_to_128bit.v](../user_source/hdl_source/data_96bit_to_128bit.v) | data_96bit_to_128bit | 否/IP间接 | 96→128位RGB打包器的根目录备份。 与isp/data96_128/data96_128.v同名模块，当前.al只编译后者；不要同时加入工程。 |
 | [hdl_source/debug/video_path_debug.v](../user_source/hdl_source/debug/video_path_debug.v) | video_path_debug | 否/IP间接 | 视频状态组合显示占位模块。 path_valid=VS&&DE不能作为当前极性下通路通过的判据；status_code只反映瞬时电平，非完整自检。 |
 | [hdl_source/design_top_wrapper.v](../user_source/hdl_source/design_top_wrapper.v) | design_top_wrapper | 是 | 板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。HDMI继续走官方mixer像素链；ROI检测器只读旁路像素，不控制DDR或显示握手。 |
 | [hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v](../user_source/hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v) | hdmi_1_4b_transmitter_core_wrapper | 是 | HDMI协议编码/数据包核；厂商加密源码，无法检查内部算法。 |
-| [hdl_source/hdmi_mixer.v](../user_source/hdl_source/hdmi_mixer.v) | hdmi_mixer | 是 | 接收DDR输出像素，叠加Logo、中文字符、六位帧计数和检测轮廓，或选择调试图案。红色目标轮廓像素覆盖在静态OSD上；读使能仍直接取VTC的DE。 |
+| [hdl_source/hdmi_mixer.v](../user_source/hdl_source/hdmi_mixer.v) | hdmi_mixer | 是 | 接收DDR输出像素，叠加Logo、中文字符、六位帧计数和目标矩形框，或选择调试图案。目标框比检测外接矩形留4像素边距、线宽2像素；读使能仍直接取VTC的DE。 |
 | [hdl_source/hdmi_phy_warpper.v](../user_source/hdl_source/hdmi_phy_warpper.v) | hdmi_phy_wrapper | 是 | 调整TMDS十位编码字的位序，实例化三个数据通道和一个时钟通道串行器。 文件名沿用warp拼写，模块名为hdmi_phy_wrapper；必须保留每个10位字的位序与ODDR配合。 |
 | [hdl_source/hdmi_tx.v](../user_source/hdl_source/hdmi_tx.v) | hdmi_tx | 是 | 把RGB时序转为HDMI核使用的user/valid/last流，并连接TMDS发送物理层。 RGB模式由VS上升沿等待下一有效像素作为帧首；加密HDMI核固定1280×720。当前顶层关闭音频和EDID触发。 |
 | [hdl_source/I2S_receiver.v](../user_source/hdl_source/I2S_receiver.v) | I2S_receiver | 是 | 同步外部I2S时钟与串行数据，移位拼接左右声道24位采样。 HDMI像素钟域采样；当前视频工程将I2S输入置0，音频支路未启用。 |
@@ -59,8 +59,8 @@
 | [hdl_source/isp/demosaic_4x_2_0/raw_matrix_3x3_buffer.v](../user_source/hdl_source/isp/demosaic_4x_2_0/raw_matrix_3x3_buffer.v) | raw_matrix_3x3_buffer | 是 | 组合相邻三行和每组前后像素，构造四个并行插值位置的3×3邻域。 内部将RAW10压到RAW8并整理行有效；行首尾按原工程复制边界，bayer_ypos选择行奇偶。 |
 | [hdl_source/isp/demosaic_4x_2_0/zhenghe.v](../user_source/hdl_source/isp/demosaic_4x_2_0/zhenghe.v) | zhenghe | 是 | 用双口行RAM把带空拍的四像素流整理为每行连续有效的数据。 data_complete_delay提供写入领先量，首行测得的有效跨度影响下一帧读出窗口；只适配已有摄像头节拍。 |
 | [hdl_source/isp/isp_top.v](../user_source/hdl_source/isp/isp_top.v) | isp_top | 是 | ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；这是连续流接口，不支持背压。O_tready 是下游就绪输入，I_tready 是上游就绪输出。 |
-| [hdl_source/track2/roi_target_tracker.v](../user_source/hdl_source/track2/roi_target_tracker.v) | roi_target_tracker | 是 | 显示像素时钟域单红色目标原型：HSV扇区近似、面积筛选、帧级像素外接矩形/质心，搜索ROI按目标大小自适应并留运动余量；阈值掩码送至轮廓提取器。ROI内多个红色区域仍会合并。 |
-| [hdl_source/track2/red_mask_contour.v](../user_source/hdl_source/track2/red_mask_contour.v) | red_mask_contour | 是 | 使用两条1-bit行缓存形成3×3红色掩码窗口，输出红色前景边界像素；轮廓标记中心对应输入位置前一行、前一列，需与显示像素时序对齐验证。 |
+| [hdl_source/track2/roi_target_tracker.v](../user_source/hdl_source/track2/roi_target_tracker.v) | roi_target_tracker | 是 | 显示像素时钟域单红色目标检测：按画面位置轻补偿色偏，使用较宽红色色相范围、3×3多数滤波，并要求最小面积256像素、框宽高各至少12像素且红像素占候选矩形面积过半，再输出红色区域外接矩形/质心；搜索ROI按目标大小自适应。候选框按红色掩码构造，尚非物体连通域分割；一个ROI内多个红色区域可能合并。 |
+| [hdl_source/track2/red_mask_contour.v](../user_source/hdl_source/track2/red_mask_contour.v) | red_mask_contour | 否 | 轮廓提取历史模块，仍保留在工程文件清单中但顶层不再实例化；当前显示端使用检测器输出的矩形框，不逐像素标记红色掩码。 |
 | [hdl_source/isp/raw10_unpacket_2lane.v](../user_source/hdl_source/isp/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 是 | 将CSI载荷每5字节还原成4个10位Bayer采样。 输出最低10位是时间上第一个像素；输入要求32位数据隔拍有效。I_camera_black_level当前未参与计算。 |
 | [hdl_source/isp/uial2axis.v](../user_source/hdl_source/isp/uial2axis.v) | uial2axis | 是 | 为四像素RAW流生成帧首tuser和行尾tlast。 有效拍计数，每行IMG_WIDTH/4拍；tuser与首个有效数据同拍，宽度必须能被4整除。 |
 | [hdl_source/key_remove_shakes.v](../user_source/hdl_source/key_remove_shakes.v) | key_remove_shakes | 是 | 对低有效按键进行同步和计数消抖，输出单拍触发脉冲。 等待100000个输入时钟周期后确认按键仍按下；实际时间随时钟频率变化。 |
@@ -152,7 +152,7 @@
 | [hdl_source/uiisp_beta/csi_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/csi_unpacket_2lane.v) | csi_unpacket_2lane | 否/IP间接 | 两通道CSI解包器的历史副本。 与isp/csi_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/uiisp_beta/raw10_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 否/IP间接 | 两通道RAW10解包器的历史副本。 与isp/raw10_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/video/hdmi_output_wrapper.v](../user_source/hdl_source/video/hdmi_output_wrapper.v) | hdmi_output_wrapper | 否/IP间接 | 显示信号直通占位封装。 仅组合透传VS/HS/DE/RGB，不实现TMDS编码，也未接入当前顶层。 |
-| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | HDMI显示支路的五级流水增强：黑白场扩展、共享单像素饱和度处理、限幅水平锐化和分段Gamma提亮；OSD/轮廓通过protect旁路。控制信号同步延迟。用于改善画面发灰、偏暗与边缘发软；实机效果仍需板上确认。 |
+| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | HDMI显示支路六级流水增强：黑白场扩展、限幅水平锐化、饱和度处理、分段Gamma及末级分区色偏补偿；像素坐标与RGB同步延迟，OSD/框通过protect旁路。中心降低G，中间区域轻降G并增B，外圈增B，缓和中心偏绿/边缘偏暖。 |
 | [hdl_source/video_cuttting.v](../user_source/hdl_source/video_cuttting.v) | video_cutting | 否/IP间接 | 旧RAW8固定区域裁剪，按行有效边沿计数并选择固定行列区间。 模块名video_cutting，输出258组×602行供旧插值路径使用，当前未启用。 |
 | [hdl_source/video_in.v](../user_source/hdl_source/video_in.v) | video_in | 是 | 摄像头到DDR写通路：异步FIFO跨时钟，按240字突发写入四帧轮转缓存。 frame_start为提前复位FIFO的通知，不能随意改成首像素同拍；写地址每次加8，四帧基地址与video_out必须一致。 |
 | [hdl_source/video_out.v](../user_source/hdl_source/video_out.v) | video_out | 是 | DDR到HDMI读通路：预读128位字到异步FIFO，再按24位RGB顺序输出。 每16像素读取3个128位字；读请求到RGB经过FIFO及输出寄存级，hdmi_mixer的DE必须与这两级一致。 |

@@ -21,8 +21,12 @@ module hdmi_mixer #(
 
     input wire [3:0] I_debug_status,
 
-    // 3x3 red-mask contour pulse from the display-only detector tap.
-    input wire        I_target_contour_pixel,
+    // Frame-level target bounds from the single-red-object tracker.
+    input wire        I_target_bbox_valid,
+    input wire [15:0] I_target_bbox_x0,
+    input wire [15:0] I_target_bbox_y0,
+    input wire [15:0] I_target_bbox_x1,
+    input wire [15:0] I_target_bbox_y1,
 
     output wire        O_video_rd_en,
     input  wire [23:0] I_video_rd_data,
@@ -31,7 +35,9 @@ module hdmi_mixer #(
     output reg        O_hdmi_hsync,
     output reg        O_hdmi_de,
     output reg        O_hdmi_protect,  // OSD/测试图保护标记，与输出像素同拍
-    output reg [23:0] O_hdmi_data
+    output reg [23:0] O_hdmi_data,
+    output reg [11:0] O_hdmi_x,
+    output reg [11:0] O_hdmi_y
 );
 
     reg         S_video_vsync_1d;
@@ -46,6 +52,23 @@ module hdmi_mixer #(
     reg  [11:0] S_x_2d;
     reg  [11:0] S_y_1d;
     reg  [11:0] S_y_2d;
+
+    // Add a small safety margin around the measured red-pixel bounds.
+    wire [15:0] bbox_x0_padded = (I_target_bbox_x0 > 16'd4)
+                                      ? I_target_bbox_x0 - 16'd4 : 16'd0;
+    wire [15:0] bbox_y0_padded = (I_target_bbox_y0 > 16'd4)
+                                      ? I_target_bbox_y0 - 16'd4 : 16'd0;
+    wire [15:0] bbox_x1_padded = I_target_bbox_x1 + 16'd4;
+    wire [15:0] bbox_y1_padded = I_target_bbox_y1 + 16'd4;
+    wire [15:0] display_x = {4'd0, S_x_2d};
+    wire [15:0] display_y = {4'd0, S_y_2d};
+    wire target_rectangle_pixel = I_target_bbox_valid &&
+        (display_x >= bbox_x0_padded) && (display_x <= bbox_x1_padded) &&
+        (display_y >= bbox_y0_padded) && (display_y <= bbox_y1_padded) &&
+        ((display_x < bbox_x0_padded + 16'd2) ||
+         (display_x + 16'd2 > bbox_x1_padded) ||
+         (display_y < bbox_y0_padded + 16'd2) ||
+         (display_y + 16'd2 > bbox_y1_padded));
 
     reg         S_osd_hit;
     reg  [23:0] S_osd_color;
@@ -969,11 +992,10 @@ module hdmi_mixer #(
             end
         end
 
-        // Use a high-contrast magenta outline so the detector result is visible
-        // on the green-cast camera image and distinct from the red target.
-        if (I_target_contour_pixel) begin
+        // Draw a clean two-pixel rectangular box instead of marking mask pixels.
+        if (target_rectangle_pixel) begin
             S_osd_hit   = 1'b1;
-            S_osd_color = 24'hff00ff;
+            S_osd_color = 24'h00ffff;
         end
     end
 
@@ -990,6 +1012,8 @@ module hdmi_mixer #(
             O_hdmi_de        <= 1'b0;
             O_hdmi_data      <= 24'd0;
             O_hdmi_protect   <= 1'b0;
+            O_hdmi_x         <= 12'd0;
+            O_hdmi_y         <= 12'd0;
         end else begin
             S_video_vsync_1d <= I_video_vsync;
             S_video_vsync_2d <= S_video_vsync_1d;
@@ -1005,6 +1029,8 @@ module hdmi_mixer #(
 
             // video_out 的两个寄存级已对齐 S_video_de_2d；RGB 不可再延迟两拍。
             O_hdmi_protect   <= (DEBUG_MODE != 0) || S_osd_hit;
+            O_hdmi_x         <= S_x_2d;
+            O_hdmi_y         <= S_y_2d;
             if (DEBUG_MODE == 1) begin
                 if (S_video_de_2d) begin
                     if (S_x < 12'd128) O_hdmi_data <= 24'hff0000;
