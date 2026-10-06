@@ -171,7 +171,9 @@ module awb #(
 
     // R and B gains are needed only once per frame. A single 16-step
     // fractional divider is time-multiplexed across both channels instead of
-    // instantiating two wide, fully-pipelined divider IP blocks.
+    // instantiating two wide, fully-pipelined divider IP blocks. Both ratios
+    // and the gain update complete in at most 36 clocks, before the first pixel
+    // exits the existing 50-clock alignment delay below.
 
     signal_delay #(
         .IMG_HEIGHT (IMG_HEIGHT),

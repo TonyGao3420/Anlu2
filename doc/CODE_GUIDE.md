@@ -11,7 +11,7 @@
 | [hdl_source/anlogic_logo_rom.v](../user_source/hdl_source/anlogic_logo_rom.v) | anlogic_logo_rom | 是 | Logo像素ROM，地址对应160×160图像，25位输出为透明有效位及RGB888。 此文件主要是图像常量；修改图案时需同步尺寸和透明位规则。 |
 | [hdl_source/audio_arc_calculate.v](../user_source/hdl_source/audio_arc_calculate.v) | audio_arc_calculate | 是 | 根据音频有效节拍测量HDMI ACR所需CTS，并输出固定N。 默认N=6144用于48 kHz配置；当前顶层音频valid恒0，因此该功能不工作。 |
 | [hdl_source/auto_white_balance.v](../user_source/hdl_source/auto_white_balance.v) | auto_white_balance | 否/IP间接 | 旧版固定增益RGB校正，每组四个像素分别乘R/G/B增益。 使用Q12增益并做255饱和，与当前awb.v的Q16格式不同；当前工程未使用。 |
-| [hdl_source/awb.v](../user_source/hdl_source/awb.v) | awb | 是 | 四像素RGB流白平衡；只用中亮度、低色度样本估计R/B增益，并限制在约0.8–1.25倍，避免强色背景驱动灰世界算法。 |
+| [hdl_source/awb.v](../user_source/hdl_source/awb.v) | awb | 是 | 四像素RGB流白平衡；只用中亮度、低色度样本估计R/B增益，并限制在约0.8–1.25倍。R/B两路Q16比值共用一个逐位除法器，每帧顺序计算；像素数据和接口流水不变。 |
 | [hdl_source/camera/camera_frontend_wrapper.v](../user_source/hdl_source/camera/camera_frontend_wrapper.v) | camera_frontend_wrapper | 否/IP间接 | 相机接口占位封装。 只透传时钟/复位、SCL固定0、SDA高阻，cfg_done直接来自复位；没有配置传感器，当前顶层不用。 |
 | [hdl_source/csi_unpacket.v](../user_source/hdl_source/csi_unpacket.v) | csi_unpacket | 否/IP间接 | 旧CSI载荷解析器，含cwc3调试探针实例。 未加入当前工程，若单独综合需要补齐调试核依赖。 |
 | [hdl_source/data_96bit_to_128bit.v](../user_source/hdl_source/data_96bit_to_128bit.v) | data_96bit_to_128bit | 否/IP间接 | 96→128位RGB打包器的根目录备份。 与isp/data96_128/data96_128.v同名模块，当前.al只编译后者；不要同时加入工程。 |
@@ -24,8 +24,8 @@
 | [hdl_source/I2S_receiver.v](../user_source/hdl_source/I2S_receiver.v) | I2S_receiver | 是 | 同步外部I2S时钟与串行数据，移位拼接左右声道24位采样。 HDMI像素钟域采样；当前视频工程将I2S输入置0，音频支路未启用。 |
 | [hdl_source/image_correction.v](../user_source/hdl_source/image_correction.v) | image_correction | 否/IP间接 | 旧固定窗口裁剪，把RAW数据保留在256组×600行范围。 每组4像素，约1024×600；当前原生720p模式绕过此裁剪。 |
 | [hdl_source/isp/awb/awb.v](../user_source/hdl_source/isp/awb/awb.v) | awb | 否/IP间接 | 保留的另一版白平衡实现，分别对每组四个像素位置累加。 与根目录awb.v同名，当前工程未选用；除法与延迟路径也不同，不可混用。 |
-| [hdl_source/isp/awb/divider/divider.ipc](../user_source/hdl_source/isp/awb/divider/divider.ipc) | 生成IP/配置 | 否/IP间接 | 48位无符号分子/32位分母、50级流水除法IP；用于AWB的Q16通道比。 |
-| [hdl_source/isp/awb/divider/divider_gate.v](../user_source/hdl_source/isp/awb/divider/divider_gate.v) | divider | 否/IP间接 | 48位无符号分子/32位分母、50级流水除法IP；用于AWB的Q16通道比。 |
+| [hdl_source/isp/awb/divider/divider.ipc](../user_source/hdl_source/isp/awb/divider/divider.ipc) | 生成IP/配置 | 是/保留 | 旧版48/32位流水除法IP配置；当前选用的根目录awb.v不再实例化它，综合不计入逻辑资源。 |
+| [hdl_source/isp/awb/divider/divider_gate.v](../user_source/hdl_source/isp/awb/divider/divider_gate.v) | divider | 否/保留 | 旧版48/32位流水除法IP生成网表；当前选用的根目录awb.v不再实例化。 |
 | [hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.ipc](../user_source/hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.ipc) | 生成IP/配置 | 否/IP间接 | 96位双口RAM及生成元数据；AWB像素延迟缓存。 |
 | [hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.v](../user_source/hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.v) | blk_mem_gen_awb_delay_signal | 否/IP间接 | 96位双口RAM及生成元数据；AWB像素延迟缓存。 |
 | [hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.vhd](../user_source/hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.vhd) | 生成IP/配置 | 否/IP间接 | 96位双口RAM及生成元数据；AWB像素延迟缓存。 |

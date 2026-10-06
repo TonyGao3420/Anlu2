@@ -58,8 +58,8 @@
     "kind": "可维护RTL",
     "direct": true,
     "lines": 393,
-    "sha256": "edd0858e2c9d21fa81128135615ff768e2a9f25b70b9957255b64e7b599c35ef",
-    "purpose": "四像素RGB流白平衡节点；AUTO_GAIN_ENABLE参数默认0，但当前isp_top显式设为1，增益限制在0.8至1.25倍并按每帧1/8误差量平滑。"
+    "sha256": "54b91742cd4de518027a32d727b523cd718f245a707663b2d8273fb85219d744",
+    "purpose": "四像素RGB流白平衡节点；AUTO_GAIN_ENABLE参数默认0，但当前isp_top显式设为1，增益限制在0.8至1.25倍并按每帧1/8误差量平滑。R/B比值使用共享逐位除法器顺序计算。"
   },
   {
     "file": "user_source/hdl_source/camera/camera_frontend_wrapper.v",
@@ -200,7 +200,7 @@
     "direct": false,
     "lines": 22,
     "sha256": "dc1eb3e758acc300e46284ded33f35e73b70c2fbe8884c82e8c38358fe92f15f",
-    "purpose": "48位无符号分子/32位分母、50级流水除法IP；用于AWB的Q16通道比。"
+    "purpose": "旧版48位无符号分子/32位分母、50级流水除法IP配置；当前选用的根目录awb.v不再实例化，保留在工程但综合不计入。"
   },
   {
     "file": "user_source/hdl_source/isp/awb/divider/divider_gate.v",
@@ -211,7 +211,7 @@
     "direct": false,
     "lines": 64550,
     "sha256": "fc1ac2635a0cf09c98bbc48cea52e0640904a3505eb46b59f0b944935c491c53",
-    "purpose": "48位无符号分子/32位分母、50级流水除法IP；用于AWB的Q16通道比。"
+    "purpose": "旧版AWB的48位无符号分子/32位分母、50级流水除法IP网表；当前选用的根目录awb.v不再实例化。"
   },
   {
     "file": "user_source/hdl_source/isp/awb/ram/blk_mem_gen_awb_delay_signal.ipc",
@@ -1640,7 +1640,7 @@
     "direct": true,
     "lines": 22,
     "sha256": "fad92838fe3d85951072b68a1b0d1161328d7765e6e7e84b71a8f1ab46a1f669",
-    "purpose": "48位无符号分子/32位分母、50级流水除法IP；用于AWB的Q16通道比。"
+    "purpose": "旧版48位无符号分子/32位分母、50级流水除法IP配置；当前选用的根目录awb.v不再实例化，保留在工程但综合不计入。"
   },
   {
     "file": "user_source/ip_source/divider/divider_gate.v",
@@ -1651,7 +1651,7 @@
     "direct": false,
     "lines": 64550,
     "sha256": "9f7ddab1d4aa3419c81061c3f14448b1475d22aab02492b9bb67ca6a5842ee7d",
-    "purpose": "48位无符号分子/32位分母、50级流水除法IP；用于AWB的Q16通道比。"
+    "purpose": "旧版AWB的48位无符号分子/32位分母、50级流水除法IP网表；当前选用的根目录awb.v不再实例化。"
   },
   {
     "file": "user_source/ip_source/MCU/.m_params_MCU.txt",
