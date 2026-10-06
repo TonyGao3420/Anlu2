@@ -79,8 +79,9 @@ module isp_top (
     awb #(
         .IMG_HEIGHT(720),
         .IMG_WIDTH (1280),
-        // Frame-averaged red/blue correction is bounded to 0.5x-2.0x in awb.v.
-        .AUTO_GAIN_ENABLE(1)
+        // Disable scene-dependent frame AWB: nearby occlusion changed its
+        // gray-world statistics and caused visible green/blue frame-to-frame casts.
+        .AUTO_GAIN_ENABLE(0)
     ) u_awb (
         .I_clk   (axi4s_video_aclk),
         .I_rst_n (I_rst_n),

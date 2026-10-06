@@ -1,10 +1,10 @@
 // Anlu2 源码说明：对显示RGB做黑白场扩展、饱和度调整、限幅水平锐化和gamma提亮。
-// 接口与使用约定：六级流水；同步、坐标与数据严格等延迟。DE边界复制邻居，OSD及测试图可保护。
+// 接口与使用约定：六级流水；同步与RGB严格等延迟。DE边界复制邻居，OSD及测试图可保护。
 // 工程状态：已列入TD编译清单。
 
 // Anlu2 视频显示增强：六级流水，输入/输出均为每拍一个 RGB888 像素。
 // clk=HDMI 像素时钟；rst_n=低有效复位。VS/HS/DE 与 RGB 一起延迟。
-// 依次做黑白场伸展、限幅锐化、色度饱和度增强、gamma和空间色偏校正。
+// 依次做黑白场伸展、限幅锐化、色度饱和度增强和全画面一致的gamma；不启用空间色偏补偿。
 // protect 用于 OSD/测试图：原样输出并隔离邻接像素，避免文字边缘光晕。
 // 左右边界复制中心像素；DE=0 清除邻域，绝不跨行取样。
 // ENABLE=0 仍保持同样的流水延迟，可直接进行同场景 A/B 对比。
@@ -30,9 +30,7 @@ module video_enhance #(
     output reg         out_vsync,
     output reg         out_hsync,
     output reg         out_de,
-    output reg  [23:0] out_rgb,
-    input  wire [11:0] in_x,
-    input  wire [11:0] in_y
+    output reg  [23:0] out_rgb
 );
     // 黑白场增益在 elaboration 阶段计算，像素路径只包含常量乘法与移位。
     localparam integer CONTRAST_GAIN_Q8 =
@@ -51,8 +49,6 @@ module video_enhance #(
     reg [23:0] sharp_rgb, grade_rgb;
     reg sharp_de, sharp_vs, sharp_hs, sharp_protect;
     reg grade_de, grade_vs, grade_hs, grade_protect;
-    reg [11:0] x_d1, x_d2, x_d3, x_d4, x_d5;
-    reg [11:0] y_d1, y_d2, y_d3, y_d4, y_d5;
 
     // 有符号计算防止暗部减法下溢；最大修正幅度为 +/- DETAIL_LIMIT。
     // c + (2*c-l-r)/4 相当于轻量反锐化，不增加曝光时间或传感器噪声。
@@ -154,48 +150,15 @@ module video_enhance #(
         end
     endfunction
 
-    // Mild spatial white-balance trim for the measured green center / warm
-    // perimeter pattern. Shift-add gains cost little logic and affect only the
-    // camera image; mixer OSD pixels remain protected. Coordinates travel with
-    // the RGB pipeline, so the correction boundary cannot disturb video timing.
-    function [23:0] spatial_neutralize;
-        input [23:0] rgb;
-        input [11:0] px;
-        input [11:0] py;
-        reg [7:0] red, green, blue;
-        reg [8:0] blue_adjusted;
-        begin
-            red = rgb[23:16];
-            green = rgb[15:8];
-            blue = rgb[7:0];
-            blue_adjusted = {1'b0, blue};
-            if ((px >= 12'd320) && (px < 12'd960) &&
-                (py >= 12'd180) && (py < 12'd540)) begin
-                green = green - (green >> 4);
-            end else if ((px >= 12'd160) && (px < 12'd1120) &&
-                         (py >= 12'd90) && (py < 12'd630)) begin
-                green = green - (green >> 5);
-                blue_adjusted = {1'b0, blue} + {6'b0, blue[7:5]};
-                blue = (blue_adjusted > 9'd255) ? 8'hff : blue_adjusted[7:0];
-            end else begin
-                blue_adjusted = {1'b0, blue} + {5'b0, blue[7:4]};
-                blue = (blue_adjusted > 9'd255) ? 8'hff : blue_adjusted[7:0];
-            end
-            spatial_neutralize = {red, green, blue};
-        end
-    endfunction
-
     function [23:0] finish_display_pixel;
         input [23:0] rgb;
-        input [11:0] px;
-        input [11:0] py;
         reg [23:0] gamma_rgb;
         begin
             if (GAMMA_ENABLE)
                 gamma_rgb = {gamma_lut(rgb[23:16]), gamma_lut(rgb[15:8]), gamma_lut(rgb[7:0])};
             else
                 gamma_rgb = rgb;
-            finish_display_pixel = spatial_neutralize(gamma_rgb, px, py);
+            finish_display_pixel = gamma_rgb;
         end
     endfunction
 
@@ -239,8 +202,6 @@ module video_enhance #(
             grade_vs <= 0;
             grade_hs <= 0;
             grade_protect <= 0;
-            x_d1 <= 0; x_d2 <= 0; x_d3 <= 0; x_d4 <= 0; x_d5 <= 0;
-            y_d1 <= 0; y_d2 <= 0; y_d3 <= 0; y_d4 <= 0; y_d5 <= 0;
             out_rgb <= 0;
             out_de <= 0;
             out_vsync <= 0;
@@ -248,16 +209,6 @@ module video_enhance #(
         end else begin
             // 第一级保存原始中心和左邻居；下一拍输入作为中心的右邻居。
             center_raw <= in_rgb;
-            x_d1 <= in_x;
-            x_d2 <= x_d1;
-            x_d3 <= x_d2;
-            x_d4 <= x_d3;
-            x_d5 <= x_d4;
-            y_d1 <= in_y;
-            y_d2 <= y_d1;
-            y_d3 <= y_d2;
-            y_d4 <= y_d3;
-            y_d5 <= y_d4;
             center_de <= in_de;
             center_vs <= in_vsync;
             center_hs <= in_hsync;
@@ -319,13 +270,13 @@ module video_enhance #(
             else
                 grade_rgb <= color_grade(sharp_rgb);
 
-            // 第六级做Gamma和轻量位置校正；同步/坐标与RGB逐级对齐。
+            // 第六级做全画面一致的Gamma；RGB与同步信号逐级对齐。
             out_de <= grade_de;
             out_vsync <= grade_vs;
             out_hsync <= grade_hs;
             if (!grade_de) out_rgb <= 24'd0;
             else if (!ENABLE || grade_protect) out_rgb <= grade_rgb;
-            else out_rgb <= finish_display_pixel(grade_rgb, x_d5, y_d5);
+            else out_rgb <= finish_display_pixel(grade_rgb);
         end
     end
 endmodule

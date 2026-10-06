@@ -182,7 +182,7 @@ module design_top_wrapper (
     wire         S_track2_valid;
     wire [ 15:0] S_track2_cx;
     wire [ 15:0] S_track2_cy;
-    wire [ 15:0] S_track2_area;
+    wire [ 19:0] S_track2_area;
     wire         S_track2_frame_done;
     wire         S_track2_result_update;
     wire [15:0]   S_track2_bbox_x0;
@@ -758,9 +758,9 @@ module design_top_wrapper (
         .IMG_H       (720),
         .ROI_HALF_W  (320),
         .ROI_HALF_H  (180),
-        .MIN_VALUE   (32),
-        .MIN_AREA    (256),
-        .MAX_AREA    (20000)
+        .MIN_VALUE   (24),
+        .MIN_AREA    (128),
+        .MAX_AREA    (120000)
     ) u_roi_target_tracker (
         .clk             (S_hdmi_pixel_clk),
         .rst_n           (S_hdmi_rst_n),
@@ -864,8 +864,6 @@ module design_top_wrapper (
         .in_de     (S_hdmi_out_de),
         .in_protect(S_hdmi_out_protect),
         .in_rgb    (S_hdmi_out_data),
-        .in_x      (S_hdmi_out_x),
-        .in_y      (S_hdmi_out_y),
         .out_vsync (S_hdmi_enhanced_vsync),
         .out_hsync (S_hdmi_enhanced_hsync),
         .out_de    (S_hdmi_enhanced_de),
