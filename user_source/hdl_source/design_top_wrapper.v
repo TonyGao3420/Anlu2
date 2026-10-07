@@ -842,15 +842,15 @@ module design_top_wrapper (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
-    // Preserve the official camera color path at the display output. Keep the
-    // six-stage timing pipeline aligned, but bypass the experimental tone,
-    // saturation, and sharpening adjustments until board colors are calibrated.
+    // Preserve channel balance at the display output: bypass experimental tone,
+    // saturation, and sharpening, with a small equal RGB lift on camera pixels.
     video_enhance #(
         .ENABLE(0),
         .GAMMA_ENABLE(0),
         .SHARPEN_ENABLE(0),
         .CONTRAST_ENABLE(0),
         .SATURATION_ENABLE(0),
+        .BRIGHTNESS_OFFSET(6),
         .BLACK_LEVEL(12),
         .WHITE_LEVEL(238),
         .SATURATION_Q8(320),

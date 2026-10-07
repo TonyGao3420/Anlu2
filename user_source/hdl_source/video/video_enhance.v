@@ -7,13 +7,14 @@
 // 依次做黑白场伸展、限幅锐化、色度饱和度增强和全画面一致的gamma；不启用空间色偏补偿。
 // protect 用于 OSD/测试图：原样输出并隔离邻接像素，避免文字边缘光晕。
 // 左右边界复制中心像素；DE=0 清除邻域，绝不跨行取样。
-// ENABLE=0 仍保持同样的流水延迟，可直接进行同场景 A/B 对比。
+// ENABLE=0 仍旁路对比度、锐化、饱和度和gamma；BRIGHTNESS_OFFSET可单独做轻微亮度平移。
 module video_enhance #(
     parameter integer ENABLE = 1,
     parameter integer GAMMA_ENABLE = 1,
     parameter integer SHARPEN_ENABLE = 1,
     parameter integer CONTRAST_ENABLE = 1,
     parameter integer SATURATION_ENABLE = 1,
+    parameter integer BRIGHTNESS_OFFSET = 0,
     parameter integer BLACK_LEVEL = 12,
     parameter integer WHITE_LEVEL = 238,
     parameter integer SATURATION_Q8 = 320,
@@ -126,6 +127,17 @@ module video_enhance #(
             if (value < 0) sharpen = 8'd0;
             else if (value > 255) sharpen = 8'd255;
             else sharpen = value[7:0];
+        end
+    endfunction
+
+    // Add a small equal RGB offset to lift the displayed image without changing
+    // hue or saturation. Protect overlays so the ROI outline keeps its color.
+    function [7:0] brighten_channel;
+        input [7:0] value;
+        integer lifted;
+        begin
+            lifted = value + BRIGHTNESS_OFFSET;
+            brighten_channel = (lifted > 255) ? 8'd255 : lifted[7:0];
         end
     endfunction
 
@@ -275,7 +287,12 @@ module video_enhance #(
             out_vsync <= grade_vs;
             out_hsync <= grade_hs;
             if (!grade_de) out_rgb <= 24'd0;
-            else if (!ENABLE || grade_protect) out_rgb <= grade_rgb;
+            else if (grade_protect) out_rgb <= grade_rgb;
+            else if (BRIGHTNESS_OFFSET > 0)
+                out_rgb <= {brighten_channel(grade_rgb[23:16]),
+                            brighten_channel(grade_rgb[15:8]),
+                            brighten_channel(grade_rgb[7:0])};
+            else if (!ENABLE) out_rgb <= grade_rgb;
             else out_rgb <= finish_display_pixel(grade_rgb);
         end
     end

@@ -59,7 +59,7 @@
 | [hdl_source/isp/demosaic_4x_2_0/raw_matrix_3x3_buffer.v](../user_source/hdl_source/isp/demosaic_4x_2_0/raw_matrix_3x3_buffer.v) | raw_matrix_3x3_buffer | 是 | 组合相邻三行和每组前后像素，构造四个并行插值位置的3×3邻域。 内部将RAW10压到RAW8并整理行有效；行首尾按原工程复制边界，bayer_ypos选择行奇偶。 |
 | [hdl_source/isp/demosaic_4x_2_0/zhenghe.v](../user_source/hdl_source/isp/demosaic_4x_2_0/zhenghe.v) | zhenghe | 是 | 用双口行RAM把带空拍的四像素流整理为每行连续有效的数据。 data_complete_delay提供写入领先量，首行测得的有效跨度影响下一帧读出窗口；只适配已有摄像头节拍。 |
 | [hdl_source/isp/isp_top.v](../user_source/hdl_source/isp/isp_top.v) | isp_top | 是 | ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；这是连续流接口，不支持背压。O_tready 是下游就绪输入，I_tready 是上游就绪输出。 |
-| [hdl_source/track2/roi_target_tracker.v](../user_source/hdl_source/track2/roi_target_tracker.v) | roi_target_tracker | 是 | 显示像素时钟域单红色目标检测：直接使用输入RGB判色，采用放宽的红色色相/色度门槛及3×3多数滤波；最小面积128、最大面积120,000，框宽高各至少12像素且候选矩形至少半数像素为红色，再输出红色区域外接矩形/质心；像素面积输出为20位，避免大目标面积截断；搜索ROI按目标大小自适应。候选框按红色掩码构造，尚非物体连通域分割；一个ROI内多个红色区域可能合并。 |
+| [hdl_source/track2/roi_target_tracker.v](../user_source/hdl_source/track2/roi_target_tracker.v) | roi_target_tracker | 是 | 显示像素时钟域单红色目标检测：输入RGB判色并做3×3多数滤波；候选框按红色区域外接矩形输出。复位后先全屏搜索，命中后按目标大小/位置自适应ROI，漏检后恢复全屏搜索；ROI内多个红色区域可能合并。 |
 | [hdl_source/track2/red_mask_contour.v](../user_source/hdl_source/track2/red_mask_contour.v) | red_mask_contour | 否 | 轮廓提取历史模块，仍保留在工程文件清单中但顶层不再实例化；当前显示端使用检测器输出的矩形框，不逐像素标记红色掩码。 |
 | [hdl_source/isp/raw10_unpacket_2lane.v](../user_source/hdl_source/isp/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 是 | 将CSI载荷每5字节还原成4个10位Bayer采样。 输出最低10位是时间上第一个像素；输入要求32位数据隔拍有效。I_camera_black_level当前未参与计算。 |
 | [hdl_source/isp/uial2axis.v](../user_source/hdl_source/isp/uial2axis.v) | uial2axis | 是 | 为四像素RAW流生成帧首tuser和行尾tlast。 有效拍计数，每行IMG_WIDTH/4拍；tuser与首个有效数据同拍，宽度必须能被4整除。 |
@@ -152,7 +152,7 @@
 | [hdl_source/uiisp_beta/csi_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/csi_unpacket_2lane.v) | csi_unpacket_2lane | 否/IP间接 | 两通道CSI解包器的历史副本。 与isp/csi_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/uiisp_beta/raw10_unpacket_2lane.v](../user_source/hdl_source/uiisp_beta/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 否/IP间接 | 两通道RAW10解包器的历史副本。 与isp/raw10_unpacket_2lane.v模块同名，主工程使用isp目录版本。 |
 | [hdl_source/video/hdmi_output_wrapper.v](../user_source/hdl_source/video/hdmi_output_wrapper.v) | hdmi_output_wrapper | 否/IP间接 | 显示信号直通占位封装。 仅组合透传VS/HS/DE/RGB，不实现TMDS编码，也未接入当前顶层。 |
-| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | HDMI显示支路六级流水对齐模块。当前顶层 ENABLE=0，RGB原样旁路，仅延迟同步以匹配原输出时序；对比度、锐化、饱和度和Gamma暂时不生效，等待板上确认官方色彩基线后再逐项启用。 |
+| [hdl_source/video/video_enhance.v](../user_source/hdl_source/video/video_enhance.v) | video_enhance | 是 | HDMI显示支路六级流水对齐模块。当前仅对相机视频RGB各通道增加6级亮度并饱和截顶，保护ROI框和OSD颜色；对比度、锐化、饱和度和Gamma仍旁路。 |
 | [hdl_source/video_cuttting.v](../user_source/hdl_source/video_cuttting.v) | video_cutting | 否/IP间接 | 旧RAW8固定区域裁剪，按行有效边沿计数并选择固定行列区间。 模块名video_cutting，输出258组×602行供旧插值路径使用，当前未启用。 |
 | [hdl_source/video_in.v](../user_source/hdl_source/video_in.v) | video_in | 是 | 摄像头到DDR写通路：异步FIFO跨时钟，按240字突发写入四帧轮转缓存。 frame_start为提前复位FIFO的通知，不能随意改成首像素同拍；写地址每次加8，四帧基地址与video_out必须一致。 |
 | [hdl_source/video_out.v](../user_source/hdl_source/video_out.v) | video_out | 是 | DDR到HDMI读通路：预读128位字到异步FIFO，再按24位RGB顺序输出。 每16像素读取3个128位字；读请求到RGB经过FIFO及输出寄存级，hdmi_mixer的DE必须与这两级一致。 |

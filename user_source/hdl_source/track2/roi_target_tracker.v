@@ -159,9 +159,9 @@ module roi_target_tracker #(
             roi_center_y       <= FRAME_CENTER_Y;
             roi_half_w_live    <= ROI_HALF_W;
             roi_half_h_live    <= ROI_HALF_H;
-            // Start near the expected centered target to avoid distant red
-            // distractors. The acquisition assumes the target begins in ROI.
-            full_frame_search <= 1'b0;
+            // Acquire a target anywhere in the first frame after reset. Once a
+            // candidate is confirmed, later frames use the adaptive tracking ROI.
+            full_frame_search <= 1'b1;
             x_pipe             <= 12'd0;
             y_pipe             <= 12'd0;
             x_match_pipe       <= 12'd0;
