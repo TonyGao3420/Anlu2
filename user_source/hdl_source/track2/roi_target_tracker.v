@@ -114,16 +114,12 @@ module roi_target_tracker #(
     wire [12:0] roi_half_w_candidate = (bbox_width >> 1) + ROI_MARGIN_X;
     wire [12:0] roi_half_h_candidate = (bbox_height >> 1) + ROI_MARGIN_Y;
 
-    // Pixel occupancy of the red-pixel bounding rectangle. Requiring at least
-    // half occupancy suppresses isolated specks and sparse red texture.
-    wire [25:0] bbox_pixel_area = {13'd0, bbox_width} * {13'd0, bbox_height};
-    wire [20:0] red_pixel_count_x2 = {pixel_count, 1'b0};
-
+    // Keep frame acceptance comparable to the first working rectangle-box
+    // version: judge the filtered red-pixel count, not red-pixel density in
+    // the bounding rectangle. Density is not the same as red coverage of the
+    // physical object and rejected many legitimate hollow/irregular objects.
     wire frame_candidate_valid = (pixel_count >= MIN_AREA) &&
-                                 (pixel_count <= MAX_AREA) &&
-                                 (bbox_width >= 13'd12) &&
-                                 (bbox_height >= 13'd12) &&
-                                 ({5'd0, red_pixel_count_x2} >= bbox_pixel_area);
+                                 (pixel_count <= MAX_AREA);
 
     // Iterative restoring divider; two coordinates share one 32-cycle datapath.
     reg        div_busy;

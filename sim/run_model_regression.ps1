@@ -11,7 +11,8 @@ $runs = @(
     @{ Script = 'run_color.do'; Marker = 'PASS video_color_path' },
     @{ Script = 'run_raw10.do'; Marker = 'PASS raw10' },
     @{ Script = 'run_bilinear_color.do'; Marker = 'PASS bilinear_color' },
-    @{ Script = 'run_awb.do'; Marker = 'PASS awb_unit_gain' }
+    @{ Script = 'run_awb.do'; Marker = 'PASS awb_unit_gain' },
+    @{ Script = 'run_awb_auto_gain.do'; Marker = 'PASS awb_auto_gain' }
 )
 
 if (-not (Test-Path -LiteralPath $ModelSimPath -PathType Leaf)) {

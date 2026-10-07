@@ -29,7 +29,7 @@ module tb_roi_target_tracker;
         .ROI_HALF_W(24), .ROI_HALF_H(12),
         .ROI_MIN_HALF_W(8), .ROI_MIN_HALF_H(6),
         .ROI_MARGIN_X(4), .ROI_MARGIN_Y(3),
-        .MIN_VALUE(24), .MIN_AREA(128), .MAX_AREA(120000)
+        .MIN_VALUE(24), .MIN_AREA(64), .MAX_AREA(120000)
     ) dut (
         .clk(clk), .rst_n(rst_n),
         .in_frame_start(in_frame_start), .in_de(in_de),
@@ -90,6 +90,35 @@ module tb_roi_target_tracker;
         end
     endtask
 
+    task automatic send_h_frame;
+        integer x, y;
+        reg in_h;
+        begin
+            // A sparse, hollow red object exercises the case rejected by the
+            // former >=50% red-pixel-to-bounding-box occupancy gate.
+            send_frame_start();
+            for (y = 0; y < IMG_H; y = y + 1) begin
+                for (x = 0; x < IMG_W; x = x + 1) begin
+                    in_h = (((x >= 16) && (x <= 18)) ||
+                            ((x >= 33) && (x <= 35)) ||
+                            ((y >= 14) && (y <= 16))) &&
+                           (x >= 16) && (x <= 35) &&
+                           (y >= 3) && (y <= 27);
+                    send_pixel(in_h ? 24'hA04840 : 24'h303030,
+                               x == IMG_W - 1);
+                end
+                @(negedge clk);
+                in_de = 1'b0;
+                in_line_last = 1'b0;
+                in_rgb = 24'd0;
+                repeat (2) @(negedge clk);
+            end
+            in_de = 1'b0;
+            in_line_last = 1'b0;
+            repeat (8) @(negedge clk);
+        end
+    endtask
+
     initial begin
         repeat (5) @(negedge clk);
         rst_n = 1'b1;
@@ -112,6 +141,18 @@ module tb_roi_target_tracker;
             $fatal(1, "Centroid divider mismatch: (%0d,%0d)", centroid_x, centroid_y);
         $display("PASS ROI acquire: bounds=(%0d,%0d)-(%0d,%0d) area=%0d centroid=(%0d,%0d)",
                  bbox_x0, bbox_y0, bbox_x1, bbox_y1, target_area, centroid_x, centroid_y);
+
+        send_h_frame();
+        send_frame_start();
+        #1;
+        if (!frame_done || !target_valid)
+            $fatal(1, "ROI miss: sparse red H-shaped object was rejected");
+        if (bbox_x0 < 16 || bbox_x1 > 35 || bbox_y0 < 3 || bbox_y1 > 27 ||
+            bbox_x1 <= bbox_x0 || bbox_y1 <= bbox_y0)
+            $fatal(1, "Sparse ROI bounds invalid: (%0d,%0d)-(%0d,%0d)",
+                   bbox_x0, bbox_y0, bbox_x1, bbox_y1);
+        $display("PASS ROI sparse-object box: bounds=(%0d,%0d)-(%0d,%0d) area=%0d",
+                 bbox_x0, bbox_y0, bbox_x1, bbox_y1, target_area);
 
         // An all-gray frame must release the ROI rather than keep a stale box.
         send_rect_frame(-1, -1, -1, -1, 24'hFF0000);

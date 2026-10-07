@@ -759,7 +759,7 @@ module design_top_wrapper (
         .ROI_HALF_W  (320),
         .ROI_HALF_H  (180),
         .MIN_VALUE   (24),
-        .MIN_AREA    (128),
+        .MIN_AREA    (64),
         .MAX_AREA    (120000)
     ) u_roi_target_tracker (
         .clk             (S_hdmi_pixel_clk),
