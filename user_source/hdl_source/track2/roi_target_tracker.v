@@ -70,9 +70,10 @@ module roi_target_tracker #(
     reg mask_mid_x1, mask_mid_x2;
     reg mask_bot_x1, mask_bot_x2;
 
-    // RGB-to-HSV red-sector approximation. The wider hue allowance and lower
-    // chroma floor accept faded reds; the 3x3 majority and frame area threshold
-    // reject isolated color noise.
+    // Division-free RGB red-sector test. Requiring R to be the maximum channel
+    // and bounding |G-B| relative to red chroma restricts hue to about 340..20
+    // degrees. The saturation floor rejects whites/gray highlights while still
+    // accepting light, dark, and brown-red samples.
     wire [7:0] green_blue_min = (rgb_pipe[15:8] < rgb_pipe[7:0])
                                 ? rgb_pipe[15:8] : rgb_pipe[7:0];
     wire [7:0] green_blue_diff = (rgb_pipe[15:8] < rgb_pipe[7:0])
@@ -80,20 +81,19 @@ module roi_target_tracker #(
                                  : (rgb_pipe[15:8] - rgb_pipe[7:0]);
     wire [7:0] red_chroma = (rgb_pipe[23:16] > green_blue_min)
                             ? (rgb_pipe[23:16] - green_blue_min) : 8'd0;
-    // A small channel margin accommodates the observed green cast near screen
-    // center without treating neutral gray as red (the chroma floor rejects it).
-    wire [8:0] red_with_margin = {1'b0, rgb_pipe[23:16]} + 9'd20;
-    wire [8:0] blue_with_margin = {1'b0, rgb_pipe[7:0]} + 9'd12;
-    wire red_is_max = (red_with_margin >= {1'b0, rgb_pipe[15:8]}) &&
-                      (red_with_margin >= {1'b0, rgb_pipe[7:0]}) &&
-                      ({1'b0, rgb_pipe[23:16]} >= blue_with_margin);
-    wire [8:0] red_hue_tolerance = {1'b0, red_chroma} -
-                                   ({1'b0, red_chroma} >> 3) + 9'd32;
+    // 3*|G-B| <= (R-min(G,B)) is equivalent to keeping the red hue within
+    // approximately 20 degrees of 0/360, without a divider or hue lookup ROM.
+    wire [9:0] green_blue_diff_x3 =
+        ({2'b00, green_blue_diff} << 1) + {2'b00, green_blue_diff};
+    wire red_is_max = (rgb_pipe[23:16] >= rgb_pipe[15:8]) &&
+                      (rgb_pipe[23:16] >= rgb_pipe[7:0]);
     wire red_hue_match = red_is_max &&
-                         ({1'b0, green_blue_diff} <= red_hue_tolerance);
-    // Lower floors recover dim and partially desaturated red regions.
-    wire red_sat_match = (red_chroma >= 8'd8) &&
-                         (red_chroma >= (rgb_pipe[23:16] >> 4));
+                         (green_blue_diff_x3 <= {2'b00, red_chroma});
+    // Saturation is delta/V in HSV. A 1/4 floor rejects neutral highlights,
+    // while red-chroma>=12 avoids unstable hue decisions close to black.
+    wire red_sat_match = (red_chroma >= 8'd12) &&
+                         ({1'b0, red_chroma} >=
+                          ({1'b0, rgb_pipe[23:16]} >> 2));
     wire red_value_match = rgb_pipe[23:16] >= MIN_VALUE;
     wire hsv_red_match = red_hue_match && red_sat_match && red_value_match;
 

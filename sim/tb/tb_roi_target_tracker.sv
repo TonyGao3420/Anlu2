@@ -117,6 +117,20 @@ module tb_roi_target_tracker;
         end
     endtask
 
+    task automatic check_color_frame(
+        input [23:0] test_color,
+        input bit expected_detection
+    );
+        begin
+            send_rect_frame(20, 8, 39, 23, test_color);
+            send_frame_start();
+            #1;
+            if (frame_done !== 1'b1 || target_valid !== expected_detection)
+                $fatal(1, "Color classifier mismatch for RGB=%06h: expected detect=%b got=%b",
+                       test_color, expected_detection, target_valid);
+        end
+    endtask
+
     initial begin
         repeat (5) @(negedge clk);
         rst_n = 1'b1;
@@ -152,6 +166,16 @@ module tb_roi_target_tracker;
                    bbox_x0, bbox_y0, bbox_x1, bbox_y1);
         $display("PASS ROI sparse-object box: bounds=(%0d,%0d)-(%0d,%0d) area=%0d",
                  bbox_x0, bbox_y0, bbox_x1, bbox_y1, target_area);
+
+        // Reject common false positives while retaining several red shades.
+        check_color_frame(24'hF8F8F8, 1'b0); // bright white
+        check_color_frame(24'hFF8000, 1'b0); // vivid orange
+        check_color_frame(24'h805020, 1'b0); // brown, outside red hue sector
+        check_color_frame(24'hB020B0, 1'b0); // purple
+        check_color_frame(24'h804020, 1'b1); // brown-red
+        check_color_frame(24'hFFAAAA, 1'b1); // light red
+        check_color_frame(24'h501008, 1'b1); // deep red
+        $display("PASS red classifier: white/orange/brown/purple rejected; brown/light/deep red accepted");
 
         // Once locked, a target far outside the adaptive window is ignored.
         // The miss restores full-frame search, so the same target is acquired
