@@ -1,6 +1,6 @@
 // 单目标红色检测器：在显示像素时钟域统计红色区域的边界和质心。
 // 输入直接旁路观察 DDR 读出的 RGB/DE，不对官方视频通路施加反压或修改像素。
-// 红色扇区采用比较器近似；边界随红色像素实际范围变化，后续帧ROI也随目标大小调整。
+// 红色判定允许有限的绿偏容差；每帧全屏搜索，边界随红色像素实际范围变化。
 // 当前输出为轴对齐矩形外接框；本模块依赖画面中只有一个主要红色目标，不做连通域分割。
 module roi_target_tracker #(
     parameter integer IMG_W = 1280,
@@ -78,12 +78,19 @@ module roi_target_tracker #(
     wire [7:0] green_blue_diff = (rgb_pipe[15:8] < rgb_pipe[7:0])
                                  ? (rgb_pipe[7:0] - rgb_pipe[15:8])
                                  : (rgb_pipe[15:8] - rgb_pipe[7:0]);
-    wire [7:0] red_chroma = rgb_pipe[23:16] - green_blue_min;
-    wire red_is_max = (rgb_pipe[23:16] >= rgb_pipe[15:8]) &&
-                      (rgb_pipe[23:16] >= rgb_pipe[7:0]);
-    wire [7:0] red_hue_tolerance = red_chroma - (red_chroma >> 3);
+    wire [7:0] red_chroma = (rgb_pipe[23:16] > green_blue_min)
+                            ? (rgb_pipe[23:16] - green_blue_min) : 8'd0;
+    // A small channel margin accommodates the observed green cast near screen
+    // center without treating neutral gray as red (the chroma floor rejects it).
+    wire [8:0] red_with_margin = {1'b0, rgb_pipe[23:16]} + 9'd20;
+    wire [8:0] blue_with_margin = {1'b0, rgb_pipe[7:0]} + 9'd12;
+    wire red_is_max = (red_with_margin >= {1'b0, rgb_pipe[15:8]}) &&
+                      (red_with_margin >= {1'b0, rgb_pipe[7:0]}) &&
+                      ({1'b0, rgb_pipe[23:16]} >= blue_with_margin);
+    wire [8:0] red_hue_tolerance = {1'b0, red_chroma} -
+                                   ({1'b0, red_chroma} >> 3) + 9'd32;
     wire red_hue_match = red_is_max &&
-                         (green_blue_diff <= red_hue_tolerance);
+                         ({1'b0, green_blue_diff} <= red_hue_tolerance);
     // Lower floors recover dim and partially desaturated red regions.
     wire red_sat_match = (red_chroma >= 8'd8) &&
                          (red_chroma >= (rgb_pipe[23:16] >> 4));
@@ -94,8 +101,10 @@ module roi_target_tracker #(
                      ? (x_count - roi_center_x) : (roi_center_x - x_count);
     wire [11:0] dy = (y_count >= roi_center_y)
                      ? (y_count - roi_center_y) : (roi_center_y - y_count);
-    wire in_roi = full_frame_search ||
-                  ((dx <= roi_half_w_live) && (dy <= roi_half_h_live));
+    // The pixel stream is already a one-pixel-per-clock hardware pipeline.
+    // Search the complete frame every time to avoid losing a target after
+    // sudden motion or a temporary color shift; the reported box remains tight.
+    wire in_roi = 1'b1;
 
     // Tighten the following-frame search window around the measured object.
     // Its extent follows the detected red pixels, with a motion margin and

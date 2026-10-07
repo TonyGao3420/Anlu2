@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
-// FIFO行为模型仅用于验证字节打包、读取拍数和像素顺序，不验证厂商CDC实现。
+// FIFO?????????????????????????????CDC???
 module w128_d512_fifo(input rst,clkw,we,input [127:0] di,
     output afull,full_flag,output [8:0] wrusedw,input clkr,re,
     output reg [127:0] dout,output [8:0] rdusedw,output valid,empty_flag,aempty);
-    reg [127:0] mem[0:511];
+    reg [127:0] mem[0:1023];
     integer wp=0,rp=0;
     always @(posedge clkw) if(rst) wp<=0; else if(we) begin mem[wp]<=di;wp<=wp+1;end
     always @(posedge clkr) if(rst) begin rp<=0;dout<=0;end
@@ -19,6 +19,7 @@ module tb_display_path;
     reg de=0,vs=0,hs=0,user=0,last=0;
     wire [23:0] pixel,rgb;
     wire out_de,out_vs,out_hs,protect,request;
+    wire [11:0] out_x,out_y;
     wire fs;
     data_96bit_to_128bit packer(clk,rst_n,1'b0,packed_valid,source,fs,word_valid,word_data);
     video_out reader(.I_rst_n(rst_n),.I_ddr_clk(clk),.O_video_out_rd_busy(),
@@ -28,13 +29,19 @@ module tb_display_path;
         .I_video_rd_en(request),.O_vdieo_data(pixel));
     hdmi_mixer #(.OSD_ENABLE(0)) mixer(.I_clk(clk),.I_rst_n(rst_n),.I_video_vsync(vs),
         .I_video_hsync(hs),.I_video_de(de),.I_video_user(user),.I_video_last(last),
-        .I_debug_status(4'b0),.O_video_rd_en(request),.I_video_rd_data(pixel),
+        .I_debug_status(4'b0),.I_target_bbox_valid(1'b1),
+        .I_target_bbox_x0(16'd40),.I_target_bbox_y0(16'd2),
+        .I_target_bbox_x1(16'd47),.I_target_bbox_y1(16'd3),
+        .O_video_rd_en(request),.I_video_rd_data(pixel),
         .O_hdmi_vsync(out_vs),.O_hdmi_hsync(out_hs),.O_hdmi_de(out_de),
-        .O_hdmi_data(rgb),.O_hdmi_protect(protect));
+        .O_hdmi_data(rgb),.O_hdmi_protect(protect),
+        .O_hdmi_x(out_x),.O_hdmi_y(out_y));
     function [23:0] pattern(input integer x);
         pattern={8'(x),8'(x>>3),8'(255-(x%256))};
     endfunction
-    integer i,j,seen=0;
+    integer i,j,seen=0,overlay_count=0;
+    integer overlay_min_x=1280,overlay_max_x=0,overlay_min_y=720,overlay_max_y=0;
+    reg expected_overlay;
     reg [2:0] dq=0,vq=0,hq=0;
     always @(posedge clk) begin
         if(!rst_n) begin dq=0;vq=0;hq=0;end
@@ -43,16 +50,30 @@ module tb_display_path;
             #1;
             if({out_de,out_vs,out_hs} !== {dq[2],vq[2],hq[2]}) $fatal(1,"Mixer sync alignment");
             if(out_de) begin
-                if(rgb !== pattern(seen)) $fatal(1,"Pixel %0d got %h expected %h",seen,rgb,pattern(seen));
-                if(protect) $fatal(1,"Unexpected protection without OSD");
+                // Padded bbox is x=36..51, y=0..7 with a 2-pixel outline.
+                expected_overlay = (out_x >= 36 && out_x <= 51 && out_y <= 7 &&
+                    ((out_x < 38) || (out_x + 2 > 51) ||
+                     (out_y < 2) || (out_y + 2 > 7)));
+                if (protect !== expected_overlay)
+                    $fatal(1,"ROI protection mismatch at (%0d,%0d)",out_x,out_y);
+                if (expected_overlay) begin
+                    if (rgb !== 24'h00ffff) $fatal(1,"ROI overlay color got %h",rgb);
+                    overlay_count=overlay_count+1;
+                    if (out_x < overlay_min_x) overlay_min_x=out_x;
+                    if (out_x > overlay_max_x) overlay_max_x=out_x;
+                    if (out_y < overlay_min_y) overlay_min_y=out_y;
+                    if (out_y > overlay_max_y) overlay_max_y=out_y;
+                end else if(rgb !== pattern(seen)) begin
+                    $fatal(1,"Pixel %0d got %h expected %h",seen,rgb,pattern(seen));
+                end
                 seen=seen+1;
             end else if(rgb !== 0) $fatal(1,"Nonblack blanking");
         end
     end
     initial begin
         repeat(5) @(negedge clk);rst_n=1;
-        // 两行，每行320个RGBx4输入生成240个128位字，合计480字。
-        for(j=0;j<2;j=j+1) begin
+        // Four lines exercise both horizontal and vertical ROI alignment.
+        for(j=0;j<4;j=j+1) begin
             for(i=0;i<320;i=i+1) begin
                 packed_valid=1;
                 source={pattern(j*1280+i*4),pattern(j*1280+i*4+1),
@@ -62,7 +83,7 @@ module tb_display_path;
             packed_valid=0;repeat(8) @(negedge clk);
         end
         repeat(10) @(negedge clk);
-        for(j=0;j<2;j=j+1) begin
+        for(j=0;j<4;j=j+1) begin
             for(i=0;i<1280;i=i+1) begin
                 de=1;last=(i==1279);user=(j==0 && i==0);
                 @(negedge clk);
@@ -70,8 +91,13 @@ module tb_display_path;
             de=0;last=0;user=0;hs=1;repeat(40) @(negedge clk);hs=0;
         end
         repeat(5) @(negedge clk);
-        if(seen!=2560) $fatal(1,"Pixel count %0d",seen);
-        $display("PASS display_path: 2560 ordered pixels, 480 DDR words, blanking and sync");
+        if(seen!=5120) $fatal(1,"Pixel count %0d",seen);
+        if(overlay_count!=40 || overlay_min_x!=36 || overlay_max_x!=51 ||
+           overlay_min_y!=0 || overlay_max_y!=3)
+            $fatal(1,"ROI overlay bounds x=%0d..%0d y=%0d..%0d count=%0d",
+                   overlay_min_x,overlay_max_x,overlay_min_y,overlay_max_y,overlay_count);
+        $display("PASS display_path: %0d ordered pixels; ROI overlay x=%0d..%0d y=%0d..%0d",
+                 seen,overlay_min_x,overlay_max_x,overlay_min_y,overlay_max_y);
         $finish;
     end
     initial begin #100000; $fatal(1,"Timeout");end

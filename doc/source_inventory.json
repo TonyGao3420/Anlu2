@@ -112,8 +112,8 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 837,
-    "sha256": "b78ede50a6c916ec580dfe2d7e79bafa14f1874bfb114323061a4f6bc8640909",
+    "lines": 906,
+    "sha256": "8c6a4010fbaf49a790af98ba42247ba5d5a683a7c9c7dc4b0c578d885555f044",
     "purpose": "板级顶层：连接SC520双路MIPI、ISP、DDR帧缓存、OSD和HDMI；官方视频链路保持，ROI检测器只读观察DDR读像素并向mixer输出目标框。"
   },
   {
@@ -1509,9 +1509,9 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 382,
-    "sha256": "77bb369ec1f39b87ec4e262dc2b22fdc7626a93ea27bb9c719abb27511ca7670",
-    "purpose": "显示增强实验源码，支持黑白场扩展、色度增强、锐化和gamma映射；当前未加入TD编译清单且顶层不实例化，不消耗当前设计资源。"
+    "lines": 299,
+    "sha256": "687614e782f8a5f3e690cf0a0365a90c3922e2685aac01c5ab907ba73326549d",
+    "purpose": "HDMI显示六级对齐流水；当前仅对相机画面每通道增加6级亮度，ROI/OSD受保护，色调增强旁路。"
   },
   {
     "file": "user_source/hdl_source/video_cuttting.v",
@@ -2071,9 +2071,9 @@
     ],
     "kind": "可维护RTL",
     "direct": true,
-    "lines": 274,
-    "sha256": "B413D5F7EEB3DD479E160941E5CB45715EF1819B930E1E4EF1676C94A3EC8679",
-    "purpose": "显示像素时钟域单红色目标原型：HSV扇区近似、面积筛选、像素外接框/质心和自适应搜索ROI；阈值掩码送入3×3轮廓模块，ROI内多个红色区域仍会合并。"
+    "lines": 365,
+    "sha256": "33f6b57484cab8cb8c529f8c33b7878e5e1b9fc107d4b464997804994d4b5cfc",
+    "purpose": "显示像素时钟域单红色目标检测；每帧全屏扫描，阈值允许有限绿偏并保留面积密度筛选，输出像素外接框/质心。"
   },
   {
     "file": "user_source/hdl_source/track2/red_mask_contour.v",

@@ -59,7 +59,7 @@
 | [hdl_source/isp/demosaic_4x_2_0/raw_matrix_3x3_buffer.v](../user_source/hdl_source/isp/demosaic_4x_2_0/raw_matrix_3x3_buffer.v) | raw_matrix_3x3_buffer | 是 | 组合相邻三行和每组前后像素，构造四个并行插值位置的3×3邻域。 内部将RAW10压到RAW8并整理行有效；行首尾按原工程复制边界，bayer_ypos选择行奇偶。 |
 | [hdl_source/isp/demosaic_4x_2_0/zhenghe.v](../user_source/hdl_source/isp/demosaic_4x_2_0/zhenghe.v) | zhenghe | 是 | 用双口行RAM把带空拍的四像素流整理为每行连续有效的数据。 data_complete_delay提供写入领先量，首行测得的有效跨度影响下一帧读出窗口；只适配已有摄像头节拍。 |
 | [hdl_source/isp/isp_top.v](../user_source/hdl_source/isp/isp_top.v) | isp_top | 是 | ISP组合：RAW10四像素并行→Bayer插值→去填充→白平衡→96/128位打包。 IMG=1280×720、BAYER_MODE=BGGR；这是连续流接口，不支持背压。O_tready 是下游就绪输入，I_tready 是上游就绪输出。 |
-| [hdl_source/track2/roi_target_tracker.v](../user_source/hdl_source/track2/roi_target_tracker.v) | roi_target_tracker | 是 | 显示像素时钟域单红色目标检测：输入RGB判色并做3×3多数滤波；候选框按红色区域外接矩形输出。复位后先全屏搜索，命中后按目标大小/位置自适应ROI，漏检后恢复全屏搜索；ROI内多个红色区域可能合并。 |
+| [hdl_source/track2/roi_target_tracker.v](../user_source/hdl_source/track2/roi_target_tracker.v) | roi_target_tracker | 是 | 显示像素时钟域单红色目标检测：每帧扫描全屏，RGB阈值含有限绿偏容差并做3×3多数滤波；最小面积与候选框红色占比抑制零星误检，输出红色区域实际外接矩形。相邻多个红色区域可能合并。 |
 | [hdl_source/track2/red_mask_contour.v](../user_source/hdl_source/track2/red_mask_contour.v) | red_mask_contour | 否 | 轮廓提取历史模块，仍保留在工程文件清单中但顶层不再实例化；当前显示端使用检测器输出的矩形框，不逐像素标记红色掩码。 |
 | [hdl_source/isp/raw10_unpacket_2lane.v](../user_source/hdl_source/isp/raw10_unpacket_2lane.v) | raw10_unpacket_2lane | 是 | 将CSI载荷每5字节还原成4个10位Bayer采样。 输出最低10位是时间上第一个像素；输入要求32位数据隔拍有效。I_camera_black_level当前未参与计算。 |
 | [hdl_source/isp/uial2axis.v](../user_source/hdl_source/isp/uial2axis.v) | uial2axis | 是 | 为四像素RAW流生成帧首tuser和行尾tlast。 有效拍计数，每行IMG_WIDTH/4拍；tuser与首个有效数据同拍，宽度必须能被4整除。 |

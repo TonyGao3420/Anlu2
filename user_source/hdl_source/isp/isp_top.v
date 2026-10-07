@@ -79,9 +79,10 @@ module isp_top (
     awb #(
         .IMG_HEIGHT(720),
         .IMG_WIDTH (1280),
-        // Retain the official ISP white-balance stage; awb.v slews each frame
-        // toward the measured neutral balance to reduce abrupt occlusion shifts.
-        .AUTO_GAIN_ENABLE(1)
+        // Keep FPGA RGB gains at unity until the SC520 color response is
+        // calibrated on the real sensor; scene-dependent gains caused visible
+        // global tint changes when the view was occluded or lighting changed.
+        .AUTO_GAIN_ENABLE(0)
     ) u_awb (
         .I_clk   (axi4s_video_aclk),
         .I_rst_n (I_rst_n),
