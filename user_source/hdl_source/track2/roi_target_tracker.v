@@ -1,6 +1,6 @@
 // 单目标红色检测器：在显示像素时钟域统计红色区域的边界和质心。
 // 输入直接旁路观察 DDR 读出的 RGB/DE，不对官方视频通路施加反压或修改像素。
-// 红色判定允许有限的绿偏容差；每帧全屏搜索，边界随红色像素实际范围变化。
+// 首帧/丢失时全屏搜索，锁定后围绕目标质心使用自适应矩形 ROI 搜索。
 // 当前输出为轴对齐矩形外接框；本模块依赖画面中只有一个主要红色目标，不做连通域分割。
 module roi_target_tracker #(
     parameter integer IMG_W = 1280,
@@ -71,8 +71,8 @@ module roi_target_tracker #(
     reg mask_bot_x1, mask_bot_x2;
 
     // RGB-to-HSV red-sector approximation. The wider hue allowance and lower
-    // chroma floor accept faded reds and center-shifted reds while 3x3 cleanup
-    // plus the frame-level area/occupancy checks reject isolated color noise.
+    // chroma floor accept faded reds; the 3x3 majority and frame area threshold
+    // reject isolated color noise.
     wire [7:0] green_blue_min = (rgb_pipe[15:8] < rgb_pipe[7:0])
                                 ? rgb_pipe[15:8] : rgb_pipe[7:0];
     wire [7:0] green_blue_diff = (rgb_pipe[15:8] < rgb_pipe[7:0])
@@ -101,10 +101,12 @@ module roi_target_tracker #(
                      ? (x_count - roi_center_x) : (roi_center_x - x_count);
     wire [11:0] dy = (y_count >= roi_center_y)
                      ? (y_count - roi_center_y) : (roi_center_y - y_count);
-    // The pixel stream is already a one-pixel-per-clock hardware pipeline.
-    // Search the complete frame every time to avoid losing a target after
-    // sudden motion or a temporary color shift; the reported box remains tight.
-    wire in_roi = 1'b1;
+    // Search the full frame while acquiring or after a miss. Once locked,
+    // limit color statistics to a window around the previous frame's centroid.
+    // A target that moves outside the window causes one miss, then full-frame
+    // reacquisition on the following frame.
+    wire in_roi = full_frame_search ||
+                  ((dx <= roi_half_w_live) && (dy <= roi_half_h_live));
 
     // Tighten the following-frame search window around the measured object.
     // Its extent follows the detected red pixels, with a motion margin and

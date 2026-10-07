@@ -71,7 +71,6 @@ module tb_roi_target_tracker;
         integer x, y;
         reg [23:0] pixel;
         begin
-            send_frame_start();
             for (y = 0; y < IMG_H; y = y + 1) begin
                 for (x = 0; x < IMG_W; x = x + 1) begin
                     pixel = ((x >= x0) && (x <= x1) &&
@@ -96,7 +95,6 @@ module tb_roi_target_tracker;
         begin
             // A sparse, hollow red object exercises the case rejected by the
             // former >=50% red-pixel-to-bounding-box occupancy gate.
-            send_frame_start();
             for (y = 0; y < IMG_H; y = y + 1) begin
                 for (x = 0; x < IMG_W; x = x + 1) begin
                     in_h = (((x >= 16) && (x <= 18)) ||
@@ -124,6 +122,7 @@ module tb_roi_target_tracker;
         rst_n = 1'b1;
 
         // Muted red tests tolerance; the gray background must not be detected.
+        send_frame_start();
         send_rect_frame(20, 8, 39, 23, 24'hA04840);
         send_frame_start();
         #1;
@@ -153,6 +152,22 @@ module tb_roi_target_tracker;
                    bbox_x0, bbox_y0, bbox_x1, bbox_y1);
         $display("PASS ROI sparse-object box: bounds=(%0d,%0d)-(%0d,%0d) area=%0d",
                  bbox_x0, bbox_y0, bbox_x1, bbox_y1, target_area);
+
+        // Once locked, a target far outside the adaptive window is ignored.
+        // The miss restores full-frame search, so the same target is acquired
+        // on the next frame without requiring a reset.
+        send_rect_frame(48, 4, 57, 27, 24'hA04840);
+        send_frame_start();
+        #1;
+        if (!frame_done || target_valid)
+            $fatal(1, "ROI gate did not reject a target outside the locked window");
+        send_rect_frame(48, 4, 57, 27, 24'hA04840);
+        send_frame_start();
+        #1;
+        if (!frame_done || !target_valid || bbox_x0 < 48 || bbox_x1 > 57)
+            $fatal(1, "Full-frame reacquisition failed after ROI miss");
+        $display("PASS ROI reacquire: bounds=(%0d,%0d)-(%0d,%0d)",
+                 bbox_x0, bbox_y0, bbox_x1, bbox_y1);
 
         // An all-gray frame must release the ROI rather than keep a stale box.
         send_rect_frame(-1, -1, -1, -1, 24'hFF0000);
