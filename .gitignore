@@ -78,3 +78,5 @@ td_*.logw
 /sim/.baseline/
 /sim/build/
 /td_project/*_Runs/
+*.al
+*.al
