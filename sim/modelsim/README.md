@@ -1,3 +1,5 @@
+Current ROI regressions use green-only connected regions and stable frame-atomic boxes. See ../../doc/GREEN_ROI_20261008.md for coverage and limitations.
+
 # ModelSim regression
 
 Run from PowerShell in `Anlu2/sim`:
@@ -22,4 +24,4 @@ testbenches are behavioral; this is RTL simulation of the selected logic, not
 a timing or vendor primitive simulation of the complete board-level MIPI/DDR
 design.
 
-Spatial color shading: `run_color_shading.do` checks transactional BGGR calibration, unity, a green-center/red-edge field, frozen gains on a red target, invalid-capture rollback and clear at SOF. `run_color_shading_720p.do` repeats this at 1280x720 (6,451,200 pixels). `run_lsc_keys.do` checks short/long-press release behavior. The main regression includes LSC, keys and 720p ROI checks; the full-size LSC test can be run separately.
+The 720p ROI height regression checks four locked frames of a 600-pixel-tall target.

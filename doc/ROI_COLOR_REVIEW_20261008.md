@@ -1,3 +1,5 @@
+> Superseded in part by the 2026-10-08 rollback: only the height-cap change remains active. Width-cap expansion and bounding-box-center tracking described below have been reverted. See ROI_HEIGHT_ROLLBACK_20261008.md.
+
 # 2026-10-08 ROI 与空间色偏核查
 
 ## 已修复

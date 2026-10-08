@@ -1,234 +1,100 @@
 `timescale 1ns/1ps
-
-// Frame-level regression for the streamed red detector. The small raster keeps
-// simulation fast while exercising the same detector pipeline and thresholds.
 module tb_roi_target_tracker;
-    localparam integer IMG_W = 64;
-    localparam integer IMG_H = 32;
-
-    reg clk = 1'b0;
-    always #5 clk = ~clk;
-
-    reg rst_n = 1'b0;
-    reg in_frame_start = 1'b0;
-    reg in_de = 1'b0;
-    reg in_line_last = 1'b0;
-    reg [23:0] in_rgb = 24'd0;
-
-    wire target_valid;
-    wire [15:0] bbox_x0, bbox_y0, bbox_x1, bbox_y1;
-    wire [15:0] centroid_x, centroid_y;
-    wire [19:0] target_area;
-    wire frame_done, result_update;
-    wire mask_valid, red_mask;
-    wire [11:0] mask_x, mask_y;
-    wire dbg_roi_valid, dbg_color_match;
-
-    roi_target_tracker #(
-        .IMG_W(IMG_W), .IMG_H(IMG_H),
-        .ROI_HALF_W(24), .ROI_HALF_H(12),
-        .ROI_MIN_HALF_W(8), .ROI_MIN_HALF_H(6),
-        .ROI_MARGIN_X(4), .ROI_MARGIN_Y(3),
-        .MIN_VALUE(24), .MIN_AREA(64), .MAX_AREA(120000)
-    ) dut (
-        .clk(clk), .rst_n(rst_n),
-        .in_frame_start(in_frame_start), .in_de(in_de),
-        .in_line_last(in_line_last), .in_rgb(in_rgb),
-        .target_valid(target_valid), .bbox_x0(bbox_x0), .bbox_y0(bbox_y0),
-        .bbox_x1(bbox_x1), .bbox_y1(bbox_y1),
-        .centroid_x(centroid_x), .centroid_y(centroid_y),
-        .target_area(target_area), .frame_done(frame_done),
-        .result_update(result_update), .mask_valid(mask_valid),
-        .red_mask(red_mask), .mask_x(mask_x), .mask_y(mask_y),
-        .dbg_roi_valid(dbg_roi_valid), .dbg_color_match(dbg_color_match)
-    );
-
-    task automatic send_frame_start;
-        begin
-            @(negedge clk);
-            in_de = 1'b0;
-            in_line_last = 1'b0;
-            in_frame_start = 1'b1;
-            @(negedge clk);
-            in_frame_start = 1'b0;
-        end
+    localparam W=160,H=96;
+    reg clk=0;always #5 clk=~clk;
+    reg rst_n=0,sof=0,de=0,last=0;
+    reg [23:0] rgb=0;
+    wire valid,done,update;
+    wire [15:0] x0,y0,x1,y1,cx,cy;
+    wire [19:0] area;
+    roi_target_tracker #(.IMG_W(W),.IMG_H(H),.MIN_AREA(64)) dut(
+        .clk(clk),.rst_n(rst_n),.in_frame_start(sof),.in_de(de),.in_line_last(last),.in_rgb(rgb),
+        .target_valid(valid),.bbox_x0(x0),.bbox_y0(y0),.bbox_x1(x1),.bbox_y1(y1),
+        .centroid_x(cx),.centroid_y(cy),.target_area(area),.frame_done(done),.result_update(update),
+        .mask_valid(),.green_mask(),.mask_x(),.mask_y(),.dbg_roi_valid(),.dbg_color_match());
+    task reset;
+        begin @(negedge clk);rst_n=0;de=0;last=0;sof=0;repeat(5)@(negedge clk);
+            rst_n=1;repeat(100)@(negedge clk);end
     endtask
-
-    task automatic send_pixel(input [23:0] pixel, input bit last_pixel);
-        begin
-            @(negedge clk);
-            in_de = 1'b1;
-            in_line_last = last_pixel;
-            in_rgb = pixel;
-        end
+    task start;
+        begin @(negedge clk);sof=1;@(negedge clk);sof=0;end
     endtask
-
-    task automatic send_rect_frame(
-        input integer x0, input integer y0,
-        input integer x1, input integer y1,
-        input [23:0] rect_color
-    );
-        integer x, y;
-        reg [23:0] pixel;
+    integer ix,iy;
+    reg coincident_sof=0,h_shape=0;
+    reg [64:0] held;
+    task frame(input integer a0,b0,a1,b1,input [23:0] color,
+               input integer c0,d0,c1,d1,input [23:0] color2);
         begin
-            for (y = 0; y < IMG_H; y = y + 1) begin
-                for (x = 0; x < IMG_W; x = x + 1) begin
-                    pixel = ((x >= x0) && (x <= x1) &&
-                             (y >= y0) && (y <= y1)) ? rect_color : 24'h303030;
-                    send_pixel(pixel, x == IMG_W - 1);
+            held={valid,x0,y0,x1,y1};
+            for(iy=0;iy<H;iy=iy+1)begin
+                for(ix=0;ix<W;ix=ix+1)begin
+                    @(negedge clk);de=1;last=(ix==W-1);rgb=24'h303030;
+                    sof=coincident_sof && ix==0 && iy==0;
+                    if(ix>=a0 && ix<=a1 && iy>=b0 && iy<=b1)rgb=color;
+                    if(ix>=c0 && ix<=c1 && iy>=d0 && iy<=d1)rgb=color2;
+                    if(h_shape)rgb=(((ix>=16 && ix<=18)||(ix>=33 && ix<=35)||
+                        (iy>=30 && iy<=32)) && ix>=16 && ix<=35 && iy>=8 && iy<=63)?
+                        24'h20A030:24'h303030;
+                    #1;if({valid,x0,y0,x1,y1}!==held)$fatal(1,"Box changed within active frame");
                 end
-                @(negedge clk);
-                in_de = 1'b0;
-                in_line_last = 1'b0;
-                in_rgb = 24'd0;
-                repeat (2) @(negedge clk);
+                @(negedge clk);de=0;last=0;repeat(3)@(negedge clk);
             end
-            in_de = 1'b0;
-            in_line_last = 1'b0;
-            repeat (8) @(negedge clk);
+            repeat(5000)@(negedge clk);
+            if(!dut.regions.ready)$fatal(1,"Region processing missed blank deadline");
+            start();#1;if(!done || !update)$fatal(1,"Missing atomic result");
         end
     endtask
-
-    task automatic send_h_frame;
-        integer x, y;
-        reg in_h;
-        begin
-            // A sparse, hollow red object exercises the case rejected by the
-            // former >=50% red-pixel-to-bounding-box occupancy gate.
-            for (y = 0; y < IMG_H; y = y + 1) begin
-                for (x = 0; x < IMG_W; x = x + 1) begin
-                    in_h = (((x >= 16) && (x <= 18)) ||
-                            ((x >= 33) && (x <= 35)) ||
-                            ((y >= 14) && (y <= 16))) &&
-                           (x >= 16) && (x <= 35) &&
-                           (y >= 3) && (y <= 27);
-                    send_pixel(in_h ? 24'hA04840 : 24'h303030,
-                               x == IMG_W - 1);
-                end
-                @(negedge clk);
-                in_de = 1'b0;
-                in_line_last = 1'b0;
-                in_rgb = 24'd0;
-                repeat (2) @(negedge clk);
-            end
-            in_de = 1'b0;
-            in_line_last = 1'b0;
-            repeat (8) @(negedge clk);
+    task color_check(input [23:0] color,input bit expected);
+        begin reset();start();frame(20,20,51,59,color,-1,-1,-1,-1,0);
+            if(valid!==expected)$fatal(1,"Green classifier RGB=%h expected=%b actual=%b",color,expected,valid);
+            if(expected && (x0!=20 || x1!=51 || y0!=20 || y1!=59))$fatal(1,"Incorrect pixel bounds");
         end
     endtask
-
-    task automatic check_color_frame(
-        input [23:0] test_color,
-        input bit expected_detection
-    );
-        begin
-            send_rect_frame(20, 8, 39, 23, test_color);
-            send_frame_start();
-            #1;
-            if (frame_done !== 1'b1 || target_valid !== expected_detection)
-                $fatal(1, "Color classifier mismatch for RGB=%06h: expected detect=%b got=%b",
-                       test_color, expected_detection, target_valid);
-        end
-    endtask
-
+    reg [15:0] saved_x0,saved_y0,saved_x1,saved_y1;
+    integer i;
     initial begin
-        repeat (5) @(negedge clk);
-        rst_n = 1'b1;
-
-        // Repeated locked frames must retain objects larger than seed windows.
-        send_frame_start();
-        repeat (4) begin
-            send_rect_frame(25, 2, 34, 29, 24'hA04840);
-            send_frame_start();
-            #1;
-            if (!target_valid || bbox_y0 != 2 || bbox_y1 != 29)
-                $fatal(1, "Tall object clipped after lock: y=%0d..%0d", bbox_y0, bbox_y1);
-            repeat (70) @(negedge clk);
+        coincident_sof=1;color_check(24'h20A030,1);coincident_sof=0;
+        $display("PASS green SOF: frame start coincident with first active pixel stays aligned");
+        color_check(24'h20A030,1);color_check(24'h103820,1);color_check(24'hA0D8A0,1);
+        color_check(24'hA8E0B0,1);color_check(24'h081808,1);
+        color_check(24'hA04840,0);color_check(24'hFFAAAA,0);color_check(24'h501008,0);
+        color_check(24'hC0C020,0);color_check(24'h20C0C0,0);color_check(24'hD8E0D8,0);
+        color_check(24'hF8F8F8,0);color_check(24'hB020B0,0);color_check(24'h101810,0);
+        $display("PASS green classifier: dark/light greens accepted; red/yellow/cyan/neutral rejected");
+        reset();start();h_shape=1;frame(-1,-1,-1,-1,0,-1,-1,-1,-1,0);h_shape=0;
+        if(!valid || x0<16 || x1>35 || y0<8 || y1>63 || y1-y0<50)
+            $fatal(1,"Sparse connected green object lost its full extent");
+        $display("PASS green hollow-object: connected H outline retains full extent");
+        reset();start();frame(16,16,27,47,24'h20A030,34,16,45,47,24'h20A030);
+        if(!valid || x0!=16 || x1!=27)$fatal(1,"Adjacent tile objects with six-pixel gap merged");
+        $display("PASS green gap: nearby disjoint objects kept separate across adjacent buckets");
+        reset();start();frame(16,16,47,63,24'h20A030,112,24,135,55,24'h20A030);
+        if(!valid || x0!=16 || x1!=47 || y0!=16 || y1!=63)$fatal(1,"Separate green objects merged");
+        // A larger distractor must not steal the lock from the original target.
+        repeat(3)begin
+            frame(16,16,47,63,24'h20A030,96,8,151,87,24'h20A030);
+            if(!valid || x0!=16 || x1!=47)$fatal(1,"Lock switched to larger distractor");
         end
-        rst_n = 0; repeat (3) @(negedge clk); rst_n = 1;
-        send_frame_start();
-        repeat (4) begin
-            send_rect_frame(2, 10, 61, 19, 24'hA04840);
-            send_frame_start();
-            #1;
-            if (!target_valid || bbox_x0 != 2 || bbox_x1 != 61)
-                $fatal(1, "Wide object clipped after lock: x=%0d..%0d", bbox_x0, bbox_x1);
-            repeat (70) @(negedge clk);
+        $display("PASS green single-object: isolated components, largest acquisition, sticky association");
+        saved_x0=x0;saved_y0=y0;saved_x1=x1;saved_y1=y1;
+        for(i=0;i<8;i=i+1)begin
+            frame(16+(i%2),16+(i%2),47-(i%2),63-(i%2),24'h20A030,-1,-1,-1,-1,0);
+            if({x0,y0,x1,y1}!={saved_x0,saved_y0,saved_x1,saved_y1})$fatal(1,"One-pixel edge jitter moved box");
         end
-        $display("PASS ROI tall/wide: complete bounds retained across four locked frames");
-        rst_n = 0; repeat (3) @(negedge clk); rst_n = 1;
-
-        // Muted red tests tolerance; the gray background must not be detected.
-        send_frame_start();
-        send_rect_frame(20, 8, 39, 23, 24'hA04840);
-        send_frame_start();
-        #1;
-        if (!frame_done || !target_valid)
-            $fatal(1, "ROI miss: expected the muted-red rectangle to be detected");
-        if (bbox_x0 < 20 || bbox_x1 > 39 || bbox_y0 < 8 || bbox_y1 > 23 ||
-            bbox_x1 <= bbox_x0 || bbox_y1 <= bbox_y0)
-            $fatal(1, "ROI bounds invalid: (%0d,%0d)-(%0d,%0d)",
-                   bbox_x0, bbox_y0, bbox_x1, bbox_y1);
-        if (target_area < 128 || target_area > 320)
-            $fatal(1, "ROI area outside expected denoised rectangle: %0d", target_area);
-        wait (result_update === 1'b1);
-        #1;
-        if (centroid_x != 29 || centroid_y != 15)
-            $fatal(1, "Centroid divider mismatch: (%0d,%0d)", centroid_x, centroid_y);
-        $display("PASS ROI acquire: bounds=(%0d,%0d)-(%0d,%0d) area=%0d centroid=(%0d,%0d)",
-                 bbox_x0, bbox_y0, bbox_x1, bbox_y1, target_area, centroid_x, centroid_y);
-
-        send_h_frame();
-        send_frame_start();
-        #1;
-        if (!frame_done || !target_valid)
-            $fatal(1, "ROI miss: sparse red H-shaped object was rejected");
-        if (bbox_x0 < 16 || bbox_x1 > 35 || bbox_y0 < 3 || bbox_y1 > 27 ||
-            bbox_x1 <= bbox_x0 || bbox_y1 <= bbox_y0)
-            $fatal(1, "Sparse ROI bounds invalid: (%0d,%0d)-(%0d,%0d)",
-                   bbox_x0, bbox_y0, bbox_x1, bbox_y1);
-        $display("PASS ROI sparse-object box: bounds=(%0d,%0d)-(%0d,%0d) area=%0d",
-                 bbox_x0, bbox_y0, bbox_x1, bbox_y1, target_area);
-
-        // Reject common false positives while retaining several red shades.
-        check_color_frame(24'hF8F8F8, 1'b0); // bright white
-        check_color_frame(24'hFF8000, 1'b0); // vivid orange
-        check_color_frame(24'h805020, 1'b0); // brown, outside red hue sector
-        check_color_frame(24'hB020B0, 1'b0); // purple
-        check_color_frame(24'h804020, 1'b1); // brown-red
-        check_color_frame(24'hFFAAAA, 1'b1); // light red
-        check_color_frame(24'h501008, 1'b1); // deep red
-        $display("PASS red classifier: white/orange/brown/purple rejected; brown/light/deep red accepted");
-
-        // Once locked, a target far outside the adaptive window is ignored.
-        // The miss restores full-frame search, so the same target is acquired
-        // on the next frame without requiring a reset.
-        send_rect_frame(48, 4, 57, 27, 24'hA04840);
-        send_frame_start();
-        #1;
-        if (!frame_done || target_valid)
-            $fatal(1, "ROI gate did not reject a target outside the locked window");
-        send_rect_frame(48, 4, 57, 27, 24'hA04840);
-        send_frame_start();
-        #1;
-        if (!frame_done || !target_valid || bbox_x0 < 48 || bbox_x1 > 57)
-            $fatal(1, "Full-frame reacquisition failed after ROI miss");
-        $display("PASS ROI reacquire: bounds=(%0d,%0d)-(%0d,%0d)",
-                 bbox_x0, bbox_y0, bbox_x1, bbox_y1);
-
-        // An all-gray frame must release the ROI rather than keep a stale box.
-        send_rect_frame(-1, -1, -1, -1, 24'hFF0000);
-        send_frame_start();
-        #1;
-        if (!frame_done || target_valid || bbox_x0 != 0 || bbox_y0 != 0 ||
-            bbox_x1 != 0 || bbox_y1 != 0)
-            $fatal(1, "ROI stale/false positive after target removal");
-        $display("PASS ROI release: no box on neutral frame");
+        frame(16,16,39,55,24'h20A030,-1,-1,-1,-1,0);
+        if(x1<43 || y1<59)$fatal(1,"Box collapsed on one-frame partial occlusion");
+        repeat(12)frame(16,16,39,55,24'h20A030,-1,-1,-1,-1,0);
+        if(x1>41 || y1>57)$fatal(1,"Stable smaller target never converged");
+        $display("PASS green stability: edge deadband, bounded shrink, stable size convergence");
+        frame(-1,-1,-1,-1,0,-1,-1,-1,-1,0);if(!valid)$fatal(1,"One-frame dropout flickered");
+        frame(16,16,39,55,24'h20A030,-1,-1,-1,-1,0);if(!valid)$fatal(1,"Dropout recovery failed");
+        repeat(3)frame(16,16,39,55,24'hA04840,-1,-1,-1,-1,0);
+        if(valid)$fatal(1,"Red object retained green ROI after hold timeout");
+        $display("PASS green release: brief hold, reacquisition, red-only scene releases after three frames");
+        frame(112,24,143,71,24'h20A030,-1,-1,-1,-1,0);
+        if(!valid || x0!=112 || x1!=143)$fatal(1,"Far target full-frame reacquisition failed");
+        $display("PASS ROI acquire: green-only isolated stable object and frame-atomic updates");
         $finish;
     end
-
-    initial begin
-        #10_000_000;
-        $fatal(1, "ROI simulation timeout");
-    end
+    initial begin #100_000_000;$fatal(1,"Green ROI timeout");end
 endmodule

@@ -8,8 +8,7 @@ module hdmi_mixer #(
     parameter IMG_WIDTH = 1280,
     parameter IMG_HEIGHT = 720,
     parameter integer OSD_ENABLE = 1,
-    parameter integer DEBUG_MODE = 0,
-    parameter integer LSC_STATUS_ENABLE = 0
+    parameter integer DEBUG_MODE = 0
 ) (
     input wire I_clk,
     input wire I_rst_n,
@@ -21,7 +20,6 @@ module hdmi_mixer #(
     input wire I_video_last,
 
     input wire [3:0] I_debug_status,
-    input wire [1:0] I_lsc_status,
 
     // Frame-level target bounds from the single-red-object tracker.
     input wire        I_target_bbox_valid,
@@ -992,19 +990,6 @@ module hdmi_mixer #(
                     S_osd_color = COLOR_DYN_TEXT;
                 end
             end
-        end
-
-        // Small protected status square: gray=unity, yellow=calibrating,
-        // green=measured map active, red=rejected calibration (old map retained).
-        if(LSC_STATUS_ENABLE && S_x_2d>=8 && S_x_2d<20 &&
-           S_y_2d>=IMG_HEIGHT-20 && S_y_2d<IMG_HEIGHT-8) begin
-            S_osd_hit=1'b1;
-            case(I_lsc_status)
-                2'd1:S_osd_color=24'hffff00;
-                2'd2:S_osd_color=24'h00ff00;
-                2'd3:S_osd_color=24'hff0000;
-                default:S_osd_color=24'h808080;
-            endcase
         end
 
         // Draw a clean two-pixel rectangular box instead of marking mask pixels.

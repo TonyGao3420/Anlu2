@@ -1,5 +1,3 @@
-> 2026-10-08 更新：活动ISP已增加 `isp/raw_color_shading.v` 四通道RAW空间校正及专用KEY3/KEY4控制。`hdmi_mixer`增加可选的LSC状态方块，顶层启用。原有检测门限和ROI高度修复保留。完整说明见 [开源核查与上板操作](OPEN_SOURCE_LSC_20261008.md)。
-
 # Anlu2 逐文件代码说明
 
 入口是 td_project/camera_to_dsi_display.al，顶层为 design_top_wrapper。表中“直接编译”表示.al显式列入；IP内部源码由.xml/.ipc间接引入。不要递归添加所有.v文件，目录中有同名备份模块。

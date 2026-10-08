@@ -1,11 +1,11 @@
 set root {D:/HX1P35A_Contest_202606/Anlu2}
-set out [file join $root sim build td_validation_color_shading_20261008]
+set out [file join $root sim build td_validation_green_roi_ram_20261008]
 file mkdir $out
 cd $out
 if {![file exists [file join $out video_check.al]]} {
     create_project video_check $out -family PH1 -device PH1P35MDG324 -speed -3
 }
-open_project {D:/HX1P35A_Contest_202606/Anlu2/sim/build/td_validation_color_shading_20261008/video_check.al}
+open_project {D:/HX1P35A_Contest_202606/Anlu2/sim/build/td_validation_green_roi_ram_20261008/video_check.al}
 import_device ph1_35p.db -package PH1P35MDG324
 top_module design_top_wrapper
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/design_top_wrapper.v}
@@ -17,7 +17,6 @@ add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/awb.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/csi_unpacket_2lane.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/isp_top.v}
-add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/raw_color_shading.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/raw10_unpacket_2lane.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/uial2axis.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/demosaic_4x_2_0/bilinear_interpolation.v}
@@ -69,6 +68,8 @@ add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/demosaic_4
 launch_runs -step gate syn_1
 wait_run syn_1
 launch_runs -step route phy_1
+wait_run phy_1
+launch_runs -step bitgen phy_1
 wait_run phy_1
 close_project
 exit

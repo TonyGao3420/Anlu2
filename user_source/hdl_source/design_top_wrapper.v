@@ -20,8 +20,6 @@ module design_top_wrapper (
     output wire O_cam_rst,
 
     inout wire [1:0] I_button,
-    input wire I_lsc_cal_key_n,   // HX1P35B KEY3, B9
-    input wire I_lsc_clear_key_n, // HX1P35B KEY4, C7
 
     output wire O_screen_pwm,
     output wire O_servo_pan,
@@ -595,28 +593,7 @@ module design_top_wrapper (
 
 
     //ISP算法顶层模块
-    wire S_lsc_cal_request,S_lsc_clear_request;
-    (* keep="true" *) wire S_lsc_valid,S_lsc_busy,S_lsc_failed;
-    lsc_cal_keys u_lsc_cal_keys (
-        .clk(S_csi_rx_clk),.rst_n(S_rst_n),.frame_start(S_raw_tuser),
-        .cal_key_n(I_lsc_cal_key_n),.clear_key_n(I_lsc_clear_key_n),
-        .cal_request(S_lsc_cal_request),.clear_request(S_lsc_clear_request)
-    );
-    // Display status crosses as stable levels; no control path returns from HDMI.
-    (* async_reg="true" *) reg [2:0] lsc_status_meta,lsc_status_sync;
-    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
-        if(!S_hdmi_rst_n) begin lsc_status_meta<=0;lsc_status_sync<=0;end
-        else begin
-            lsc_status_meta<={S_lsc_failed,S_lsc_busy,S_lsc_valid};
-            lsc_status_sync<=lsc_status_meta;
-        end
-    end
-    wire [1:0] S_lsc_display_status=lsc_status_sync[2]?2'd3:
-              lsc_status_sync[1]?2'd1:lsc_status_sync[0]?2'd2:2'd0;
-
     isp_top u_isp_top (
-        .I_lsc_cal_request(S_lsc_cal_request),.I_lsc_clear_request(S_lsc_clear_request),
-        .O_lsc_valid(S_lsc_valid),.O_lsc_busy(S_lsc_busy),.O_lsc_failed(S_lsc_failed),
         .axi4s_video_aclk(S_csi_rx_clk),
         .I_rst_n         (S_rst_n),
         .I_tlast         (S_raw_tlast),
@@ -802,7 +779,7 @@ module design_top_wrapper (
         .frame_done      (S_track2_frame_done),
         .result_update   (S_track2_result_update),
         .mask_valid      (),
-        .red_mask        (),
+        .green_mask      (),
         .mask_x          (),
         .mask_y          (),
         .dbg_roi_valid   (S_track2_dbg_roi_valid),
@@ -839,8 +816,7 @@ module design_top_wrapper (
         .V_OFFSET  (0),
         .IMG_WIDTH (1280),
         .IMG_HEIGHT(720),
-        .DEBUG_MODE(0),
-        .LSC_STATUS_ENABLE(1)
+        .DEBUG_MODE(0)
     ) u_hdmi_mixer (
         .I_clk          (S_hdmi_pixel_clk),
         .I_rst_n        (S_hdmi_rst_n),
@@ -850,7 +826,6 @@ module design_top_wrapper (
         .I_video_user   (S_hdmi_user),
         .I_video_last   (S_hdmi_last),
         .I_debug_status (S_hdmi_debug_status),
-        .I_lsc_status(S_lsc_display_status),
         .I_target_bbox_valid   (S_track2_valid),
         .I_target_bbox_x0      (S_track2_bbox_x0),
         .I_target_bbox_y0      (S_track2_bbox_y0),

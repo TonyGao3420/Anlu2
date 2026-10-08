@@ -17,7 +17,6 @@ add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/awb.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/csi_unpacket_2lane.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/isp_top.v}
-add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/raw_color_shading.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/raw10_unpacket_2lane.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/uial2axis.v}
 add_files {D:/HX1P35A_Contest_202606/Anlu2/user_source/hdl_source/isp/demosaic_4x_2_0/bilinear_interpolation.v}

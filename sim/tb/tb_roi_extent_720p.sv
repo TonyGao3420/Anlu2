@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-// Frame-level regression for the streamed red detector. The small raster keeps
+// Frame-level regression for the streamed green detector. The small raster keeps
 // simulation fast while exercising the same detector pipeline and thresholds.
 module tb_roi_extent_720p;
     localparam integer IMG_W = 1280;
@@ -14,13 +14,14 @@ module tb_roi_extent_720p;
     reg in_de = 1'b0;
     reg in_line_last = 1'b0;
     reg [23:0] in_rgb = 24'd0;
+    integer scene_mode=0;
 
     wire target_valid;
     wire [15:0] bbox_x0, bbox_y0, bbox_x1, bbox_y1;
     wire [15:0] centroid_x, centroid_y;
     wire [19:0] target_area;
     wire frame_done, result_update;
-    wire mask_valid, red_mask;
+    wire mask_valid, green_mask;
     wire [11:0] mask_x, mask_y;
     wire dbg_roi_valid, dbg_color_match;
 
@@ -39,7 +40,7 @@ module tb_roi_extent_720p;
         .centroid_x(centroid_x), .centroid_y(centroid_y),
         .target_area(target_area), .frame_done(frame_done),
         .result_update(result_update), .mask_valid(mask_valid),
-        .red_mask(red_mask), .mask_x(mask_x), .mask_y(mask_y),
+        .green_mask(green_mask), .mask_x(mask_x), .mask_y(mask_y),
         .dbg_roi_valid(dbg_roi_valid), .dbg_color_match(dbg_color_match)
     );
 
@@ -75,6 +76,9 @@ module tb_roi_extent_720p;
                 for (x = 0; x < IMG_W; x = x + 1) begin
                     pixel = ((x >= x0) && (x <= x1) &&
                              (y >= y0) && (y <= y1)) ? rect_color : 24'h303030;
+                    if(scene_mode==1)pixel=24'h40A048;
+                    if(scene_mode==2)pixel=((x%16>=4 && x%16<=9) &&
+                        (y%16>=4 && y%16<=9))?24'h40A048:24'h303030;
                     send_pixel(pixel, x == IMG_W - 1);
                 end
                 @(negedge clk);
@@ -85,7 +89,7 @@ module tb_roi_extent_720p;
             end
             in_de = 1'b0;
             in_line_last = 1'b0;
-            repeat (8) @(negedge clk);
+            repeat (49500) @(negedge clk);
         end
     endtask
 
@@ -93,8 +97,8 @@ module tb_roi_extent_720p;
         integer x, y;
         reg in_h;
         begin
-            // A sparse, hollow red object exercises the case rejected by the
-            // former >=50% red-pixel-to-bounding-box occupancy gate.
+            // A sparse, hollow green object exercises the case rejected by the
+            // former >=50% green-pixel-to-bounding-box occupancy gate.
             for (y = 0; y < IMG_H; y = y + 1) begin
                 for (x = 0; x < IMG_W; x = x + 1) begin
                     in_h = (((x >= 16) && (x <= 18)) ||
@@ -102,7 +106,7 @@ module tb_roi_extent_720p;
                             ((y >= 14) && (y <= 16))) &&
                            (x >= 16) && (x <= 35) &&
                            (y >= 3) && (y <= 27);
-                    send_pixel(in_h ? 24'hA04840 : 24'h303030,
+                    send_pixel(in_h ? 24'h40A048 : 24'h303030,
                                x == IMG_W - 1);
                 end
                 @(negedge clk);
@@ -113,7 +117,7 @@ module tb_roi_extent_720p;
             end
             in_de = 1'b0;
             in_line_last = 1'b0;
-            repeat (8) @(negedge clk);
+            repeat (49500) @(negedge clk);
         end
     endtask
 
@@ -134,33 +138,33 @@ module tb_roi_extent_720p;
     initial begin
         repeat (5) @(negedge clk);
         rst_n = 1'b1;
+        repeat (4000) @(negedge clk);
 
-        // Repeated locked frames must retain objects larger than seed windows.
+        // Dense and fragmented scenes must finish within real vertical blank.
         send_frame_start();
+        scene_mode=1;send_rect_frame(-1,-1,-1,-1,0);
+        if(!dut.regions.ready)$fatal(1,"Dense 720p frame exceeded blank budget");
+        send_frame_start();#1;if(target_valid)$fatal(1,"Oversize green background accepted");
+        scene_mode=2;send_rect_frame(-1,-1,-1,-1,0);
+        if(!dut.regions.ready)$fatal(1,"Fragmented 720p frame exceeded blank budget");
+        send_frame_start();#1;if(target_valid)$fatal(1,"Green noise components accepted");
+        $display("PASS 720p region budget: dense and 3600 isolated buckets finish within 49500 clocks");
+        scene_mode=0;
+        // Repeated locked frames must retain objects larger than seed windows.
         repeat (4) begin
-            send_rect_frame(550, 60, 729, 659, 24'hA04840);
+            send_rect_frame(550, 60, 729, 659, 24'h40A048);
+            if (!dut.regions.ready) $fatal(1, "720p blank deadline exceeded");
             send_frame_start();
             #1;
             if (!target_valid || bbox_y0 != 60 || bbox_y1 != 659)
                 $fatal(1, "Tall object clipped after lock: y=%0d..%0d", bbox_y0, bbox_y1);
             repeat (70) @(negedge clk);
         end
-        rst_n = 0; repeat (3) @(negedge clk); rst_n = 1;
-        send_frame_start();
-        repeat (4) begin
-            send_rect_frame(140, 320, 1139, 399, 24'hA04840);
-            send_frame_start();
-            #1;
-            if (!target_valid || bbox_x0 != 140 || bbox_x1 != 1139)
-                $fatal(1, "Wide object clipped after lock: x=%0d..%0d", bbox_x0, bbox_x1);
-            repeat (70) @(negedge clk);
-        end
-        $display("PASS ROI tall/wide: complete bounds retained across four locked frames");
-        rst_n = 0; repeat (3) @(negedge clk); rst_n = 1;
+        $display("PASS ROI height: complete bounds retained across four locked frames");
 
         $finish;
     end
     initial begin
-        #100_000_000; $fatal(1, "720p timeout");
+        #150_000_000; $fatal(1, "720p timeout");
     end
 endmodule

@@ -1,6 +1,6 @@
-> 2026-10-08 后续更新：已接入可手动白场标定的四通道RAW空间色偏校正，KEY3学习、KEY4清除。此前“尚未实现空间校正”的文字属于历史状态，当前实现及限制见 [开源核查与使用说明](OPEN_SOURCE_LSC_20261008.md)。
+> Current 2026-10-08 update: green-only single-region ROI with frame-atomic stable bounds replaces the red detector. Earlier red/ROI descriptions below are historical. See GREEN_ROI_20261008.md.
 
-> 2026-10-08 核对：下文为旧版本记录，不能作为当前源码参数说明。当前活动检测器使用约 ±20° 红色色相、25% 饱和度门限，顶层 MIN_AREA=64、MAX_AREA=120000；没有候选框 50% 密度门限。首帧/丢失全屏搜索，锁定后使用自适应窗口。本次已去掉 320/180 半宽半高上限，窗口围绕包围框中心，限制仅为图像尺寸。当前 AWB 是全局增益，尚未实现实测空间色偏校正。详见 [本次修复说明](ROI_COLOR_REVIEW_20261008.md)。
+> 2026-10-08 rollback: restored the pre-LSC video pipeline, controls and constraints. The only retained RTL change is the ROI height cap (ROI_HALF_H -> IMG_H - 1). Original width cap and centroid tracking are restored. See ROI_HEIGHT_ROLLBACK_20261008.md.
 
 # 视频色彩与红色目标检测
 
