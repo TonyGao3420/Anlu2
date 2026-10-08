@@ -12,7 +12,10 @@ $runs = @(
     @{ Script = 'run_raw10.do'; Marker = 'PASS raw10' },
     @{ Script = 'run_bilinear_color.do'; Marker = 'PASS bilinear_color' },
     @{ Script = 'run_awb.do'; Marker = 'PASS awb_unit_gain' },
-    @{ Script = 'run_awb_auto_gain.do'; Marker = 'PASS awb_auto_gain' }
+    @{ Script = 'run_awb_auto_gain.do'; Marker = 'PASS awb_auto_gain' },
+    @{ Script = 'run_color_shading.do'; Marker = 'PASS LSC clear' },
+    @{ Script = 'run_lsc_keys.do'; Marker = 'PASS LSC keys' },
+    @{ Script = 'run_roi_extent_720p.do'; Marker = 'PASS ROI tall/wide' }
 )
 
 if (-not (Test-Path -LiteralPath $ModelSimPath -PathType Leaf)) {

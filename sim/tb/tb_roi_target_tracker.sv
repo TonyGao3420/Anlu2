@@ -135,6 +135,29 @@ module tb_roi_target_tracker;
         repeat (5) @(negedge clk);
         rst_n = 1'b1;
 
+        // Repeated locked frames must retain objects larger than seed windows.
+        send_frame_start();
+        repeat (4) begin
+            send_rect_frame(25, 2, 34, 29, 24'hA04840);
+            send_frame_start();
+            #1;
+            if (!target_valid || bbox_y0 != 2 || bbox_y1 != 29)
+                $fatal(1, "Tall object clipped after lock: y=%0d..%0d", bbox_y0, bbox_y1);
+            repeat (70) @(negedge clk);
+        end
+        rst_n = 0; repeat (3) @(negedge clk); rst_n = 1;
+        send_frame_start();
+        repeat (4) begin
+            send_rect_frame(2, 10, 61, 19, 24'hA04840);
+            send_frame_start();
+            #1;
+            if (!target_valid || bbox_x0 != 2 || bbox_x1 != 61)
+                $fatal(1, "Wide object clipped after lock: x=%0d..%0d", bbox_x0, bbox_x1);
+            repeat (70) @(negedge clk);
+        end
+        $display("PASS ROI tall/wide: complete bounds retained across four locked frames");
+        rst_n = 0; repeat (3) @(negedge clk); rst_n = 1;
+
         // Muted red tests tolerance; the gray background must not be detected.
         send_frame_start();
         send_rect_frame(20, 8, 39, 23, 24'hA04840);

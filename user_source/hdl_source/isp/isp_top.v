@@ -5,6 +5,8 @@
 module isp_top (
     input    axi4s_video_aclk,
     input    I_rst_n   ,
+    input    I_lsc_cal_request, I_lsc_clear_request,
+    output   O_lsc_valid, O_lsc_busy, O_lsc_failed,
     input    I_tlast   ,
     input    I_tuser   ,
     input [39:0]  I_tdata   ,
@@ -50,6 +52,18 @@ module isp_top (
     //assign O_tvalid = m_aixs_tvalid   ;
 
 
+    wire [39:0] lsc_data;
+    wire [9:0] lsc_dest;
+    wire lsc_valid,lsc_user,lsc_last;
+    // Calibrated RAW shading correction precedes interpolation and global AWB.
+    raw_color_shading u_color_shading (
+        .clk(axi4s_video_aclk), .rst_n(I_rst_n),
+        .cal_request(I_lsc_cal_request), .clear_request(I_lsc_clear_request),
+        .in_data(I_tdata),.in_dest(I_tdest),.in_valid(I_tvalid),.in_user(I_tuser),.in_last(I_tlast),
+        .out_data(lsc_data),.out_dest(lsc_dest),.out_valid(lsc_valid),.out_user(lsc_user),.out_last(lsc_last),
+        .map_valid(O_lsc_valid),.cal_busy(O_lsc_busy),.cal_failed(O_lsc_failed)
+    );
+
     demosaic #(
         .IMG_HEIGHT         (720),    // 图像高度
         .IMG_WIDTH          (1280),   // 图像宽度
@@ -58,11 +72,11 @@ module isp_top (
     ) u_demosaic (
         .I_clk             (axi4s_video_aclk),  // 时钟信号
         .I_rst_n           (I_rst_n),           // 复位信号，低有效
-        .axi4s_video_tdata (I_tdata),           // AXI4-Stream视频数据
-        .axi4s_video_tdest (I_tdest),
-        .axi4s_video_tlast (I_tlast),           // 行结束信号
-        .axi4s_video_tvalid(I_tvalid),          // 数据有效信号
-        .axi4s_video_tuser (I_tuser),           // 帧开始信号
+        .axi4s_video_tdata (lsc_data),           // AXI4-Stream视频数据
+        .axi4s_video_tdest (lsc_dest),
+        .axi4s_video_tlast (lsc_last),           // 行结束信号
+        .axi4s_video_tvalid(lsc_valid),          // 数据有效信号
+        .axi4s_video_tuser (lsc_user),           // 帧开始信号
         .axi4s_video_tready(I_tready),          // 从模块准备好接受数据
         .O_tlast           (m_aixs_tlast),      // 输出行结束信号
         .O_tuser           (m_aixs_tuser),      // 输出帧开始信号

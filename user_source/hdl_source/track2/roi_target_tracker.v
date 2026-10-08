@@ -1,6 +1,6 @@
 // 单目标红色检测器：在显示像素时钟域统计红色区域的边界和质心。
 // 输入直接旁路观察 DDR 读出的 RGB/DE，不对官方视频通路施加反压或修改像素。
-// 首帧/丢失时全屏搜索，锁定后围绕目标质心使用自适应矩形 ROI 搜索。
+// 首帧/丢失时全屏搜索，锁定后围绕目标包围框中心使用自适应矩形 ROI 搜索。
 // 当前输出为轴对齐矩形外接框；本模块依赖画面中只有一个主要红色目标，不做连通域分割。
 module roi_target_tracker #(
     parameter integer IMG_W = 1280,
@@ -114,6 +114,8 @@ module roi_target_tracker #(
     wire [12:0] bbox_width = {1'b0, max_x} - {1'b0, min_x} + 13'd1;
     wire [12:0] bbox_height = {1'b0, max_y} - {1'b0, min_y} + 13'd1;
     wire [12:0] roi_half_w_candidate = (bbox_width >> 1) + ROI_MARGIN_X;
+    wire [12:0] bbox_center_x_sum = {1'b0, min_x} + {1'b0, max_x};
+    wire [12:0] bbox_center_y_sum = {1'b0, min_y} + {1'b0, max_y};
     wire [12:0] roi_half_h_candidate = (bbox_height >> 1) + ROI_MARGIN_Y;
 
     // Keep frame acceptance comparable to the first working rectangle-box
@@ -299,16 +301,20 @@ module roi_target_tracker #(
                     div_quotient   <= 32'd0;
                     div_remainder  <= 21'd0;
                     full_frame_search <= 1'b0;
+                    // Preserve the whole measured bbox even for an off-center
+                    // color centroid. Seed half-sizes must never cap object size.
+                    roi_center_x <= bbox_center_x_sum[12:1];
+                    roi_center_y <= bbox_center_y_sum[12:1];
                     if (roi_half_w_candidate < ROI_MIN_HALF_W)
                         roi_half_w_live <= ROI_MIN_HALF_W;
-                    else if (roi_half_w_candidate > ROI_HALF_W)
-                        roi_half_w_live <= ROI_HALF_W;
+                    else if (roi_half_w_candidate > IMG_W - 1)
+                        roi_half_w_live <= IMG_W - 1;
                     else
                         roi_half_w_live <= roi_half_w_candidate[11:0];
                     if (roi_half_h_candidate < ROI_MIN_HALF_H)
                         roi_half_h_live <= ROI_MIN_HALF_H;
-                    else if (roi_half_h_candidate > ROI_HALF_H)
-                        roi_half_h_live <= ROI_HALF_H;
+                    else if (roi_half_h_candidate > IMG_H - 1)
+                        roi_half_h_live <= IMG_H - 1;
                     else
                         roi_half_h_live <= roi_half_h_candidate[11:0];
                 end else begin
@@ -349,8 +355,6 @@ module roi_target_tracker #(
                         div_remainder  <= 21'd0;
                     end else begin
                         centroid_y    <= {4'd0, div_quotient_next[11:0]};
-                        roi_center_x  <= centroid_x[11:0];
-                        roi_center_y  <= div_quotient_next[11:0];
                         div_busy      <= 1'b0;
                         result_update <= 1'b1;
                     end

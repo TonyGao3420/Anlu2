@@ -29,7 +29,7 @@ module tb_display_path;
         .I_video_rd_en(request),.O_vdieo_data(pixel));
     hdmi_mixer #(.OSD_ENABLE(0)) mixer(.I_clk(clk),.I_rst_n(rst_n),.I_video_vsync(vs),
         .I_video_hsync(hs),.I_video_de(de),.I_video_user(user),.I_video_last(last),
-        .I_debug_status(4'b0),.I_target_bbox_valid(1'b1),
+        .I_lsc_status(2'd0),.I_debug_status(4'b0),.I_target_bbox_valid(1'b1),
         .I_target_bbox_x0(16'd40),.I_target_bbox_y0(16'd2),
         .I_target_bbox_x1(16'd47),.I_target_bbox_y1(16'd3),
         .O_video_rd_en(request),.I_video_rd_data(pixel),
