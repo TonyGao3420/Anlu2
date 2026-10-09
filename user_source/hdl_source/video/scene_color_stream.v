@@ -3,7 +3,7 @@
 // one-pixel SOF coordinate convention. Never modifies DDR request timing.
 // Camera RGB is registered alongside mixer RGB, before OSD composition.
 module scene_color_stream #(
-    parameter integer W=1280,H=720
+    parameter integer W=1280,H=720,RGB_SHADING_ENABLE=1
 )(
     input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,
     input wire [23:0] camera_rgb,mixed_rgb,
@@ -25,7 +25,7 @@ module scene_color_stream #(
     assign roi_de=corrected_de && armed_pipe[7];
     assign roi_sof=sof_pipe[7];
     assign roi_last=last_pipe[7];
-    display_color_shading corrector(
+    display_color_shading #(.ENABLE(RGB_SHADING_ENABLE)) corrector(
         .clk(clk),.rst_n(rst_n),.in_vs(in_vs),.in_hs(in_hs),.in_de(in_de),
         .in_protect(1'b0),.x(x),.y(y),.in_rgb(camera_rgb),
         .out_vs(out_vs),.out_hs(out_hs),.out_de(corrected_de),

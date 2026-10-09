@@ -46,6 +46,13 @@ wire         m_aixs_tvalid;  //synthesis keep
   //assign O_tvalid = m_aixs_tvalid   ;
  
  
+// Measured sensor-space correction precedes interpolation and white balance.
+wire [39:0] raw_corrected;wire [9:0] raw_dest;
+wire raw_valid,raw_user,raw_last;
+raw_measured_shading raw_shading(.clk(axi4s_video_aclk),.rst_n(I_rst_n),
+ .in_data(I_tdata),.in_dest(I_tdest),.in_valid(I_tvalid),.in_user(I_tuser),.in_last(I_tlast),
+ .out_data(raw_corrected),.out_dest(raw_dest),.out_valid(raw_valid),.out_user(raw_user),.out_last(raw_last));
+
 demosaic #(
     .IMG_HEIGHT          (720 ),  // 图像高度
     .IMG_WIDTH           (1280),  // 图像宽度
@@ -56,11 +63,11 @@ u_demosaic
 (
     .I_clk   			(axi4s_video_aclk)	,   // 时钟信号
     .I_rst_n 			(I_rst_n)	,   // 复位信号，低有效
-    .axi4s_video_tdata 	(I_tdata)	,  // AXI4-Stream视频数据
-    .axi4s_video_tdest 	(I_tdest)	,
-    .axi4s_video_tlast 	(I_tlast)	,  // 行结束信号
-    .axi4s_video_tvalid	(I_tvalid)	,  // 数据有效信号
-    .axi4s_video_tuser 	(I_tuser)	,  // 帧开始信号
+    .axi4s_video_tdata 	(raw_corrected)	,  // AXI4-Stream视频数据
+    .axi4s_video_tdest 	(raw_dest)	,
+    .axi4s_video_tlast 	(raw_last)	,  // 行结束信号
+    .axi4s_video_tvalid	(raw_valid)	,  // 数据有效信号
+    .axi4s_video_tuser 	(raw_user)	,  // 帧开始信号
     .axi4s_video_tready	(I_tready)	,  // 从模块准备好接受数据
     .O_tlast  			(m_aixs_tlast)	,  // 输出行结束信号
     .O_tuser  			(m_aixs_tuser)	,  // 输出帧开始信号
@@ -74,7 +81,7 @@ data128_96 u_data128_96 (
     .O_tdata(m_aixs_tdata_96)
 );
 
-awb #(
+awb_frame_stable #(
     .IMG_HEIGHT(720 ),
     .IMG_WIDTH (1280)
 ) u_awb (

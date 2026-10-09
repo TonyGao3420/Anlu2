@@ -760,7 +760,7 @@ module design_top_wrapper (
     wire S_color_vs,S_color_hs,S_color_de,S_color_protect;
     wire S_color_roi_de,S_color_roi_sof,S_color_roi_last;
     wire [23:0] S_color_display_rgb,S_color_roi_rgb;
-    scene_color_stream u_scene_color_stream(
+    scene_color_stream #(.RGB_SHADING_ENABLE(0)) u_scene_color_stream(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_hdmi_out_vsync),.in_hs(S_hdmi_out_hsync),.in_de(S_hdmi_out_de),
         .in_protect (S_hdmi_out_protect),.camera_rgb(S_camera_rgb_aligned),
@@ -861,7 +861,8 @@ module design_top_wrapper (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
-    // Shared measured color correction followed by uniform 17/16 display-only gain.
+    // RAW correction is upstream. Keep this existing six-cycle stage at unity,
+    // then apply a display-only common RGB tone curve.
     // Keep the validated DDR pixel alignment and protect OSD/ROI colors.
     video_enhance #(
         .ENABLE(0),
@@ -870,7 +871,7 @@ module design_top_wrapper (
         .CONTRAST_ENABLE(0),
         .SATURATION_ENABLE(0),
         .BRIGHTNESS_OFFSET(0),
-        .RGB_GAIN_Q8(272),
+        .RGB_GAIN_Q8(256),
         .BLACK_LEVEL(12),
         .WHITE_LEVEL(238),
         .SATURATION_Q8(320),
@@ -890,6 +891,17 @@ module design_top_wrapper (
         .out_rgb   (S_hdmi_enhanced_data)
     );
 
+    reg [5:0] S_tone_protect;
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n)
+        if(!S_hdmi_rst_n) S_tone_protect<=0;
+        else S_tone_protect<={S_tone_protect[4:0],S_color_protect};
+    wire S_tone_vs,S_tone_hs,S_tone_de;wire [23:0] S_tone_rgb;
+    display_common_tone u_display_common_tone(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .in_vs(S_hdmi_enhanced_vsync),.in_hs(S_hdmi_enhanced_hsync),
+        .in_de(S_hdmi_enhanced_de),.in_protect(S_tone_protect[5]),.in_rgb(S_hdmi_enhanced_data),
+        .out_vs(S_tone_vs),.out_hs(S_tone_hs),.out_de(S_tone_de),.out_rgb(S_tone_rgb));
+
     hdmi_tx u_hdmi_tx (
         .I_pixel_clk       (S_hdmi_pixel_clk),
         .I_serial_clk      (S_hdmi_serial_clk),
@@ -899,13 +911,13 @@ module design_top_wrapper (
         .O_edid_read_valid (),
         .O_edid_read_data  (),
         .I_video_rgb_enable(1'b1),
-        .I_video_in_vs     (S_hdmi_enhanced_vsync),
-        .I_video_in_de     (S_hdmi_enhanced_de),
+        .I_video_in_vs     (S_tone_vs),
+        .I_video_in_de     (S_tone_de),
         .I_video_in_user   (1'b0),
         .I_video_in_valid  (1'b0),
         .I_video_in_last   (1'b0),
         .O_video_in_ready  (),
-        .I_video_in_data   (S_hdmi_enhanced_data),
+        .I_video_in_data   (S_tone_rgb),
         .I_audio_valid     (1'b0),
         .I_audio_left_data (24'd0),
         .I_audio_right_data(24'd0),
