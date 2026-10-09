@@ -60,6 +60,10 @@ module tb_roi_target_tracker;
         color_check(24'hA04840,0);color_check(24'hFFAAAA,0);color_check(24'h501008,0);
         color_check(24'hC0C020,0);color_check(24'h20C0C0,0);color_check(24'hD8E0D8,0);
         color_check(24'hF8F8F8,0);color_check(24'hB020B0,0);color_check(24'h101810,0);
+        color_check(24'hBEFFC6,0);color_check(24'hB8F8C0,0);
+        color_check(24'h00FF00,1);color_check(24'hA0FFA8,1);
+        color_check(24'hB4FFB4,1);color_check(24'hB7F7BE,1);
+        $display("PASS green highlights: biased near-clipped neutral rejected; pure/light bright greens retained");
         $display("PASS green classifier: dark/light greens accepted; red/yellow/cyan/neutral rejected");
         reset();start();h_shape=1;frame(-1,-1,-1,-1,0,-1,-1,-1,-1,0);h_shape=0;
         if(!valid || x0<16 || x1>35 || y0<8 || y1>63 || y1-y0<50)

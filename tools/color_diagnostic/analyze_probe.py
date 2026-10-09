@@ -27,9 +27,13 @@ def load_panel(path):
             raise ValueError(f'{path}:{line_no}: RAW outside 0..3FF')
         if any(not 0 <= v <= 255 for v in values[4:]):
             raise ValueError(f'{path}:{line_no}: RGB outside 0..FF')
-        if parts[8] != '1010':
-            raise ValueError(f'{path}:{line_no}: Q={parts[8]}: incomplete/clipped sample; recapture')
-        rows[node] = {'raw': values[:4], 'rgb': values[4:]}
+        q = parts[8]
+        if len(q) != 4 or any(c not in '01' for c in q):
+            raise ValueError(f'{path}:{line_no}: invalid Q={q}')
+        if q[:2] != '10':
+            raise ValueError(f'{path}:{line_no}: Q={q}: RAW incomplete/clipped; recapture')
+        rows[node] = {'raw': values[:4], 'rgb': values[4:],
+                      'quality': q, 'rgb_usable': q[2:] == '10'}
     if set(rows) != set(range(9)):
         raise ValueError(f'{path}: all nodes 0..8 are required')
     return [rows[n] for n in range(9)]
@@ -51,22 +55,30 @@ def analyze(white, dark=None):
         b, gb, gr, r = corrected
         g = (gb + gr) / 2
         rr, gg, bb = row['rgb']
-        if min(rr, gg, bb) < 8 or max(rr, gg, bb) >= 245:
+        rgb_usable = row.get('rgb_usable', True)
+        if rgb_usable and (min(rr, gg, bb) < 8 or max(rr, gg, bb) >= 245):
             raise ValueError(f'White node {n}: RGB too dim/clipped for comparison')
         points.append({
             'node': n, 'raw_bggr': raw, 'raw_minus_dark': corrected,
-            'rgb_before_uniform_brightness': row['rgb'],
+            'quality': row.get('quality', '1010'),
+            'rgb_usable': rgb_usable,
+            'rgb_before_uniform_brightness': row['rgb'] if rgb_usable else None,
             'raw_r_over_g': r/g, 'raw_b_over_g': b/g, 'raw_gr_over_gb': gr/gb,
-            'rgb_r_over_g': rr/gg, 'rgb_b_over_g': bb/gg,
+            'rgb_r_over_g': rr/gg if rgb_usable else None,
+            'rgb_b_over_g': bb/gg if rgb_usable else None,
         })
     spans = {k: span_percent([p[k] for p in points]) for k in
              ['raw_r_over_g', 'raw_b_over_g', 'raw_gr_over_gb',
-              'rgb_r_over_g', 'rgb_b_over_g']}
+              'rgb_r_over_g', 'rgb_b_over_g']
+             if all(p[k] is not None for p in points)}
     raw_spatial = max(spans['raw_r_over_g'], spans['raw_b_over_g'])
-    rgb_spatial = max(spans['rgb_r_over_g'], spans['rgb_b_over_g'])
+    all_rgb_usable = all(p['rgb_usable'] for p in points)
+    rgb_spatial = max(spans['rgb_r_over_g'], spans['rgb_b_over_g']) if all_rgb_usable else None
     # This threshold is an engineering triage aid, not proof of an optical defect.
     if raw_spatial > 5:
         hint = 'Spatial channel-ratio variation exists before ISP; investigate lens/filter/sensor shading.'
+    elif rgb_spatial is None:
+        hint = 'RAW ratios relatively uniform; RGB completeness failed, so ISP-side comparison is unavailable.'
     elif rgb_spatial > 5:
         hint = 'RAW ratios relatively uniform but RGB ratios vary; investigate ISP/AWB scan behavior/alignment.'
     else:
@@ -75,6 +87,8 @@ def analyze(white, dark=None):
         'purpose': 'diagnosis_only_no_correction_applied',
         'bayer_labels_assume_current_BGGR_configuration': True,
         'dark_field_used': dark is not None,
+        'all_rgb_usable': all_rgb_usable,
+        'rgb_quality_note': None if all_rgb_usable else 'RGB with invalid/clipped Q is excluded. RAW validity is evaluated independently. Do not derive RGB correction gains from these rows.',
         'missing_dark_field_note': None if dark else 'RAW ratios include sensor black-level offsets; obtain a dark field before calculating calibration gains.',
         'span_percent_max_minus_min_over_mean': spans,
         'triage_hint_not_proven_root_cause': hint,

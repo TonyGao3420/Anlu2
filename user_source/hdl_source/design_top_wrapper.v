@@ -751,8 +751,27 @@ module design_top_wrapper (
         .O_vtc_last    (S_hdmi_last)
     );
 
-    // Read-only detector tap: it observes the exact RGB/DE stream consumed by
-    // the mixer and cannot stall or alter the official DDR-to-HDMI video path.
+    // One calibrated camera stream for ROI and display; overlays stay separate.
+    // Register pre-OSD camera RGB on the same edge as hdmi_mixer's output.
+    reg [23:0] S_camera_rgb_aligned;
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n)
+        if(!S_hdmi_rst_n) S_camera_rgb_aligned<=0;
+        else S_camera_rgb_aligned<=S_video_rd_data;
+    wire S_color_vs,S_color_hs,S_color_de,S_color_protect;
+    wire S_color_roi_de,S_color_roi_sof,S_color_roi_last;
+    wire [23:0] S_color_display_rgb,S_color_roi_rgb;
+    scene_color_stream u_scene_color_stream(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .in_vs(S_hdmi_out_vsync),.in_hs(S_hdmi_out_hsync),.in_de(S_hdmi_out_de),
+        .in_protect (S_hdmi_out_protect),.camera_rgb(S_camera_rgb_aligned),
+        .mixed_rgb(S_hdmi_out_data),
+        .out_vs(S_color_vs),.out_hs(S_color_hs),.out_de(S_color_de),
+        .out_protect(S_color_protect),.display_rgb(S_color_display_rgb),
+        .roi_rgb(S_color_roi_rgb),.roi_de(S_color_roi_de),
+        .roi_sof(S_color_roi_sof),.roi_last(S_color_roi_last)
+    );
+
+    // Read-only ROI tap on corrected camera pixels, before OSD and brightness.
     roi_target_tracker #(
         .IMG_W       (1280),
         .IMG_H       (720),
@@ -764,10 +783,10 @@ module design_top_wrapper (
     ) u_roi_target_tracker (
         .clk             (S_hdmi_pixel_clk),
         .rst_n           (S_hdmi_rst_n),
-        .in_frame_start  (S_hdmi_user),
-        .in_de           (S_hdmi_window_rd_en),
-        .in_line_last    (S_hdmi_last),
-        .in_rgb          (S_video_rd_data),
+        .in_frame_start  (S_color_roi_sof),
+        .in_de           (S_color_roi_de),
+        .in_line_last    (S_color_roi_last),
+        .in_rgb          (S_color_roi_rgb),
         .target_valid    (S_track2_valid),
         .bbox_x0         (S_track2_bbox_x0),
         .bbox_y0         (S_track2_bbox_y0),
@@ -842,7 +861,7 @@ module design_top_wrapper (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
-    // Official ISP/AWB colors followed by a uniform 17/16 display-only gain.
+    // Shared measured color correction followed by uniform 17/16 display-only gain.
     // Keep the validated DDR pixel alignment and protect OSD/ROI colors.
     video_enhance #(
         .ENABLE(0),
@@ -860,11 +879,11 @@ module design_top_wrapper (
     ) u_video_enhance (
         .clk       (S_hdmi_pixel_clk),
         .rst_n     (S_hdmi_rst_n),
-        .in_vsync  (S_hdmi_out_vsync),
-        .in_hsync  (S_hdmi_out_hsync),
-        .in_de     (S_hdmi_out_de),
-        .in_protect(S_hdmi_out_protect),
-        .in_rgb    (S_hdmi_out_data),
+        .in_vsync  (S_color_vs),
+        .in_hsync  (S_color_hs),
+        .in_de     (S_color_de),
+        .in_protect(S_color_protect),
+        .in_rgb    (S_color_display_rgb),
         .out_vsync (S_hdmi_enhanced_vsync),
         .out_hsync (S_hdmi_enhanced_hsync),
         .out_de    (S_hdmi_enhanced_de),

@@ -1,5 +1,6 @@
 // Green-only detector. Read-only tap: no pixel modification or video backpressure.
 // 90..150 degree hue, >=25% saturation, >=12 chroma, G>=MIN_VALUE.
+// Near-clipped G additionally needs >=25% separation from BOTH R and B.
 // Connected tile regions are evaluated separately; outputs change only at SOF.
 module roi_target_tracker #(
     parameter integer IMG_W=1280, IMG_H=720,
@@ -7,7 +8,8 @@ module roi_target_tracker #(
     parameter integer ROI_HALF_W=320, ROI_HALF_H=180,
     parameter integer ROI_MIN_HALF_W=96, ROI_MIN_HALF_H=72,
     parameter integer ROI_MARGIN_X=48, ROI_MARGIN_Y=32,
-    parameter integer MIN_VALUE=24, MIN_AREA=128, MAX_AREA=120000
+    parameter integer MIN_VALUE=24, MIN_AREA=128, MAX_AREA=120000,
+    parameter integer HIGHLIGHT_G=248
 )(
     input wire clk, rst_n, in_frame_start, in_de, in_line_last,
     input wire [23:0] in_rgb,
@@ -25,11 +27,17 @@ module roi_target_tracker #(
     wire [7:0] rb_diff=(rgb_pipe[23:16]<rgb_pipe[7:0])?
                        rgb_pipe[7:0]-rgb_pipe[23:16]:rgb_pipe[23:16]-rgb_pipe[7:0];
     wire [7:0] chroma=(rgb_pipe[15:8]>rb_min)?rgb_pipe[15:8]-rb_min:8'd0;
+    wire [7:0] rb_max=(rgb_pipe[23:16]>rgb_pipe[7:0])?rgb_pipe[23:16]:rgb_pipe[7:0];
+    wire [7:0] both_green_gap=(rgb_pipe[15:8]>rb_max)?rgb_pipe[15:8]-rb_max:8'd0;
+    // Keep saturated pure/light greens. Reject ambiguous near-clipped whites
+    // when only the lower of R/B made the old saturation test look green.
+    wire highlight_ok=(rgb_pipe[15:8]<HIGHLIGHT_G) ||
+                      (both_green_gap>=(rgb_pipe[15:8]>>2));
     wire green_match=(rgb_pipe[15:8]>=rgb_pipe[23:16]) &&
                      (rgb_pipe[15:8]>=rgb_pipe[7:0]) &&
                      ({1'b0,rb_diff,1'b0}<={2'b0,chroma}) &&
                      (chroma>=12) && (chroma>=(rgb_pipe[15:8]>>2)) &&
-                     (rgb_pipe[15:8]>=MIN_VALUE);
+                     (rgb_pipe[15:8]>=MIN_VALUE) && highlight_ok;
     reg [IMG_W-1:0] line1,line2;
     reg t1,t2,m1,m2,b1,b2;
     wire t0=(y_match>=2)?line2[x_match]:1'b0;
