@@ -861,6 +861,16 @@ module design_top_wrapper (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
+    // Additional perimeter correction is display-only; ROI above is unchanged.
+    wire S_edge_vs,S_edge_hs,S_edge_de,S_edge_protect;
+    wire [23:0] S_edge_rgb;
+    display_edge_color u_display_edge_color(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .in_vs(S_color_vs),.in_hs(S_color_hs),.in_de(S_color_de),
+        .in_protect(S_color_protect),.in_rgb(S_color_display_rgb),
+        .out_vs(S_edge_vs),.out_hs(S_edge_hs),.out_de(S_edge_de),
+        .out_protect(S_edge_protect),.out_rgb(S_edge_rgb));
+
     // RAW correction is upstream. Keep this existing six-cycle stage at unity,
     // then apply a display-only common RGB tone curve.
     // Keep the validated DDR pixel alignment and protect OSD/ROI colors.
@@ -880,11 +890,11 @@ module design_top_wrapper (
     ) u_video_enhance (
         .clk       (S_hdmi_pixel_clk),
         .rst_n     (S_hdmi_rst_n),
-        .in_vsync  (S_color_vs),
-        .in_hsync  (S_color_hs),
-        .in_de     (S_color_de),
-        .in_protect(S_color_protect),
-        .in_rgb    (S_color_display_rgb),
+        .in_vsync  (S_edge_vs),
+        .in_hsync  (S_edge_hs),
+        .in_de     (S_edge_de),
+        .in_protect(S_edge_protect),
+        .in_rgb    (S_edge_rgb),
         .out_vsync (S_hdmi_enhanced_vsync),
         .out_hsync (S_hdmi_enhanced_hsync),
         .out_de    (S_hdmi_enhanced_de),
@@ -894,7 +904,7 @@ module design_top_wrapper (
     reg [5:0] S_tone_protect;
     always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n)
         if(!S_hdmi_rst_n) S_tone_protect<=0;
-        else S_tone_protect<={S_tone_protect[4:0],S_color_protect};
+        else S_tone_protect<={S_tone_protect[4:0],S_edge_protect};
     wire S_tone_vs,S_tone_hs,S_tone_de;wire [23:0] S_tone_rgb;
     display_common_tone u_display_common_tone(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
