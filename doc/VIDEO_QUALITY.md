@@ -1,3 +1,5 @@
+> 2026-10-09 current: ISP and AWB restored byte-for-byte from the supplied lab_ex1_mipi_hdmi_SC520 (2).zip. Camera display applies uniform RGB gain 17/16, offset 0. Green ROI, servo, OSD and validated pixel alignment are preserved. See OFFICIAL_DISPLAY_20261009.md.
+
 > Current 2026-10-08 update: green-only single-region ROI with frame-atomic stable bounds replaces the red detector. Earlier red/ROI descriptions below are historical. See GREEN_ROI_20261008.md.
 
 > 2026-10-08 rollback: restored the pre-LSC video pipeline, controls and constraints. The only retained RTL change is the ROI height cap (ROI_HALF_H -> IMG_H - 1). Original width cap and centroid tracking are restored. See ROI_HEIGHT_ROLLBACK_20261008.md.

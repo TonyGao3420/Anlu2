@@ -842,15 +842,16 @@ module design_top_wrapper (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
-    // Preserve channel balance at the display output: bypass experimental tone,
-    // saturation, and sharpening, with a small equal RGB lift on camera pixels.
+    // Official ISP/AWB colors followed by a uniform 17/16 display-only gain.
+    // Keep the validated DDR pixel alignment and protect OSD/ROI colors.
     video_enhance #(
         .ENABLE(0),
         .GAMMA_ENABLE(0),
         .SHARPEN_ENABLE(0),
         .CONTRAST_ENABLE(0),
         .SATURATION_ENABLE(0),
-        .BRIGHTNESS_OFFSET(6),
+        .BRIGHTNESS_OFFSET(0),
+        .RGB_GAIN_Q8(272),
         .BLACK_LEVEL(12),
         .WHITE_LEVEL(238),
         .SATURATION_Q8(320),

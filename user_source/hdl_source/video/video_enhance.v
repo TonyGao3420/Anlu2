@@ -15,6 +15,7 @@ module video_enhance #(
     parameter integer CONTRAST_ENABLE = 1,
     parameter integer SATURATION_ENABLE = 1,
     parameter integer BRIGHTNESS_OFFSET = 0,
+    parameter integer RGB_GAIN_Q8 = 256,
     parameter integer BLACK_LEVEL = 12,
     parameter integer WHITE_LEVEL = 238,
     parameter integer SATURATION_Q8 = 320,
@@ -130,13 +131,13 @@ module video_enhance #(
         end
     endfunction
 
-    // Add a small equal RGB offset to lift the displayed image without changing
-    // hue or saturation. Protect overlays so the ROI outline keeps its color.
+    // Apply the same small gain/offset to R, G and B; clamp highlights.
+    // With offset zero, black remains black. OSD and ROI colors are protected.
     function [7:0] brighten_channel;
         input [7:0] value;
         integer lifted;
         begin
-            lifted = value + BRIGHTNESS_OFFSET;
+            lifted = ((value * RGB_GAIN_Q8 + 128) >> 8) + BRIGHTNESS_OFFSET;
             brighten_channel = (lifted > 255) ? 8'd255 : lifted[7:0];
         end
     endfunction
@@ -288,7 +289,7 @@ module video_enhance #(
             out_hsync <= grade_hs;
             if (!grade_de) out_rgb <= 24'd0;
             else if (grade_protect) out_rgb <= grade_rgb;
-            else if (BRIGHTNESS_OFFSET > 0)
+            else if (BRIGHTNESS_OFFSET > 0 || RGB_GAIN_Q8 != 256)
                 out_rgb <= {brighten_channel(grade_rgb[23:16]),
                             brighten_channel(grade_rgb[15:8]),
                             brighten_channel(grade_rgb[7:0])};

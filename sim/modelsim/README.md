@@ -1,5 +1,3 @@
-Current ROI regressions use green-only connected regions and stable frame-atomic boxes. See ../../doc/GREEN_ROI_20261008.md for coverage and limitations.
-
 # ModelSim regression
 
 Run from PowerShell in `Anlu2/sim`:
@@ -8,20 +6,27 @@ Run from PowerShell in `Anlu2/sim`:
 .\run_model_regression.ps1
 ```
 
-If `vsim.exe` is installed elsewhere, pass its path with `-ModelSimPath`.
-The regression compiles the focused SystemVerilog testbenches and writes its
-transcript to `Anlu2/sim/modelsim/run_regression.log`.
+Use `-ModelSimPath` if `vsim.exe` is elsewhere. The combined transcript is
+`Anlu2/sim/modelsim/run_regression.log`.
 
-The checks cover red-target ROI acquisition/release and centroid, HDMI pixel
-ordering/sync plus the rectangular overlay, the production display RGB lift,
-RAW10/RAW8 byte order, BGGR interpolation on a flat color field, and the
-unit-gain AWB stream. An additional AWB test feeds a synthetic green-cast
-neutral field over several frames and checks that the enabled gain correction
-raises red/blue while preserving green and stream length. The ROI regression
-also checks a sparse H-shaped red object whose red pixels occupy less than half
-of its bounding rectangle. The AWB and display-buffer RAM models in the
-testbenches are behavioral; this is RTL simulation of the selected logic, not
-a timing or vendor primitive simulation of the complete board-level MIPI/DDR
-design.
+The current seven groups cover:
 
-The 720p ROI height regression checks four locked frames of a 600-pixel-tall target.
+- Green-only region selection, close-object separation, frame-atomic bounds,
+  edge jitter, size convergence, dropouts, hollow shapes and SOF alignment.
+- HDMI pixel order/sync and the existing ROI overlay.
+- Production display gain 17/16, highlight clipping, protected overlays and
+  sync signals during blanking; tone/saturation/sharpening remain disabled.
+- RAW10/RAW8 byte order.
+- BGGR interpolation of flat color fields.
+- The supplied official AWB: neutral pixel order, gray-world correction,
+  original gain range, green-channel preservation and highlight saturation.
+- 720p: four locked frames of a 600-pixel-tall target, plus dense/fragmented
+  scenes finishing within the 49,500-clock vertical blank budget.
+
+AWB and display RAMs use functional models. The AWB divider model follows the
+configured unsigned 48/32, 50-cycle contract. Hardware uses the real vendor IP.
+This suite is not a full MIPI/DDR board simulation or post-route simulation.
+The previous custom-AWB testbenches are historical; `run_awb.do` and
+`run_awb_auto_gain.do` now delegate to `run_official_awb.do`.
+
+See `../../doc/OFFICIAL_DISPLAY_20261009.md` and `../../doc/GREEN_ROI_20261008.md`.

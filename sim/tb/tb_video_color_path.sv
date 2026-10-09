@@ -18,7 +18,7 @@ module tb_video_color_path;
     video_enhance #(
         .ENABLE(0), .GAMMA_ENABLE(0), .SHARPEN_ENABLE(0),
         .CONTRAST_ENABLE(0), .SATURATION_ENABLE(0),
-        .BRIGHTNESS_OFFSET(6)
+        .BRIGHTNESS_OFFSET(0), .RGB_GAIN_Q8(272)
     ) dut (
         .clk(clk), .rst_n(rst_n),
         .in_vsync(in_vsync), .in_hsync(in_hsync), .in_de(in_de),
@@ -32,9 +32,9 @@ module tb_video_color_path;
         begin
             if (protect) expected_pixel = rgb;
             else begin
-                r = rgb[23:16] + 6;
-                g = rgb[15:8] + 6;
-                b = rgb[7:0] + 6;
+                r = (rgb[23:16] * 17 + 8) / 16;
+                g = (rgb[15:8] * 17 + 8) / 16;
+                b = (rgb[7:0] * 17 + 8) / 16;
                 expected_pixel = {(r > 255 ? 8'hff : r[7:0]),
                                   (g > 255 ? 8'hff : g[7:0]),
                                   (b > 255 ? 8'hff : b[7:0])};
@@ -55,9 +55,8 @@ module tb_video_color_path;
             expected_pipe[3] = expected_pipe[2];
             expected_pipe[2] = expected_pipe[1];
             expected_pipe[1] = expected_pipe[0];
-            if (!in_de) expected_pipe[0] = 27'd0;
-            else expected_pipe[0] = {in_vsync, in_hsync, in_de,
-                                      expected_pixel(in_rgb, in_protect)};
+            expected_pipe[0] = {in_vsync, in_hsync, in_de,
+                in_de ? expected_pixel(in_rgb, in_protect) : 24'd0};
             #1;
             if ({out_vsync, out_hsync, out_de, out_rgb} !== expected_pipe[5])
                 $fatal(1, "Video color path mismatch: got %h expected %h",
@@ -90,10 +89,14 @@ module tb_video_color_path;
             in_protect = (i == 9);
             in_rgb = samples[i];
         end
+        for (integer k=0;k<256;k=k+1) begin
+            @(negedge clk);in_rgb={8'(k),8'(255-k),8'(k)};
+            in_protect=0;in_vsync=0;in_hsync=(k%32==0);
+        end
         @(negedge clk);
         in_de = 1'b0;
-        in_vsync = 1'b0;
-        in_hsync = 1'b0;
+        in_vsync = 1'b1;
+        in_hsync = 1'b1;
         in_protect = 1'b0;
         in_rgb = 24'd0;
         repeat (12) @(negedge clk);
