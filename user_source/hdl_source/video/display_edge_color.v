@@ -23,7 +23,7 @@ module display_edge_color #(
  finish=original<=BLACK_LEVEL?original:(value>255?8'd255:value[7:0]);end endfunction
  assign out_vs=vp[5];assign out_hs=hp[5];assign out_de=dp[5];assign out_protect=pp[5];
  wire [10:0] bottom_tripled={2'b0,bottom2}+({2'b0,bottom2}<<1);
- wire [7:0] left_coeff=8'd128+(top2>>2)-(bottom_tripled>>3);
+ wire [7:0] left_coeff=8'd160+(top2>>2)-(bottom_tripled>>3);
  wire [7:0] right_coeff=8'd80-(top2>>3)+(bottom2>>4);
  integer i,red_loss,blue_loss;
  always @(posedge clk or negedge rst_n)begin
@@ -47,8 +47,9 @@ module display_edge_color #(
  // P2: normalized edge weights.
  left2<=x_weight(left1);right2<=x_weight(right1);
  top2<=(top1*9'd303+18'd128)>>8;bottom2<=(bottom1*9'd303+18'd128)>>8;
- // P3: directional residual gains. Blue may rise at right, fall at upper left.
- red_loss=(left2*left_coeff+right2*right_coeff+top2*64+bottom2*32+128)>>8;
+ // P3: directional residual gains; stronger upper-left and full top/bottom edges.
+ // The central rectangle is still exact unity; blue tuning is unchanged.
+ red_loss=(left2*left_coeff+right2*right_coeff+top2*96+bottom2*64+128)>>8;
  blue_loss=($signed({1'b0,left2})*32+$signed({1'b0,top2})*32+$signed({1'b0,bottom2})*16-$signed({1'b0,right2})*64+128)>>>8;
  red_gain3<=1024-red_loss;blue_gain3<=1024-blue_loss;
  // P4: black-subtracted signal; P5: multiply; P6: restore and protect.
