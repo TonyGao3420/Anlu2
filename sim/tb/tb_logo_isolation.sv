@@ -6,7 +6,8 @@ wire [23:0] m[0:1],rgb[0:1],roi[0:1],out[0:1];wire [11:0] mx[0:1],my[0:1];
 reg [24:0] ref_logo[0:25599];initial $readmemh("../build/edge_refine_20261010/logo_reference.hex",ref_logo);
 genvar k;
 generate for(k=0;k<2;k=k+1)begin: branch
- hdmi_mixer #(.OSD_ENABLE(k)) mixer(.I_clk(clk),.I_rst_n(rst),.I_video_vsync(vs),.I_video_hsync(hs),.I_video_de(de),.I_video_user(user),.I_video_last(last),.I_debug_status(4'd0),
+ // Legacy logo-only isolation; the new HUD has its own full-chain regression.
+ hdmi_mixer #(.OSD_ENABLE(k),.CENTER_OSD_ENABLE(0)) mixer(.I_clk(clk),.I_rst_n(rst),.I_video_vsync(vs),.I_video_hsync(hs),.I_video_de(de),.I_video_user(user),.I_video_last(last),.I_debug_status(4'd0),
  .I_target_bbox_valid(1'b0),.I_target_bbox_x0(16'd0),.I_target_bbox_y0(16'd0),.I_target_bbox_x1(16'd0),.I_target_bbox_y1(16'd0),
  .O_video_rd_en(),.I_video_rd_data(24'ha0a0a0),.O_hdmi_vsync(mv[k]),.O_hdmi_hsync(mh[k]),.O_hdmi_de(md[k]),.O_hdmi_protect(mp[k]),.O_hdmi_data(m[k]),.O_hdmi_x(mx[k]),.O_hdmi_y(my[k]));
  scene_color_stream #(.RGB_SHADING_ENABLE(0)) stream(.clk(clk),.rst_n(rst),.in_vs(mv[k]),.in_hs(mh[k]),.in_de(md[k]),.in_protect(mp[k]),.camera_rgb(24'ha0a0a0),.mixed_rgb(m[k]),

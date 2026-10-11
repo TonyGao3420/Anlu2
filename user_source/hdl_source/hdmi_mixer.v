@@ -8,6 +8,7 @@ module hdmi_mixer #(
     parameter IMG_WIDTH = 1280,
     parameter IMG_HEIGHT = 720,
     parameter integer OSD_ENABLE = 1,
+    parameter integer CENTER_OSD_ENABLE = 1,
     parameter integer DEBUG_MODE = 0
 ) (
     input wire I_clk,
@@ -21,7 +22,7 @@ module hdmi_mixer #(
 
     input wire [3:0] I_debug_status,
 
-    // Frame-level target bounds from the single-red-object tracker.
+    // Frame-level target bounds from the single-green-object tracker.
     input wire        I_target_bbox_valid,
     input wire [15:0] I_target_bbox_x0,
     input wire [15:0] I_target_bbox_y0,
@@ -673,6 +674,27 @@ module hdmi_mixer #(
         end
     endfunction
 
+    // The tracker publishes at corrected-camera SOF, a few clocks after mixer SOF.
+    // Capture on line 1 so both axes use that complete result, well before the HUD.
+    wire S_center_hit;
+    wire [23:0] S_center_rgb;
+    wire S_center_valid;
+    wire signed [15:0] S_center_x,S_center_y;
+    generate if (OSD_ENABLE && CENTER_OSD_ENABLE) begin: center_hud
+        roi_center_osd #(.IMG_W(IMG_WIDTH),.IMG_H(IMG_HEIGHT)) coordinates (
+            .clk(I_clk),.rst_n(I_rst_n),
+            .capture(I_video_de && S_x==12'd0 && S_y==12'd1),
+            .bbox_valid(I_target_bbox_valid),
+            .bbox_x0(I_target_bbox_x0),.bbox_y0(I_target_bbox_y0),
+            .bbox_x1(I_target_bbox_x1),.bbox_y1(I_target_bbox_y1),
+            .pixel_x(S_x_2d),.pixel_y(S_y_2d),
+            .hit(S_center_hit),.rgb(S_center_rgb),
+            .center_valid(S_center_valid),.center_x(S_center_x),.center_y(S_center_y));
+    end else begin: no_center_hud
+        assign S_center_hit=1'b0;assign S_center_rgb=24'd0;
+        assign S_center_valid=1'b0;assign S_center_x=16'd0;assign S_center_y=16'd0;
+    end endgenerate
+
     assign O_video_rd_en = I_video_de;
 
     anlogic_logo_rom u_anlogic_logo_rom (
@@ -990,6 +1012,12 @@ module hdmi_mixer #(
                     S_osd_color = COLOR_DYN_TEXT;
                 end
             end
+        end
+
+        // Protect the complete coordinate HUD (glyph and black background) from ISP gains.
+        if (S_video_de_2d && S_center_hit) begin
+            S_osd_hit   = 1'b1;
+            S_osd_color = S_center_rgb;
         end
 
         // Draw a clean two-pixel rectangular box instead of marking mask pixels.
