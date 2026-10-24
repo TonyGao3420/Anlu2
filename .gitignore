@@ -2,6 +2,14 @@
 # Anlu2 工程 .gitignore
 # 工程结构见 README.md
 # ==========================================
+# 编译与综合产生的日志、报告、临时文件
+*.log
+*.rpt
+*.jou
+*.str
+#*.al
+*.prj
+*.bak
 
 # ---- 构建产物（可随时重新生成，不入库）----
 *.bit
@@ -53,9 +61,20 @@ Desktop.ini
 # ==========================================
 # 但保留工程骨架（很小，丢了很麻烦）
 # ==========================================
-!prj/Anlu2.al
-!prj/Anlu2_Runs/
-!prj/Anlu2_Runs/*/
-!prj/Anlu2_Runs/*/settings.cfg
-!prj/Anlu2_Runs/*/Anlu2.prj
-!prj/Anlu2_Runs/*/run.bat
+.lock.f
+*.lock.f
+*.logw
+td_*.logw
+*.al.bak
+
+
+
+/sim_lib/
+
+# Local validation tools, original snapshots and generated reports
+/sim/.tools/
+/sim/.baseline/
+/sim/build/
+/td_project/*_Runs/
+*.al
+*.al
