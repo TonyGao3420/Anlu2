@@ -6,7 +6,7 @@
 *.rpt
 *.jou
 *.str
-*.al
+#*.al
 *.prj
 *.bak
 
@@ -72,4 +72,11 @@ td_*.logw
 
 
 /sim_lib/
-/prj/
+
+# Local validation tools, original snapshots and generated reports
+/sim/.tools/
+/sim/.baseline/
+/sim/build/
+/td_project/*_Runs/
+*.al
+*.al

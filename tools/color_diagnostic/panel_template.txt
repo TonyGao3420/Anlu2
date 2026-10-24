@@ -1,0 +1,12 @@
+# REPLACE EVERY MEASUREMENT using the FPGA panel. These are placeholder zeros.
+# node B Gb Gr R r g b Q; RAW/RGB values hexadecimal, node decimal.
+# Q must be 1010: RAW valid / not clipped / RGB valid / not clipped.
+0 000 000 000 000 00 00 00 0000
+1 000 000 000 000 00 00 00 0000
+2 000 000 000 000 00 00 00 0000
+3 000 000 000 000 00 00 00 0000
+4 000 000 000 000 00 00 00 0000
+5 000 000 000 000 00 00 00 0000
+6 000 000 000 000 00 00 00 0000
+7 000 000 000 000 00 00 00 0000
+8 000 000 000 000 00 00 00 0000
