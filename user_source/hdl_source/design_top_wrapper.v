@@ -13,6 +13,7 @@
 module design_top_wrapper (
     input wire I_sys_clk,
     input wire I_rst_n,
+    input wire I_sw1,          // SW1：视觉伺服使能，1=开启，0=保持当前位置
 
     output wire O_cam_scl,
     inout  wire IO_cam_sda,
@@ -192,6 +193,13 @@ module design_top_wrapper (
     wire         S_track2_dbg_roi_valid;
     wire         S_track2_dbg_color_match;
     reg          S_track2_result_toggle;
+
+    // SW1 使能：异步开关在 HDMI 像素时钟域做 2 级同步
+    reg  [1:0]   S_sw1_sync;
+    reg          S_sw1_seen;
+    wire         S_sw1_enable = S_sw1_sync[1];
+    wire         S_sw1_change = S_sw1_sync[1] ^ S_sw1_seen;
+    wire         S_servo_valid = S_track2_valid & S_sw1_enable;
 
     reg          S_dbg_raw_seen;
     reg          S_dbg_isp_seen;
@@ -805,12 +813,24 @@ module design_top_wrapper (
         .dbg_color_match (S_track2_dbg_color_match)
     );
 
+    // SW1 异步输入同步到 HDMI 像素时钟域；变化时产生一次更新事件。
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
+        if (!S_hdmi_rst_n) begin
+            S_sw1_sync <= 2'b00;
+            S_sw1_seen <= 1'b0;
+        end else begin
+            S_sw1_sync <= {S_sw1_sync[0], I_sw1};
+            S_sw1_seen <= S_sw1_sync[1];
+        end
+    end
+
     // The tracker publishes only complete frame results. Toggle-based bundled
     // data crosses safely to the independent 50 MHz servo timing domain.
+    // SW1 关闭时也翻转一次 toggle，让舵机锁存 valid=0 并保持当前位置。
     always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
         if (!S_hdmi_rst_n)
             S_track2_result_toggle <= 1'b0;
-        else if (S_track2_result_update)
+        else if (S_track2_result_update || S_sw1_change)
             S_track2_result_toggle <= ~S_track2_result_toggle;
     end
 
@@ -823,7 +843,7 @@ module design_top_wrapper (
         .clk_50m          (I_sys_clk),
         .rst_n            (I_rst_n),
         .source_toggle    (S_track2_result_toggle),
-        .target_valid_async(S_track2_valid),
+        .target_valid_async(S_servo_valid),
         .target_x_async   (S_track2_cx),
         .target_y_async   (S_track2_cy),
         .servo_pan        (O_servo_pan),
