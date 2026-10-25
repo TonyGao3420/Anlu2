@@ -6,6 +6,8 @@
 
 当前版本将轨迹改为**1秒保留＋三点中值＋1/2平滑＋4像素小位移抑制＋约20Hz采样**，只作用于轨迹显示，不改变ROI、坐标文字或舵机控制。
 
+已修复图标模块可能因工程文件列表漏挂而产生的黑盒错误：完整图标ERAM定义现在与调用者一起放在`hdmi_mixer.v`内，原`anlogic_logo_eram.v`仅保留空兼容条目。不要将旧的独立模块文件覆盖回来。当前工程已从TD GUI重新加载、生成全新运行目录并验证编译，见[GUI编译修复报告](doc/GUI_COMPILE_FIX_20261025.md)。
+
 此前已将图标的组合逻辑像素表改为**无损调色板 ERAM**，复用已有流水级，不增加显示延迟。优化结果见 [ERAM布局优化报告](doc/ERAM_OPTIMIZATION_20261025.md)。之前三模式版本及比特流保留为历史版本。
 
 ## 拨码操作
@@ -33,7 +35,8 @@ SW2经过两级同步和10ms稳定滤波，显示模式在首个有效像素锁�
 
 | 源码 | 作用 |
 |---|---|
-| `user_source/hdl_source/anlogic_logo_eram.v` | 自包含的无损图标ERAM查表，580种颜色含透明值 |
+| `user_source/hdl_source/hdmi_mixer.v` | 原mixer及未改动的无损图标ERAM定义，580种颜色含透明值 |
+| `user_source/hdl_source/anlogic_logo_eram.v` | 旧工程文件列表的空兼容条目，避免重复定义 |
 | `user_source/hdl_source/video/style_switch_control.v` | SW2同步与稳定滤波 |
 | `user_source/hdl_source/video/roi_background_stylize.v` | 彩色ROI保留、背景灰度池化轮廓、同步模式元数据 |
 | `user_source/hdl_source/video/roi_motion_trail.v` | 一秒中心轨迹、双缓冲绘制、视频中断清理和毫秒计时 |
@@ -44,7 +47,7 @@ SW2经过两级同步和10ms稳定滤波，显示模式在首个有效像素锁�
 
 打开 `td_project/camera_to_dsi_display.al`，完整运行综合和物理设计。主工程常规输出为 `td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit`。
 
-当前版本记录与命名比特流存放在 `sim/build/trail_1s_20261025/`，详见 [一秒平滑轨迹报告](doc/TRAIL_1S_SMOOTH_20261025.md)。ERAM优化历史版本保留在 `sim/build/eram_opt_20261025/`。原三模式版本记录仍在 `sim/build/style_mode_20261025/`。报告以实际综合布线和仿真结果为准；未进行本版本上板验证。
+当前GUI修正版、干净工程ZIP和验证日志存放在`sim/build/gui_compile_fix_20261025/`，见[GUI编译修复报告](doc/GUI_COMPILE_FIX_20261025.md)。ZIP内预编译比特流在`output/`。一秒轨迹阶段记录保留在`sim/build/trail_1s_20261025/`，详见[一秒平滑轨迹报告](doc/TRAIL_1S_SMOOTH_20261025.md)。ERAM优化历史版本保留在`sim/build/eram_opt_20261025/`，原三模式记录在`sim/build/style_mode_20261025/`。未进行本版本上板验证。
 
 可在本目录重跑完整验证与编译：
 

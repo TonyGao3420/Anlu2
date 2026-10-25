@@ -9,6 +9,9 @@
         <Device>PH1P35MDG324</Device>
         <Speed>-3</Speed>
     </HardWare>
+    <MiscSettings>
+        <Setting Key="farm" Val="disable" />
+    </MiscSettings>
     <Source_Files>
         <Verilog>
             <File Path="../user_source/hdl_source/design_top_wrapper.v">
@@ -230,6 +233,7 @@
             </File>
             <File Path="../user_source/hdl_source/anlogic_logo_rom.v">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
@@ -389,10 +393,39 @@
                     <Attr Name="CompileOrder" Val="58"/>
                 </FileInfo>
             </File>
-            <File Path="../user_source/hdl_source/video/roi_background_stylize.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="101"/></FileInfo></File>
-            <File Path="../user_source/hdl_source/video/roi_motion_trail.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="102"/></FileInfo></File>
-            <File Path="../user_source/hdl_source/video/style_switch_control.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="103"/></FileInfo></File>
-            <File Path="../user_source/hdl_source/anlogic_logo_eram.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="104"/></FileInfo></File>
+            <File Path="../user_source/hdl_source/video/roi_background_stylize.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="63"/>
+                </FileInfo>
+            </File>
+            <File Path="../user_source/hdl_source/video/roi_motion_trail.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="64"/>
+                </FileInfo>
+            </File>
+            <File Path="../user_source/hdl_source/video/style_switch_control.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="65"/>
+                </FileInfo>
+            </File>
+            <File Path="../user_source/hdl_source/anlogic_logo_eram.v">
+                <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="66"/>
+                </FileInfo>
+            </File>
         </Verilog>
         <System_Verilog>
             <File Path="../user_source/hdl_source/mipi_dphy_rx/mipi_dphy_rx_ph1p_mipiio_wrapper.sv">
