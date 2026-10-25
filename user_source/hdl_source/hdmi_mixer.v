@@ -697,8 +697,14 @@ module hdmi_mixer #(
 
     assign O_video_rd_en = I_video_de;
 
-    anlogic_logo_rom u_anlogic_logo_rom (
-        .I_addr (S_logo_addr),
+    // ERAM prefetch starts two existing coordinate stages ahead of the mixer.
+    // The resulting pixel matches S_x_2d/S_y_2d without delaying any video IO.
+    wire [14:0] S_logo_prefetch_addr =
+        (S_x < LOGO_W && S_y < LOGO_H)
+        ? (({S_y,7'b0}+{S_y,5'b0})+S_x) : 15'd0;
+    anlogic_logo_eram u_anlogic_logo_rom (
+        .I_clk(I_clk),.I_rst_n(I_rst_n),
+        .I_addr (S_logo_prefetch_addr),
         .O_pixel(S_logo_pixel)
     );
 

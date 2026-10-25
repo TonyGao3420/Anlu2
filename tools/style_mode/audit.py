@@ -5,12 +5,16 @@ backup=root.parent/'recovery_backups/Anlu2_before_style_mode_20261025'
 build=root/'sim/build/style_mode_20261025'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 before=json.loads((backup/'source_sha256.json').read_text(encoding='utf-8'))
-allowed={'README.md','user_source/hdl_source/design_top_wrapper.v','user_source/constraints_source/pin.adc','td_project/camera_to_dsi_display.al','td_project/camera_to_dsi_display_Runs/syn_1/camera_to_dsi_display.prj','td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.prj'}
+allowed={'user_source/hdl_source/hdmi_mixer.v','README.md','user_source/hdl_source/design_top_wrapper.v','user_source/constraints_source/pin.adc','td_project/camera_to_dsi_display.al','td_project/camera_to_dsi_display_Runs/syn_1/camera_to_dsi_display.prj','td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.prj'}
 changed=[]
 for rel,h in before.items():
  if sha(root/rel)!=h:
   assert rel in allowed,('Unrelated baseline changed',rel)
   changed.append(rel)
+old_mixer=(backup/'user_source/hdl_source/hdmi_mixer.v').read_text(encoding='utf-8-sig')
+new_mixer=(root/'user_source/hdl_source/hdmi_mixer.v').read_text(encoding='utf-8-sig')
+new_mixer=re.sub(r'    // ERAM prefetch starts.*?    \);',"    anlogic_logo_rom u_anlogic_logo_rom (\n        .I_addr (S_logo_addr),\n        .O_pixel(S_logo_pixel)\n    );",new_mixer,count=1,flags=re.S)
+assert new_mixer==old_mixer,'Mixer changed outside equivalent ERAM prefetch'
 old=(backup/'user_source/hdl_source/design_top_wrapper.v').read_text(encoding='utf-8-sig')
 new=(root/'user_source/hdl_source/design_top_wrapper.v').read_text(encoding='utf-8-sig')
 s=re.sub(r'^    input wire I_sw2,.*\n','',new,flags=re.M)
@@ -44,7 +48,7 @@ for name in ['roi_background_stylize.v','roi_motion_trail.v','style_switch_contr
  assert root/'user_source/hdl_source/video'/name in sources
 report={'backup':str(backup),'changed_baseline_files':changed,'unchanged_baseline_files':len(before)-len(changed),
  'latest_original_top_preserved_except_display_insertion_and_SW2_port':True,
- 'SW1_servo_ROI_ISP_DDR_color_logo_coordinates_byte_unchanged':True,
+ 'SW1_servo_ROI_ISP_DDR_color_coordinates_algorithms_unchanged':True,'logo_pixels_unchanged_ERAM_prefetch_only':True,
  'original_pins_preserved_only_SW2_B4_added':True,'original_SDC_and_tool_strategy_unchanged':True,
  'style_RGB_and_trajectory_algorithms_unchanged':True,'mode_enable_metadata_aligned_with_video':True,
  'standalone_preserved_files':len(prior),'production_source_count':len(sources),'production_model_references_simulation_ROM':False}

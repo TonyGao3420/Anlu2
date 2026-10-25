@@ -140,7 +140,7 @@ module baseline_display_path(input clk,rst,vs,hs,de,user,last,input [23:0] camer
         .servo_tilt       (O_servo_tilt)
     );
 
-    hdmi_mixer #(
+    baseline_hdmi_mixer #(
         .H_OFFSET  (0),
         .V_OFFSET  (0),
         .IMG_WIDTH (1280),
@@ -485,13 +485,13 @@ module isolated_display_path(input clk,rst,vs,hs,de,user,last,input [23:0] camer
         .out_vs(S_style_vs),.out_hs(S_style_hs),.out_de(S_style_de),
         .out_protect(S_style_protect),.out_rgb(S_style_rgb),.out_roi(S_style_roi),.out_enable(S_style_enable));
 
-    // Three-second trail: no feedback into the detector or servo.
+    // One-second smoothed trail: no feedback into the detector or servo.
     wire [15:0] S_trail_ms;
     video_ms_clock #(.CLK_HZ(75000000)) u_trail_time(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),.ms_now(S_trail_ms));
     wire S_trail_vs,S_trail_hs,S_trail_de,S_trail_protect,S_trail_hit;
     wire [23:0] S_trail_rgb;
-    roi_motion_trail u_motion_trail(
+    roi_motion_trail #(.TTL_MS(1000),.SMOOTH_ENABLE(1),.SAMPLE_INTERVAL_MS(50),.JITTER_PIXELS(4)) u_motion_trail(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_style_vs),.in_hs(S_style_hs),.in_de(S_style_de),
         .in_protect(S_style_protect),.in_roi(S_style_roi),.in_enable(S_style_enable),.in_clear(1'b0),

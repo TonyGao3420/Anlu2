@@ -97,8 +97,8 @@ module tb_style_integration;
   end
   @(negedge clk);de=0;vs=0;hs=0;user=0;last=0;camera=0;
   repeat(LAT+100)@(negedge clk);
-  if(checked!=TOTAL || fg<5000 || osd<20000 || bg<2000000 || trail<100 || moved<2 || normal!=4*W*H || enter!=2 || leave!=1 || out_frames!=N)$fatal(1,"Incomplete whole-chain coverage %0d fg%0d osd%0d bg%0d trail%0d moved%0d",checked,fg,osd,bg,trail,moved);
-  $display("PASS mode_integration: %0d actual 720p output pixels; ROI %0d OSD %0d background %0d trail %0d; extracted real top, DDR/ROI/servo unchanged, calibrated luma alignment, foreground/anniversary-logo/HUD/border bit exact",checked,fg,osd,bg,trail);$display("PASS mode_switches: normal RGB pixels%0d, style pixels%0d, enter%0d leave%0d; SW1 servo outputs cycle-exact; no partial-frame mode",normal,style,enter,leave);$finish;
+  if(checked!=TOTAL || fg<5000 || osd<20000 || bg<2000000 || trail!=32 || moved<2 || normal!=4*W*H || enter!=2 || leave!=1 || out_frames!=N)$fatal(1,"Incomplete whole-chain coverage %0d fg%0d osd%0d bg%0d trail%0d moved%0d",checked,fg,osd,bg,trail,moved);
+  $display("PASS mode_integration: %0d actual 720p output pixels; ROI %0d OSD %0d background %0d trail %0d; extracted real top, DDR/ROI/servo unchanged, calibrated luma alignment, foreground/anniversary-logo/HUD/border bit exact",checked,fg,osd,bg,trail);$display("PASS mode_switches_1s: normal RGB pixels%0d, style pixels%0d, enter%0d leave%0d; SW1 servo outputs cycle-exact; no partial-frame mode; decimated trajectory exactly32 visible pixels in short dwell",normal,style,enter,leave);$finish;
  end
  initial begin #150000000;$fatal(1,"Integration timeout");end
 endmodule

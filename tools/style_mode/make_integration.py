@@ -7,6 +7,7 @@ decl=old[old.index('    wire         S_hdmi_vsync;'):old.index('    reg         
 parts=[]
 for name,s,tail in [('baseline_display_path',old,'S_tone'),('isolated_display_path',new,'S_trail')]:
  region=s[s.index('    // One calibrated camera stream'):s.index('    hdmi_tx u_hdmi_tx (')]
+ if name=='baseline_display_path':region=region.replace('hdmi_mixer #(', 'baseline_hdmi_mixer #(')
  parts.append(f"""// Extracted from current original/merged top; all servo logic is real RTL.
 module {name}(input clk,rst,vs,hs,de,user,last,input [23:0] camera,
  input sw1,sw2,output ov,oh,od,output [23:0] rgb);

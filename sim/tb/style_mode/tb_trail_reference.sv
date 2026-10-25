@@ -5,7 +5,7 @@ module tb_trail_reference #(parameter W=64,H=48,HT=80,N=52,HIST=16,MOVIE=0,JUMP=
  reg clk=0;always #5 clk=~clk;reg rst=0,vs=0,hs=0,de=0,prot=0,roi=0,en=1,clear=0;
  reg[23:0] rgb=0;reg[15:0] now_ms=0,px=0,py=0;reg pv=0;
  wire ov,oh,od,op,hit,busy,bank_valid;wire[23:0] out;wire[8:0] count;
- roi_motion_trail #(.IMG_W(W),.IMG_H(H),.HISTORY_DEPTH(HIST),.MAX_JUMP_PIXELS(JUMP),.FRAME_TIMEOUT_MS(MOVIE?250:0)) dut(
+ roi_motion_trail #(.IMG_W(W),.IMG_H(H),.TTL_MS(3000),.HISTORY_DEPTH(HIST),.MAX_JUMP_PIXELS(JUMP),.FRAME_TIMEOUT_MS(MOVIE?250:0)) dut(
   .clk(clk),.rst_n(rst),.in_vs(vs),.in_hs(hs),.in_de(de),.in_protect(prot),.in_roi(roi),
   .in_enable(en),.in_clear(clear),.in_rgb(rgb),.ms_now(now_ms),.point_valid(pv),.point_x(px),.point_y(py),
   .out_vs(ov),.out_hs(oh),.out_de(od),.out_protect(op),.out_hit(hit),.out_rgb(out),

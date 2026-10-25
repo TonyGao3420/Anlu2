@@ -1,7 +1,7 @@
-param([string]$ModelSim='D:/altera/14.1/modelsim_ase/win32aloem/vsim.exe')
+param([string]$ModelSim='D:/altera/14.1/modelsim_ase/win32aloem/vsim.exe',[string]$LogDirectory='')
 $ErrorActionPreference='Stop'
 $Root=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$LogRoot=Join-Path $Root 'sim/build/style_mode_20261025'
+$LogRoot=if($LogDirectory){$LogDirectory}else{Join-Path $Root 'sim/build/style_mode_20261025'}
 Push-Location (Join-Path $Root 'sim/modelsim_style_mode')
 try {
  foreach($Name in @('style_switch','style_small','style_720p','trail_small','trail_clock','trail_watchdog','trail_budget','trail_movie','logo_rom_equivalence')) {
