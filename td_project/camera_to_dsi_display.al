@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Project Version="3" Minor="2" Path="D:/HX1P35A_Contest_202606/Anlu2/td_project">
+<Project Version="3" Minor="2" Path="D:/Anlogic/Anlu2/td_project">
     <Project_Created_Time></Project_Created_Time>
     <TD_Encoding>UTF-8</TD_Encoding>
     <TD_Version>6.2.168116</TD_Version>
@@ -9,9 +9,6 @@
         <Device>PH1P35MDG324</Device>
         <Speed>-3</Speed>
     </HardWare>
-    <MiscSettings>
-        <Setting Key="farm" Val="disable" />
-    </MiscSettings>
     <Source_Files>
         <Verilog>
             <File Path="../user_source/hdl_source/design_top_wrapper.v">
@@ -415,15 +412,6 @@
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="65"/>
-                </FileInfo>
-            </File>
-            <File Path="../user_source/hdl_source/anlogic_logo_eram.v">
-                <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="66"/>
                 </FileInfo>
             </File>
         </Verilog>
