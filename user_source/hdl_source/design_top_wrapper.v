@@ -13,6 +13,7 @@
 module design_top_wrapper (
     input wire I_sys_clk,
     input wire I_rst_n,
+    input wire I_sw2,          // SW2: 1=style + three-second trail; SW1 still controls servo.
     input wire I_sw1,          // SW1：视觉伺服使能，1=开启，0=保持当前位置
 
     output wire O_cam_scl,
@@ -932,6 +933,59 @@ module design_top_wrapper (
         .in_de(S_hdmi_enhanced_de),.in_protect(S_tone_protect[5]),.in_rgb(S_hdmi_enhanced_data),
         .out_vs(S_tone_vs),.out_hs(S_tone_hs),.out_de(S_tone_de),.out_rgb(S_tone_rgb));
 
+    // MERGED STYLE MODE BEGIN: display-only, no detector feedback.
+    // Match scene_color_stream's un-overlaid camera luma and protect metadata
+    // to the existing edge(6) + enhance(6) + common tone(3) pipeline.
+    wire [9:0] S_style_luma_sum={2'd0,S_color_roi_rgb[23:16]}+
+                              {1'd0,S_color_roi_rgb[15:8],1'b0}+{2'd0,S_color_roi_rgb[7:0]};
+    reg [7:0] S_style_luma_delay[0:14];
+    reg [14:0] S_style_protect_delay;
+    integer style_i;
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n)begin
+        if(!S_hdmi_rst_n)begin
+            S_style_protect_delay<=0;
+            for(style_i=0;style_i<15;style_i=style_i+1)S_style_luma_delay[style_i]<=0;
+        end else begin
+            S_style_protect_delay<={S_style_protect_delay[13:0],S_color_protect};
+            S_style_luma_delay[0]<=S_style_luma_sum[9:2];
+            for(style_i=1;style_i<15;style_i=style_i+1)
+                S_style_luma_delay[style_i]<=S_style_luma_delay[style_i-1];
+        end
+    end
+    wire S_style_request;
+    style_switch_control u_style_switch(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .sw2_async(I_sw2),.style_request(S_style_request));
+    wire S_style_vs,S_style_hs,S_style_de,S_style_protect,S_style_roi,S_style_enable;
+    wire [23:0] S_style_rgb;
+    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650)) u_background_stylize(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .in_vs(S_tone_vs),.in_hs(S_tone_hs),.in_de(S_tone_de),
+        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request),
+        .in_rgb(S_tone_rgb),.in_gray(S_style_luma_delay[14]),
+        .bbox_valid(S_track2_valid),.bbox_x0(S_track2_bbox_x0),.bbox_y0(S_track2_bbox_y0),
+        .bbox_x1(S_track2_bbox_x1),.bbox_y1(S_track2_bbox_y1),
+        .out_vs(S_style_vs),.out_hs(S_style_hs),.out_de(S_style_de),
+        .out_protect(S_style_protect),.out_rgb(S_style_rgb),.out_roi(S_style_roi),.out_enable(S_style_enable));
+
+    // Three-second trail: no feedback into the detector or servo.
+    wire [15:0] S_trail_ms;
+    video_ms_clock #(.CLK_HZ(75000000)) u_trail_time(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),.ms_now(S_trail_ms));
+    wire S_trail_vs,S_trail_hs,S_trail_de,S_trail_protect,S_trail_hit;
+    wire [23:0] S_trail_rgb;
+    roi_motion_trail u_motion_trail(
+        .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .in_vs(S_style_vs),.in_hs(S_style_hs),.in_de(S_style_de),
+        .in_protect(S_style_protect),.in_roi(S_style_roi),.in_enable(S_style_enable),.in_clear(1'b0),
+        .in_rgb(S_style_rgb),.ms_now(S_trail_ms),
+        .point_valid(S_track2_valid),.point_x(S_track2_cx),.point_y(S_track2_cy),
+        .out_vs(S_trail_vs),.out_hs(S_trail_hs),.out_de(S_trail_de),
+        .out_protect(S_trail_protect),.out_hit(S_trail_hit),.out_rgb(S_trail_rgb),
+        .render_busy(),.point_count(),.bank_valid());
+
+    // MERGED STYLE MODE END
+
     hdmi_tx u_hdmi_tx (
         .I_pixel_clk       (S_hdmi_pixel_clk),
         .I_serial_clk      (S_hdmi_serial_clk),
@@ -941,13 +995,13 @@ module design_top_wrapper (
         .O_edid_read_valid (),
         .O_edid_read_data  (),
         .I_video_rgb_enable(1'b1),
-        .I_video_in_vs     (S_tone_vs),
-        .I_video_in_de     (S_tone_de),
+        .I_video_in_vs     (S_trail_vs),
+        .I_video_in_de     (S_trail_de),
         .I_video_in_user   (1'b0),
         .I_video_in_valid  (1'b0),
         .I_video_in_last   (1'b0),
         .O_video_in_ready  (),
-        .I_video_in_data   (S_tone_rgb),
+        .I_video_in_data   (S_trail_rgb),
         .I_audio_valid     (1'b0),
         .I_audio_left_data (24'd0),
         .I_audio_right_data(24'd0),

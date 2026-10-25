@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Project Version="3" Minor="2" Path="D:/Anlogic/Anlu2/td_project">
+<Project Version="3" Minor="2" Path="D:/HX1P35A_Contest_202606/Anlu2/td_project">
     <Project_Created_Time></Project_Created_Time>
     <TD_Encoding>UTF-8</TD_Encoding>
     <TD_Version>6.2.168116</TD_Version>
@@ -389,6 +389,9 @@
                     <Attr Name="CompileOrder" Val="58"/>
                 </FileInfo>
             </File>
+            <File Path="../user_source/hdl_source/video/roi_background_stylize.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="101"/></FileInfo></File>
+            <File Path="../user_source/hdl_source/video/roi_motion_trail.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="102"/></FileInfo></File>
+            <File Path="../user_source/hdl_source/video/style_switch_control.v"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="103"/></FileInfo></File>
         </Verilog>
         <System_Verilog>
             <File Path="../user_source/hdl_source/mipi_dphy_rx/mipi_dphy_rx_ph1p_mipiio_wrapper.sv">
