@@ -4,11 +4,11 @@
 
 基于安路 PH1P35MDG324（speed -3）、SC520CS MIPI RAW10、DDR2帧缓存与1280×720 HDMI显示。当前集成以前独立验证的背景风格化及一秒运动轨迹，保留合并前的绿色目标ROI、颜色校正、坐标OSD、安路十周年图标和SW1舵机跟踪代码。
 
-当前版本将轨迹改为**1秒保留＋三点中值＋1/2平滑＋4像素小位移抑制＋约20Hz采样**，只作用于轨迹显示，不改变ROI、坐标文字或舵机控制。
+当前2026-10-26版保留**1秒轨迹＋三点中值＋1/2平滑＋4像素小位移抑制＋约20Hz采样**，增加第三模式的运动区域提示与算法状态。原ROI、坐标文字、舵机控制、颜色及一秒轨迹代码均保留。依据选题二指南的逐项核对见[要求与验证报告](doc/TRACK2_REQUIREMENTS_AND_MOTION_STYLE_20261026.md)：四项基础功能已有实现，长期稳定性和最新板上效果仍待验收。
 
 已修复图标模块可能因工程文件列表漏挂而产生的黑盒错误：完整图标ERAM定义现在与调用者一起放在`hdmi_mixer.v`内，原`anlogic_logo_eram.v`仅保留空兼容条目。不要将旧的独立模块文件覆盖回来。当前工程已从TD GUI重新加载、生成全新运行目录并验证编译，见[GUI编译修复报告](doc/GUI_COMPILE_FIX_20261025.md)。
 
-此前已将图标的组合逻辑像素表改为**无损调色板 ERAM**，复用已有流水级，不增加显示延迟。优化结果见 [ERAM布局优化报告](doc/ERAM_OPTIMIZATION_20261025.md)。之前三模式版本及比特流保留为历史版本。
+当前保留最新**345×120、64项调色板的安路十周年Logo**，使用原生ERAM及5个`logo_*.mif`文件。已修正这些初始化文件对另一台电脑绝对路径的依赖，使用源文件同目录名称；复制工程时必须保留全部MIF。历史ERAM布局报告与昨日bit对应旧图标版本，不能作为当前源码资源基线。
 
 ## 拨码操作
 
@@ -27,36 +27,38 @@ SW2经过两级同步和10ms稳定滤波，显示模式在首个有效像素锁�
 
 当前ROI **矩形范围内**保留原彩色，并非物体轮廓级抠图。矩形外采用同帧8×8平均亮度、8级灰度量化和粗轮廓；亮度从原显示端边缘颜色补偿及共同提亮之前分支，基础RAW校正和白平衡仍保留。轨迹由平滑后的ROI中心连线，橙色、约4像素宽，每段约1秒后消失。图标、文字、边框以及当前ROI优先显示，颜色不被轨迹覆盖。
 
+本次新增16×16均值帧差和迟滞判断，局部运动背景使用青色填充/边缘提示；右上角显示`MODE:COLOR/STYLE`，第三模式显示如`MOT:00008 LOCAL`。MOT是活动网格数，不是目标数量。超过约1/3画面变化时显示GLOBAL并抑制大面积着色；不等于云台运动补偿。提示和统计落后一帧，RGB流水没有增加延迟。退出第三模式或视频中断会清除旧运动历史。普通模式仅新增状态HUD，其余RGB不变。
+
 坐标文字仍以屏幕中心为原点。轨迹记录屏幕内路径；云台将目标保持在中心时，轨迹会集中于中心附近，本版没有做世界坐标重建或相机运动补偿。目标丢失/重获或大幅跳变会断开错误连线；保留原检测器的短暂丢失保持策略。
 
-所有模式通过同一条显示缓存，模式一、二的有效像素RGB保持原值，仅共同增加13204个像素时钟（约176µs）的显示延迟。该延迟不进入ROI检测及舵机反馈，也不是包含DDR的整机总延迟。轨迹缓存约一帧更新延迟，一秒消退边界约一帧误差。
+所有模式通过同一条显示缓存。原风格化/轨迹集成已有13204个像素时钟（约176µs）的附加显示延迟，本次不再增加。该延迟不进入ROI检测及舵机反馈，也不是包含DDR的整机总延迟。原CNT不是端到端延迟测量。轨迹缓存约一帧更新延迟，一秒消退边界约一帧误差。
 
 ## 新增代码
 
 | 源码 | 作用 |
 |---|---|
-| `user_source/hdl_source/hdmi_mixer.v` | 原mixer及未改动的无损图标ERAM定义，580种颜色含透明值 |
+| `user_source/hdl_source/hdmi_mixer.v` | 原mixer及当前345×120图标ERAM定义，64项调色板，5个同目录MIF |
 | `user_source/hdl_source/anlogic_logo_eram.v` | 旧工程文件列表的空兼容条目，避免重复定义 |
 | `user_source/hdl_source/video/style_switch_control.v` | SW2同步与稳定滤波 |
-| `user_source/hdl_source/video/roi_background_stylize.v` | 彩色ROI保留、背景灰度池化轮廓、同步模式元数据 |
+| `user_source/hdl_source/video/roi_background_stylize.v` | 彩色ROI保留、灰度池化轮廓、运动提示与状态HUD、同步模式元数据 |
 | `user_source/hdl_source/video/roi_motion_trail.v` | 一秒中心轨迹、双缓冲绘制、视频中断清理和毫秒计时 |
 
-实际板上运行的是这些Verilog模块。ERAM初始化数据已经写入源码，正常打开TD主工程重新编译即可，不需要先运行Python。`tools/style_mode/` 下的Python和PowerShell只负责仿真数据、检查、编译和打包，不参与摄像头或舵机的实时处理。
+实际板上运行的是这些Verilog模块。Logo初始化数据来自源码旁的5个MIF，正常打开TD主工程重新编译即可，不需要先运行Python。`tools/track2_20261026/` 下的Python和PowerShell只负责离线参考、仿真、检查、编译和打包，不参与摄像头或舵机的实时处理。
 
 ## 编译、检查与交付
 
 打开 `td_project/camera_to_dsi_display.al`，完整运行综合和物理设计。主工程常规输出为 `td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit`。
 
-当前GUI修正版、干净工程ZIP和验证日志存放在`sim/build/gui_compile_fix_20261025/`，见[GUI编译修复报告](doc/GUI_COMPILE_FIX_20261025.md)。ZIP内预编译比特流在`output/`。一秒轨迹阶段记录保留在`sim/build/trail_1s_20261025/`，详见[一秒平滑轨迹报告](doc/TRAIL_1S_SMOOTH_20261025.md)。ERAM优化历史版本保留在`sim/build/eram_opt_20261025/`，原三模式记录在`sim/build/style_mode_20261025/`。未进行本版本上板验证。
+当前发布bit、干净工程ZIP、manifest和验证日志位于`sim/build/track2_requirements_20261026/`。完整综合/布局布线结果：18234/21216 Slice，104/108 ERAM，40/40 DSP，Setup +166ps、Hold +20ps，TNS均为0；STA覆盖96.42%，继承原时钟/舵机警告，未声称全路径无警告。ZIP内预编译比特流在`output/`。当前版尚未上板，见[上板核对方法](doc/TRACK2_BOARD_CHECK_20261026.md)。2026-10-25各目录均保留为历史记录。
 
 可在本目录重跑完整验证与编译：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/trail_1s/rebuild.ps1
+powershell -ExecutionPolicy Bypass -File tools/track2_20261026/rebuild.ps1
 ```
 
-合并前的最新源码和工程配置备份位于工作区 `recovery_backups/Anlu2_before_style_mode_20261025/`。之前两份独立风格化子工程保留原样。此次只增加显示端模块、SW2输入及其引脚，不改写原识别或舵机算法。
+本次修改前最新源码备份：`../recovery_backups/Anlu2_before_motion_style_20261026/`。只改顶层风格化参数、已有风格化模块及5个Logo初始化路径，不增加引脚或工程源条目。旧重建入口转发到当前脚本；完整离线复验需要备份、原仿真测试数据及Python/ModelSim/TD。干净ZIP用于普通TD GUI编译，不包含大体积离线参考数组。
 
 ERAM优化阶段的完整三模式备份：`../recovery_backups/Anlu2_before_eram_opt_20261025/`。该阶段仅将图标存储从LUT迁移到ERAM，检测、舵机、风格化、轨迹和颜色算法保持原样。
 
-本轮更改仅涉及轨迹模块及顶层轨迹参数。50ms采样只减少历史折线点数，视频、ROI识别和显示仍按原帧率运行；三点中值和1/2平滑会带来少量轨迹位置滞后，小于约4像素的变化会被抑制。原始中心坐标和舵机不使用平滑结果。当前版本备份：`../recovery_backups/Anlu2_before_trail_1s_20261025/`。
+历史一秒轨迹阶段仅涉及轨迹模块及顶层轨迹参数。50ms采样只减少历史折线点数，视频、ROI识别和显示仍按原帧率运行；三点中值和1/2平滑会带来少量轨迹位置滞后，小于约4像素的变化会被抑制。原始中心坐标和舵机不使用平滑结果。该历史阶段备份：`../recovery_backups/Anlu2_before_trail_1s_20261025/`。

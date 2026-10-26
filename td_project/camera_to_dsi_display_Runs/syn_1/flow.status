@@ -1,4 +1,4 @@
-Location         : D:\Anlogic\Anlu2\td_project\camera_to_dsi_display_Runs\syn_1
+Location         : D:\HX1P35A_Contest_202606\Anlu2\td_project\camera_to_dsi_display_Runs\syn_1
 Running with     : Tang Dynasty v6.2.168116
                    Copyright (c) 2012-2025 Anlogic Inc.
 Top Model        : design_top_wrapper
@@ -6,18 +6,18 @@ Device           : PH1P35MDG324
 Speed            : 3
 
 Timing Mode      : basic
-Setup            : WNS   346ps  TNS        0ps  NUM_FEPS     0
+Setup            : WNS   285ps  TNS        0ps  NUM_FEPS     0
 Hold             : WNS   114ps  TNS        0ps  NUM_FEPS     0
 
 Flow Statistics  :
 --------------------------------------------------------------------------------------------------
      command     |  #calls  |  wall time  |  cpu time(s)  |  used memory(mb)  |  peak memory(mb)  
 --------------------------------------------------------------------------------------------------
-  optimize_gate  |    1     |  1m6s(56%)  |    64(56%)    |       1445        |       1445        
-  optimize_rtl   |    1     |  50s(42%)   |    49(42%)    |       1106        |       1176        
-  import_device  |    1     |   1s(0%)    |     1(0%)     |        324        |        324        
-    read_adc     |    1     |   0s(0%)    |     0(0%)     |        715        |        716        
-    read_sdc     |    3     |   0s(0%)    |     0(0%)     |        710        |        716        
+  optimize_gate  |    1     |  58s(57%)   |    56(57%)    |       1463        |       1463        
+  optimize_rtl   |    1     |  42s(41%)   |    41(41%)    |       1123        |       1193        
+  import_device  |    1     |   1s(0%)    |     1(1%)     |        328        |        328        
+    read_adc     |    1     |   0s(0%)    |     0(0%)     |        725        |        726        
+    read_sdc     |    3     |   0s(0%)    |     0(0%)     |        720        |        726        
 --------------------------------------------------------------------------------------------------
-      total      |    7     |    1m57s    |      114      |       1445        |       1445        
+      total      |    7     |    1m41s    |      98       |       1463        |       1463        
 --------------------------------------------------------------------------------------------------

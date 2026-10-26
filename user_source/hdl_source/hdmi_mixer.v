@@ -1144,7 +1144,7 @@ module anlogic_logo_eram(
         .OREGSET_A("RESET"), .OREGSET_B("RESET"),
         .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
         .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("D:/Anlogic/Anlu2/user_source/hdl_source/logo_index0.mif"), .FILL_ALL("NONE")
+        .INIT_FILE("logo_index0.mif"), .FILL_ALL("NONE")
     ) u_idx0 (
         .dia(6'd0), .addra(14'd0), .cea(1'b0), .ocea(1'b0),
         .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
@@ -1163,7 +1163,7 @@ module anlogic_logo_eram(
         .OREGSET_A("RESET"), .OREGSET_B("RESET"),
         .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
         .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("D:/Anlogic/Anlu2/user_source/hdl_source/logo_index1.mif"), .FILL_ALL("NONE")
+        .INIT_FILE("logo_index1.mif"), .FILL_ALL("NONE")
     ) u_idx1 (
         .dia(6'd0), .addra(14'd0), .cea(1'b0), .ocea(1'b0),
         .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
@@ -1182,7 +1182,7 @@ module anlogic_logo_eram(
         .OREGSET_A("RESET"), .OREGSET_B("RESET"),
         .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
         .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("D:/Anlogic/Anlu2/user_source/hdl_source/logo_index2.mif"), .FILL_ALL("NONE")
+        .INIT_FILE("logo_index2.mif"), .FILL_ALL("NONE")
     ) u_idx2 (
         .dia(6'd0), .addra(13'd0), .cea(1'b0), .ocea(1'b0),
         .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
@@ -1201,7 +1201,7 @@ module anlogic_logo_eram(
         .OREGSET_A("RESET"), .OREGSET_B("RESET"),
         .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
         .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("D:/Anlogic/Anlu2/user_source/hdl_source/logo_index3.mif"), .FILL_ALL("NONE")
+        .INIT_FILE("logo_index3.mif"), .FILL_ALL("NONE")
     ) u_idx3 (
         .dia(6'd0), .addra(9'd0), .cea(1'b0), .ocea(1'b0),
         .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
@@ -1220,7 +1220,7 @@ module anlogic_logo_eram(
         .OREGSET_A("RESET"), .OREGSET_B("RESET"),
         .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
         .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("D:/Anlogic/Anlu2/user_source/hdl_source/logo_palette.mif"), .FILL_ALL("NONE")
+        .INIT_FILE("logo_palette.mif"), .FILL_ALL("NONE")
     ) u_palette (
         .dia(25'd0), .addra(6'd0), .cea(1'b0), .ocea(1'b0),
         .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),

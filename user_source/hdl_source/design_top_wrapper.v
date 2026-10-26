@@ -13,7 +13,7 @@
 module design_top_wrapper (
     input wire I_sys_clk,
     input wire I_rst_n,
-    input wire I_sw2,          // SW2: 1=style + three-second trail; SW1 still controls servo.
+    input wire I_sw2,          // SW2: 1=style + one-second trail; SW1 still controls servo.
     input wire I_sw1,          // SW1：视觉伺服使能，1=开启，0=保持当前位置
 
     output wire O_cam_scl,
@@ -958,7 +958,7 @@ module design_top_wrapper (
         .sw2_async(I_sw2),.style_request(S_style_request));
     wire S_style_vs,S_style_hs,S_style_de,S_style_protect,S_style_roi,S_style_enable;
     wire [23:0] S_style_rgb;
-    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650)) u_background_stylize(
+    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(1)) u_background_stylize(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_tone_vs),.in_hs(S_tone_hs),.in_de(S_tone_de),
         .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request),
