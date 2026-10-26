@@ -1,14 +1,16 @@
 // Display-only style mode; aligned out_enable follows the same video RAM metadata. The detector/DDR/ISP never consume this output.
-// Same-frame BxB mean luminance + 8-level posterization + coarse gradients.
-// Full-color ROI and protected overlays are delayed bit-for-bit with the raster.
+// Same-frame BxB mean luminance; optional bright neutral model-like surfaces.
+// Model mode retains green pixels only inside the tracked ROI. Overlays and
+// rectangular ROI metadata still follow the original raster exactly.
 // Each input line MUST contain LINE_TOTAL clocks and IMG_W active pixels.
 // IMG_W and IMG_H must be multiples of B=2**BLOCK_LOG2 (default 8).
 // Runtime enable and validated bbox are latched at the first active pixel.
-// Latency: B*LINE_TOTAL + 2 clocks. No full-frame history and no multipliers.
+// Latency: B*LINE_TOTAL + 2 clocks. No full-frame RGB history or multipliers.
 module roi_background_stylize #(
  parameter integer IMG_W=1280,IMG_H=720,LINE_TOTAL=1650,
  parameter integer BLOCK_LOG2=3,EDGE_THRESHOLD=40,
  parameter integer MOTION_ENABLE=0,STATUS_ENABLE=0,MOTION_HIGH=12,MOTION_LOW=6,
+ parameter integer MODEL_STYLE_ENABLE=0,MODEL_EDGE_THRESHOLD=24,
  parameter integer FRAME_TIMEOUT_CYCLES=18750000
 )(
  input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,in_enable,
@@ -38,6 +40,16 @@ module roi_background_stylize #(
  wire [15:0] use_x1=first_pixel?bbox_x1:fx1,use_y1=first_pixel?bbox_y1:fy1;
  wire keep_roi=use_valid && {4'd0,x}>=use_x0 && {4'd0,x}<=use_x1 &&
                            {4'd0,y}>=use_y0 && {4'd0,y}<=use_y1;
+ // Display-only green selection with the detector's existing hue/saturation
+ // and bright-white rejection rules. It never feeds back into detection.
+ wire [7:0] r=in_rgb[23:16],g=in_rgb[15:8],b=in_rgb[7:0];
+ wire [7:0] rb_min=(r<b)?r:b,rb_max=(r>b)?r:b;
+ wire [7:0] rb_diff=(r>b)?r-b:b-r;
+ wire [7:0] chroma=(g>rb_min)?g-rb_min:8'd0;
+ wire [7:0] both_gap=(g>rb_max)?g-rb_max:8'd0;
+ wire keep_green=keep_roi && g>=r && g>=b && g>=24 &&
+                 ({1'b0,rb_diff,1'b0}<={2'b0,chroma}) &&
+                 chroma>=12 && chroma>=(g>>2) && (g<248 || both_gap>=(g>>2));
  always @(posedge clk or negedge rst_n)begin
   if(!rst_n)begin
    vs_d<=0;armed<=0;x<=0;y<=0;frame_enable<=0;frame_valid<=0;fx0<=0;fy0<=0;fx1<=0;fy1<=0;
@@ -57,13 +69,13 @@ module roi_background_stylize #(
 
  // Separate read/write addresses are always one slot apart: no RAM collision
  // behavior is relied upon. Uninitialized RAM is masked during FIFO warmup.
- reg [29:0] video_ram[0:DEPTH-1];
+ reg [30:0] video_ram[0:DEPTH-1];
  reg [PW-1:0] write_ptr,read_ptr;
  reg [FW-1:0] filled;
  reg video_ready;
- reg [29:0] video_q;
+ reg [30:0] video_q;
  always @(posedge clk)if(rst_n)begin
-  video_ram[write_ptr]<={in_vs,in_hs,in_de,in_protect,keep_roi,use_enable,in_rgb};
+  video_ram[write_ptr]<={MODEL_STYLE_ENABLE && keep_green,in_vs,in_hs,in_de,in_protect,keep_roi,use_enable,in_rgb};
   video_q<=video_ram[read_ptr];
  end
  always @(posedge clk or negedge rst_n)begin
@@ -75,13 +87,13 @@ module roi_background_stylize #(
    else video_ready<=1;
   end
  end
- wire [29:0] q=video_ready?video_q:30'd0;
+ wire [30:0] q=video_ready?video_q:31'd0;
 
  // One partial vertical sum per tile column; RAMs have synchronous reads and
  // no reset. Every tile is initialized on its first row before it is consumed.
  reg [SUM_W-1:0] column_sum[0:COLS-1];
  reg [7:0] above_gray[0:COLS-1];
- reg [8:0] background_row[0:COLS-1];
+ reg [10:0] background_row[0:COLS-1];
  reg [SUM_W-1:0] sum_q;
  reg [7:0] above_q,left_gray;
  reg [HS_W-1:0] horizontal_sum;
@@ -95,7 +107,12 @@ module roi_background_stylize #(
  wire [7:0] dy=(y<B)?8'd0:((mean_gray>=above_q)?mean_gray-above_q:above_q-mean_gray);
  wire [8:0] gradient={1'b0,dx}+{1'b0,dy};
  wire [7:0] levels={mean_gray[7:5],mean_gray[7:5],mean_gray[7:6]};
- wire [7:0] styled_gray=(gradient>=EDGE_THRESHOLD)?8'd0:levels;
+ // Sixteen light-gray surfaces, 96..246, retain scene structure even when
+ // camera exposure is low. Contours darken only a two-pixel tile boundary;
+ // unlike the legacy style, a whole edge tile is never painted black.
+ wire [7:0] model_levels=8'd96+{1'b0,mean_gray[7:4],3'b0}+{3'b0,mean_gray[7:4],1'b0};
+ wire [1:0] model_edges=MODEL_STYLE_ENABLE?{dy>=MODEL_EDGE_THRESHOLD,dx>=MODEL_EDGE_THRESHOLD}:2'd0;
+ wire [7:0] styled_gray=MODEL_STYLE_ENABLE?model_levels:((gradient>=EDGE_THRESHOLD)?8'd0:levels);
  always @(posedge clk)if(rst_n && in_de && armed && x<IMG_W && y<IMG_H)begin
   if(x[BLOCK_LOG2-1:0]==B-3)begin
    sum_q<=column_sum[col];above_q<=above_gray[col];
@@ -104,7 +121,7 @@ module roi_background_stylize #(
    column_sum[col]<=block_sum;
    if(y[BLOCK_LOG2-1:0]==B-1)begin
     above_gray[col]<=mean_gray;
-    if(!MOTION_ENABLE)background_row[col]<={1'b0,styled_gray};
+    if(!MOTION_ENABLE)background_row[col]<={model_edges,1'b0,styled_gray};
    end
   end
  end
@@ -140,6 +157,7 @@ module roi_background_stylize #(
   reg [MAW-1:0] row_base,pending_addr;
   reg [CW-1:0] pending_col;
   reg [7:0] sample_mean,sample_gray;
+  reg [1:0] sample_edges;
   reg pending,pending_coarse,pending_enabled,pending_history_valid,pending_last,pending_global;
   reg history_valid,frame_complete,frame_global;
   reg [15:0] active_count;
@@ -153,13 +171,13 @@ module roi_background_stylize #(
    if(in_de && armed && x[BLOCK_LOG2-1:0]==B-3)history_q<=previous_mean[address];
    if(pending)begin
     if(pending_enabled && pending_coarse)previous_mean[pending_addr]<={detected,sample_mean};
-    background_row[pending_col]<={pending_enabled && pending_history_valid && past[8] && !pending_global,sample_gray};
+    background_row[pending_col]<={sample_edges,pending_enabled && pending_history_valid && past[8] && !pending_global,sample_gray};
    end
   end
   always @(posedge clk or negedge rst_n)begin
    if(!rst_n)begin
     row_base<=0;pending<=0;pending_coarse<=0;pending_addr<=0;pending_col<=0;
-    sample_mean<=0;sample_gray<=0;past<=0;pending_enabled<=0;
+    sample_mean<=0;sample_gray<=0;sample_edges<=0;past<=0;pending_enabled<=0;
     pending_history_valid<=0;pending_last<=0;pending_global<=0;
     history_valid<=0;frame_complete<=0;frame_global<=0;active_count<=0;complete_count<=0;frame_age<=0;
    end else begin
@@ -177,7 +195,7 @@ module roi_background_stylize #(
      if(!in_enable)begin history_valid<=0;complete_count<=0;end
     end
     if(tile_done)begin
-     sample_mean<=coarse_mean;sample_gray<=styled_gray;past<=history_q;pending_coarse<=coarse_done;
+     sample_mean<=coarse_mean;sample_gray<=styled_gray;sample_edges<=model_edges;past<=history_q;pending_coarse<=coarse_done;
      pending_addr<=address;pending_col<=col;pending_enabled<=use_enable;
      pending_history_valid<=history_valid;pending_global<=frame_global;
      pending_last<=x==IMG_W-1 && y==IMG_H-1;
@@ -199,7 +217,7 @@ module roi_background_stylize #(
  // first pixel, before the next input tile-row overwrites the shared row RAM.
  reg q_vs_d,q_armed;
  reg [11:0] qx,qy;
- reg [8:0] background_q;
+ reg [10:0] background_q;
  reg [11:0] v1_x,v1_y;
  wire status_hit;wire [23:0] status_rgb;
  generate if(STATUS_ENABLE)begin: status
@@ -210,7 +228,11 @@ module roi_background_stylize #(
  end else begin: no_status
   assign status_hit=1'b0;assign status_rgb=24'd0;
  end endgenerate
- reg [29:0] v1;
+ reg [30:0] v1;
+ wire edge_x=background_q[9],edge_y=background_q[10];
+ wire contour_core=(edge_x && v1_x[BLOCK_LOG2-1:0]==0) || (edge_y && v1_y[BLOCK_LOG2-1:0]==0);
+ wire contour_soft=(edge_x && v1_x[BLOCK_LOG2-1:0]==1) || (edge_y && v1_y[BLOCK_LOG2-1:0]==1);
+ wire [7:0] model_gray=background_q[7:0]-(contour_core?8'd40:(contour_soft?8'd20:8'd0));
  wire visible_status=status_hit && !v1[26] && !v1[25];
  always @(posedge clk)if(rst_n && q[27] && q_armed && qx[BLOCK_LOG2-1:0]==0)
   background_q<=background_row[qx>>BLOCK_LOG2];
@@ -228,9 +250,10 @@ module roi_background_stylize #(
    v1<=q;v1_x<=qx;v1_y<=qy;
    out_vs<=v1[29];out_hs<=v1[28];out_de<=v1[27];out_protect<=v1[26] || (v1[27] && visible_status);out_roi<=v1[27] && v1[25];out_enable<=v1[24];
    if(!v1[27])out_rgb<=0;
-   else if(v1[26] || v1[25])out_rgb<=v1[23:0];
+   else if(v1[26] || (v1[25] && (!MODEL_STYLE_ENABLE || v1[30])))out_rgb<=v1[23:0];
    else if(visible_status)out_rgb<=status_rgb;
    else if(!v1[24])out_rgb<=v1[23:0];
+   else if(MODEL_STYLE_ENABLE)out_rgb<={model_gray,model_gray,model_gray};
    else if(background_q[8])out_rgb<=(background_q[7:0]==0)?24'h30c8d8:
        {1'b0,background_q[7:1],background_q[7:0],background_q[7:0]};
    else out_rgb<={background_q[7:0],background_q[7:0],background_q[7:0]};
