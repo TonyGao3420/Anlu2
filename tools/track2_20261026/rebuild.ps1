@@ -4,4 +4,4 @@ param(
  [string]$TD='C:/Anlogic/TD_6.2.1_Engineer_6.2.168.116/bin/td_commands_prompt.exe',
  [string]$Flow='C:/Anlogic/TD_6.2.1_Engineer_6.2.168.116/doc/scripts/DefaultFlow.tcl'
 )
-& "$PSScriptRoot/../three_fixes_20261027/rebuild.ps1" -Python $Python -ModelSim $ModelSim -TD $TD -Flow $Flow
+& "$PSScriptRoot/../roi_original_20261028/rebuild.ps1" -Python $Python -ModelSim $ModelSim -TD $TD -Flow $Flow

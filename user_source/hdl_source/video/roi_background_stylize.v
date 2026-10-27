@@ -271,7 +271,7 @@ module roi_background_stylize #(
    stage_vs<=v1[29];stage_hs<=v1[28];stage_de<=v1[27];stage_protect<=v1[26] || (v1[27] && visible_status);stage_roi<=v1[27] && v1[25];stage_enable<=v1[24];
    stage_raw<=v1[23:0];stage_background<=model_gray;
    if(!v1[27])stage_rgb<=0;
-   else if(v1[26] || (v1[25] && (!MODEL_STYLE_ENABLE || v1[30])))stage_rgb<=v1[23:0];
+   else if(v1[26] || v1[25])stage_rgb<=v1[23:0];
    else if(visible_status)stage_rgb<=status_rgb;
    else if(!v1[24])stage_rgb<=v1[23:0];
    else if(MODEL_STYLE_ENABLE)stage_rgb<={model_gray,model_gray,model_gray};
@@ -348,7 +348,9 @@ module style_target_clean(input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,in_r
    {out_vs,out_hs,out_de,out_protect,out_roi,out_enable}<=center[61:56];
    if(!center[59])out_rgb<=0;
    else if(center[58] || !center[56])out_rgb<=center[55:32];
-   else if(center[57] && green)out_rgb<=filtered;
+   // The complete selected rectangle is the normal camera image. Never
+   // threshold or median-filter its pixels; only its exterior is stylized.
+   else if(center[57])out_rgb<=center[31:8];
    else out_rgb<={center[7:0],center[7:0],center[7:0]};
   end
  end
