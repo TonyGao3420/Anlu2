@@ -5,7 +5,9 @@
 
 
 
-module video_out (
+module video_out #(
+    parameter integer ROTATE_180=0, IMG_W=1280, IMG_H=720
+) (
     input wire I_rst_n,
 
     input  wire         I_ddr_clk,
@@ -21,7 +23,7 @@ module video_out (
     input  wire        I_dsi_clk,
     input  wire        I_video_vsync,
     input  wire        I_video_rd_en,
-    output reg  [23:0] O_vdieo_data
+    output wire [23:0] O_vdieo_data
 );
 
     reg          S_fifo_rst;
@@ -48,6 +50,18 @@ module video_out (
     localparam IMAGE_BASE_ADDR_1 = 25'd7000000;
     localparam IMAGE_BASE_ADDR_2 = 25'd14000000;
     localparam IMAGE_BASE_ADDR_3 = 25'd21000000;
+    localparam integer FRAME_WORDS=IMG_W*IMG_H*3/16;
+    localparam [24:0] LAST_WORD_OFFSET=(FRAME_WORDS-1)*8;
+    reg [17:0] words_left;
+    reg [23:0] unpacked_data;
+    wire [127:0] fifo_write_data;
+    genvar byte_n;
+    generate for(byte_n=0;byte_n<16;byte_n=byte_n+1)begin: byte_reverse
+        assign fifo_write_data[byte_n*8+:8]=ROTATE_180?
+            I_ddr_user_rd_data[(15-byte_n)*8+:8]:I_ddr_user_rd_data[byte_n*8+:8];
+    end endgenerate
+    // Reversing the byte stream yields BGR pixels; restore RGB channels.
+    assign O_vdieo_data=ROTATE_180?{unpacked_data[7:0],unpacked_data[15:8],unpacked_data[23:16]}:unpacked_data;
 
 
     always @(posedge I_ddr_clk) begin
@@ -99,15 +113,22 @@ module video_out (
 
 
     always @(posedge I_ddr_clk or negedge I_rst_n) begin
-        if (!I_rst_n) O_ddr_user_addr <= 'd0;
+        if (!I_rst_n) begin O_ddr_user_addr <= ROTATE_180?LAST_WORD_OFFSET:25'd0;words_left<=FRAME_WORDS-1;end
         else if (S_video_frame_start) begin
             case (I_video_out_rp)
-                'd0: O_ddr_user_addr <= IMAGE_BASE_ADDR_0;
-                'd1: O_ddr_user_addr <= IMAGE_BASE_ADDR_1;
-                'd2: O_ddr_user_addr <= IMAGE_BASE_ADDR_2;
-                'd3: O_ddr_user_addr <= IMAGE_BASE_ADDR_3;
+                'd0: O_ddr_user_addr <= IMAGE_BASE_ADDR_0+(ROTATE_180?LAST_WORD_OFFSET:25'd0);
+                'd1: O_ddr_user_addr <= IMAGE_BASE_ADDR_1+(ROTATE_180?LAST_WORD_OFFSET:25'd0);
+                'd2: O_ddr_user_addr <= IMAGE_BASE_ADDR_2+(ROTATE_180?LAST_WORD_OFFSET:25'd0);
+                'd3: O_ddr_user_addr <= IMAGE_BASE_ADDR_3+(ROTATE_180?LAST_WORD_OFFSET:25'd0);
             endcase
-        end else if (O_ddr_user_rd_en) O_ddr_user_addr <= O_ddr_user_addr + 'd8;
+            words_left<=FRAME_WORDS-1;
+        end else if (O_ddr_user_rd_en)begin
+            if(ROTATE_180)begin
+                // Keep blanking-time over-prefetch inside the selected buffer.
+                if(words_left==0)begin O_ddr_user_addr<=O_ddr_user_addr+LAST_WORD_OFFSET;words_left<=FRAME_WORDS-1;end
+                else begin O_ddr_user_addr<=O_ddr_user_addr-25'd8;words_left<=words_left-1'b1;end
+            end else O_ddr_user_addr<=O_ddr_user_addr+25'd8;
+        end
         else O_ddr_user_addr <= O_ddr_user_addr;
     end
 
@@ -120,7 +141,7 @@ module video_out (
 
         .clkw     (I_ddr_clk),
         .we       (I_ddr_user_rd_valid),
-        .di       (I_ddr_user_rd_data),
+        .di       (fifo_write_data),
         .wrusedw  (S_fifo_wr_num),
         .afull    (),
         .full_flag(),
@@ -154,24 +175,24 @@ module video_out (
     always @(posedge I_dsi_clk) begin
         if (S_video_rd_en_1d) begin
             case (S_fifo_rd_cnt_1d)
-                'd0:  O_vdieo_data <= S_fifo_rd_data[127:104];
-                'd1:  O_vdieo_data <= S_fifo_rd_data[103:80];
-                'd2:  O_vdieo_data <= S_fifo_rd_data[79:56];
-                'd3:  O_vdieo_data <= S_fifo_rd_data[55:32];
-                'd4:  O_vdieo_data <= S_fifo_rd_data[31:8];
-                'd5:  O_vdieo_data <= {S_fifo_rd_data_1d[7:0], S_fifo_rd_data[127:112]};
-                'd6:  O_vdieo_data <= S_fifo_rd_data[111:88];
-                'd7:  O_vdieo_data <= S_fifo_rd_data[87:64];
-                'd8:  O_vdieo_data <= S_fifo_rd_data[63:40];
-                'd9:  O_vdieo_data <= S_fifo_rd_data[39:16];
-                'd10: O_vdieo_data <= {S_fifo_rd_data_1d[15:0], S_fifo_rd_data[127:120]};
-                'd11: O_vdieo_data <= S_fifo_rd_data[119:96];
-                'd12: O_vdieo_data <= S_fifo_rd_data[95:72];
-                'd13: O_vdieo_data <= S_fifo_rd_data[71:48];
-                'd14: O_vdieo_data <= S_fifo_rd_data[47:24];
-                'd15: O_vdieo_data <= S_fifo_rd_data[23:0];
+                'd0:  unpacked_data <= S_fifo_rd_data[127:104];
+                'd1:  unpacked_data <= S_fifo_rd_data[103:80];
+                'd2:  unpacked_data <= S_fifo_rd_data[79:56];
+                'd3:  unpacked_data <= S_fifo_rd_data[55:32];
+                'd4:  unpacked_data <= S_fifo_rd_data[31:8];
+                'd5:  unpacked_data <= {S_fifo_rd_data_1d[7:0], S_fifo_rd_data[127:112]};
+                'd6:  unpacked_data <= S_fifo_rd_data[111:88];
+                'd7:  unpacked_data <= S_fifo_rd_data[87:64];
+                'd8:  unpacked_data <= S_fifo_rd_data[63:40];
+                'd9:  unpacked_data <= S_fifo_rd_data[39:16];
+                'd10: unpacked_data <= {S_fifo_rd_data_1d[15:0], S_fifo_rd_data[127:120]};
+                'd11: unpacked_data <= S_fifo_rd_data[119:96];
+                'd12: unpacked_data <= S_fifo_rd_data[95:72];
+                'd13: unpacked_data <= S_fifo_rd_data[71:48];
+                'd14: unpacked_data <= S_fifo_rd_data[47:24];
+                'd15: unpacked_data <= S_fifo_rd_data[23:0];
             endcase
-        end else O_vdieo_data <= 'd0;
+        end else unpacked_data <= 'd0;
     end
 
 

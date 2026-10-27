@@ -10,7 +10,7 @@
 // Layer 2: Track2 extension for target detection and bbox overlay
 // ================================================================
 
-module design_top_wrapper (
+module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     input wire I_sys_clk,
     input wire I_rst_n,
     input wire I_sw2,          // SW2: 1=style + one-second trail; SW1 still controls servo.
@@ -654,7 +654,7 @@ module design_top_wrapper (
 
     assign S_video_out_rst_n = S_hdmi_rst_n;
 
-    video_out u_video_out (
+    video_out #(.ROTATE_180(CAMERA_ROTATE_180)) u_video_out (
         .I_rst_n  (S_video_out_rst_n),
         .I_ddr_clk(S_ddr_clk),
 
@@ -843,6 +843,7 @@ module design_top_wrapper (
         .rst_n            (I_rst_n),
         .source_toggle    (S_track2_result_toggle),
         .target_valid_async(S_servo_valid),
+        // Detection already uses the upright RGB raster. Do not rotate twice.
         .target_x_async   (S_track2_cx),
         .target_y_async   (S_track2_cy),
         .servo_pan        (O_servo_pan),
@@ -883,7 +884,7 @@ module design_top_wrapper (
     // Additional perimeter correction is display-only; ROI above is unchanged.
     wire S_edge_vs,S_edge_hs,S_edge_de,S_edge_protect;
     wire [23:0] S_edge_rgb;
-    display_edge_color u_display_edge_color(
+    display_edge_color #(.SOURCE_ROTATE_180(CAMERA_ROTATE_180)) u_display_edge_color(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_color_vs),.in_hs(S_color_hs),.in_de(S_color_de),
         .in_protect(S_color_protect),.in_rgb(S_color_display_rgb),
@@ -956,7 +957,7 @@ module design_top_wrapper (
         .sw2_async(I_sw2),.style_request(S_style_request));
     wire S_style_vs,S_style_hs,S_style_de,S_style_protect,S_style_roi,S_style_enable;
     wire [23:0] S_style_rgb;
-    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(1),.MODEL_STYLE_ENABLE(1)) u_background_stylize(
+    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(1),.MODEL_STYLE_ENABLE(1),.CLEAN_STYLE_ENABLE(1),.MODEL_EDGE_THRESHOLD(32)) u_background_stylize(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_tone_vs),.in_hs(S_tone_hs),.in_de(S_tone_de),
         .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request),

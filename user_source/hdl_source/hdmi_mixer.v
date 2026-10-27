@@ -131,8 +131,8 @@ module hdmi_mixer #(
 
     localparam LOGO_X          = 12'd0;
     localparam LOGO_Y          = 12'd0;
-    localparam LOGO_W          = 12'd345;
-    localparam LOGO_H          = 12'd120;
+    localparam LOGO_W          = 12'd160;
+    localparam LOGO_H          = 12'd160;
 
     localparam COLOR_LOGO_BLUE = 24'h1f315c;
     localparam COLOR_LOGO_RED  = 24'hec1c2d;
@@ -701,7 +701,7 @@ module hdmi_mixer #(
     // The resulting pixel matches S_x_2d/S_y_2d without delaying any video IO.
     wire [16:0] S_logo_prefetch_addr =
         (S_x < LOGO_W && S_y < LOGO_H)
-        ? ({S_y,8'b0}+{S_y,6'b0}+{S_y,4'b0}+{S_y,3'b0}+S_y+S_x) : 17'd0;
+        ? ({S_y,7'b0}+{S_y,5'b0}+S_x) : 17'd0;
     anlogic_logo_eram u_anlogic_logo_rom (
         .I_clk(I_clk),.I_rst_n(I_rst_n),
         .I_addr (S_logo_prefetch_addr),
@@ -832,9 +832,8 @@ module hdmi_mixer #(
                (S_y_2d >= LOGO_Y) && (S_y_2d < (LOGO_Y + LOGO_H))) begin
                 S_logo_x = S_x_2d - LOGO_X;
                 S_logo_y = S_y_2d - LOGO_Y;
-                // LOGO_W=345=256+64+16+8+1：显式移位相加，避免地址路径映射为DSP乘法器。
-                S_logo_addr = {S_logo_y,8'b0} + {S_logo_y,6'b0} + {S_logo_y,4'b0}
-                            + {S_logo_y,3'b0} + S_logo_y + S_logo_x;
+                // 160=128+32; preserve DSP resources.
+                S_logo_addr = {S_logo_y,7'b0} + {S_logo_y,5'b0} + S_logo_x;
                 if (S_logo_pixel[24]) begin
                     S_osd_hit   = 1'b1;
                     S_osd_color = S_logo_pixel[23:0];
@@ -1112,149 +1111,65 @@ module hdmi_mixer #(
 
 endmodule
 
-// Integrated ERAM logo definition: keep the mixer self-contained for TD source lists.
-// 345x120 Logo，6-bit 索引 + 64 色 palette，1 像素 1 索引。
-// 索引 0 为透明；palette 的 bit24=1 表示颜色有效，bit23:0=RGB888。
-// 由 tools/eram_opt/generate_logo_banner.py 从 安路10周年.png 生成。
-module anlogic_logo_eram(
-    input  wire        I_clk,
-    input  wire        I_rst_n,
-    input  wire [16:0] I_addr,
-    output wire [24:0] O_pixel
-);
-    wire [5:0] idx0_do, idx1_do, idx2_do, idx3_do;
-    reg  [1:0] bank_sel_q;
-    always @(posedge I_clk) begin
-        if (I_addr < 17'd16384)       bank_sel_q <= 2'd0;
-        else if (I_addr < 17'd32768)  bank_sel_q <= 2'd1;
-        else if (I_addr < 17'd40960)  bank_sel_q <= 2'd2;
-        else                          bank_sel_q <= 2'd3;
-    end
-    wire [5:0] index_do = (bank_sel_q == 2'd0) ? idx0_do :
-                          (bank_sel_q == 2'd1) ? idx1_do :
-                          (bank_sel_q == 2'd2) ? idx2_do : idx3_do;
-    wire [24:0] palette_do;
-
-    PH1P_LOGIC_ERAM #(
-        .DATA_WIDTH_A(6), .ADDR_WIDTH_A(14), .DATA_DEPTH_A(16384),
-        .DATA_WIDTH_B(6), .ADDR_WIDTH_B(14), .DATA_DEPTH_B(16384),
-        .MODE("DP"), .REGMODE_A("NOREG"), .REGMODE_B("OUTREG"),
-        .IMPLEMENT("20K(FAST)"),
-        .RESETMODE_A("ASYNC"), .RESETMODE_B("ASYNC"),
-        .OREGSET_A("RESET"), .OREGSET_B("RESET"),
-        .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
-        .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("logo_index0.mif"), .FILL_ALL("NONE")
-    ) u_idx0 (
-        .dia(6'd0), .addra(14'd0), .cea(1'b0), .ocea(1'b0),
-        .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
-        .dib(6'd0), .addrb(I_addr[13:0]), .ceb(1'b1), .oceb(1'b1), .clkb(I_clk),
-        .web(1'b0), .rstb(1'b0), .beb(1'b0), .dob(idx0_do),
-        .ecc_sbiterrinj(1'b0), .ecc_dbiterrinj(1'b0),
-        .ecc_sbiterr(), .ecc_dbiterr()
-    );
-
-    PH1P_LOGIC_ERAM #(
-        .DATA_WIDTH_A(6), .ADDR_WIDTH_A(14), .DATA_DEPTH_A(16384),
-        .DATA_WIDTH_B(6), .ADDR_WIDTH_B(14), .DATA_DEPTH_B(16384),
-        .MODE("DP"), .REGMODE_A("NOREG"), .REGMODE_B("OUTREG"),
-        .IMPLEMENT("20K(FAST)"),
-        .RESETMODE_A("ASYNC"), .RESETMODE_B("ASYNC"),
-        .OREGSET_A("RESET"), .OREGSET_B("RESET"),
-        .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
-        .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("logo_index1.mif"), .FILL_ALL("NONE")
-    ) u_idx1 (
-        .dia(6'd0), .addra(14'd0), .cea(1'b0), .ocea(1'b0),
-        .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
-        .dib(6'd0), .addrb(I_addr[13:0]), .ceb(1'b1), .oceb(1'b1), .clkb(I_clk),
-        .web(1'b0), .rstb(1'b0), .beb(1'b0), .dob(idx1_do),
-        .ecc_sbiterrinj(1'b0), .ecc_dbiterrinj(1'b0),
-        .ecc_sbiterr(), .ecc_dbiterr()
-    );
-
-    PH1P_LOGIC_ERAM #(
-        .DATA_WIDTH_A(6), .ADDR_WIDTH_A(13), .DATA_DEPTH_A(8192),
-        .DATA_WIDTH_B(6), .ADDR_WIDTH_B(13), .DATA_DEPTH_B(8192),
-        .MODE("DP"), .REGMODE_A("NOREG"), .REGMODE_B("OUTREG"),
-        .IMPLEMENT("20K(FAST)"),
-        .RESETMODE_A("ASYNC"), .RESETMODE_B("ASYNC"),
-        .OREGSET_A("RESET"), .OREGSET_B("RESET"),
-        .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
-        .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("logo_index2.mif"), .FILL_ALL("NONE")
-    ) u_idx2 (
-        .dia(6'd0), .addra(13'd0), .cea(1'b0), .ocea(1'b0),
-        .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
-        .dib(6'd0), .addrb(I_addr[12:0]), .ceb(1'b1), .oceb(1'b1), .clkb(I_clk),
-        .web(1'b0), .rstb(1'b0), .beb(1'b0), .dob(idx2_do),
-        .ecc_sbiterrinj(1'b0), .ecc_dbiterrinj(1'b0),
-        .ecc_sbiterr(), .ecc_dbiterr()
-    );
-
-    PH1P_LOGIC_ERAM #(
-        .DATA_WIDTH_A(6), .ADDR_WIDTH_A(9), .DATA_DEPTH_A(512),
-        .DATA_WIDTH_B(6), .ADDR_WIDTH_B(9), .DATA_DEPTH_B(512),
-        .MODE("DP"), .REGMODE_A("NOREG"), .REGMODE_B("OUTREG"),
-        .IMPLEMENT("20K(FAST)"),
-        .RESETMODE_A("ASYNC"), .RESETMODE_B("ASYNC"),
-        .OREGSET_A("RESET"), .OREGSET_B("RESET"),
-        .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
-        .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("logo_index3.mif"), .FILL_ALL("NONE")
-    ) u_idx3 (
-        .dia(6'd0), .addra(9'd0), .cea(1'b0), .ocea(1'b0),
-        .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
-        .dib(6'd0), .addrb(I_addr[8:0]), .ceb(1'b1), .oceb(1'b1), .clkb(I_clk),
-        .web(1'b0), .rstb(1'b0), .beb(1'b0), .dob(idx3_do),
-        .ecc_sbiterrinj(1'b0), .ecc_dbiterrinj(1'b0),
-        .ecc_sbiterr(), .ecc_dbiterr()
-    );
-
-    PH1P_LOGIC_ERAM #(
-        .DATA_WIDTH_A(25), .ADDR_WIDTH_A(6), .DATA_DEPTH_A(64),
-        .DATA_WIDTH_B(25), .ADDR_WIDTH_B(6), .DATA_DEPTH_B(64),
-        .MODE("DP"), .REGMODE_A("NOREG"), .REGMODE_B("OUTREG"),
-        .IMPLEMENT("20K(FAST)"),
-        .RESETMODE_A("ASYNC"), .RESETMODE_B("ASYNC"),
-        .OREGSET_A("RESET"), .OREGSET_B("RESET"),
-        .ASYNC_RESET_RELEASE_A("ASYNC"), .ASYNC_RESET_RELEASE_B("ASYNC"),
-        .CLKMODE("ASYNC"), .SSROVERCE("DISABLE"),
-        .INIT_FILE("logo_palette.mif"), .FILL_ALL("NONE")
-    ) u_palette (
-        .dia(25'd0), .addra(6'd0), .cea(1'b0), .ocea(1'b0),
-        .clka(I_clk), .wea(1'b0), .rsta(1'b0), .bea(1'b0), .doa(),
-        .dib(25'd0), .addrb(index_do), .ceb(1'b1), .oceb(1'b1), .clkb(I_clk),
-        .web(1'b0), .rstb(1'b0), .beb(1'b0), .dob(palette_do),
-        .ecc_sbiterrinj(1'b0), .ecc_dbiterrinj(1'b0),
-        .ecc_sbiterr(), .ecc_dbiterr()
-    );
-
-    reg [1:0] valid_q;
-    always @(posedge I_clk or negedge I_rst_n) begin
-        if (!I_rst_n) valid_q <= 2'd0;
-        else          valid_q <= {valid_q[0], 1'b1};
-    end
-    assign O_pixel = valid_q[1] ? palette_do : 25'd0;
+// Exact official lab_ex3 160x160 logo: two lossless 10-bit palette indices
+// per 20-bit ERAM word. Index stage + palette stage reuse the existing latency.
+module anlogic_logo_eram(input wire I_clk,I_rst_n,input wire [16:0] I_addr,output wire [24:0] O_pixel);
+ wire [13:0] wa=I_addr[14:1];
+ wire [19:0] q0,q1,q2;reg [1:0] bank;reg half;
+ always @(posedge I_clk)begin bank<=(wa<8192)?0:((wa<12288)?1:2);half<=I_addr[0];end
+ wire [19:0] word_q=(bank==0)?q0:((bank==1)?q1:q2);
+ wire [9:0] index_q=half?word_q[19:10]:word_q[9:0];
+ wire [24:0] palette_q;
+ PH1P_LOGIC_ERAM #(
+  .DATA_WIDTH_A(20),.ADDR_WIDTH_A(13),.DATA_DEPTH_A(8192),
+  .DATA_WIDTH_B(20),.ADDR_WIDTH_B(13),.DATA_DEPTH_B(8192),
+  .MODE("DP"),.REGMODE_A("NOREG"),.REGMODE_B("OUTREG"),.IMPLEMENT("20K(FAST)"),
+  .RESETMODE_A("ASYNC"),.RESETMODE_B("ASYNC"),.OREGSET_A("RESET"),.OREGSET_B("RESET"),
+  .ASYNC_RESET_RELEASE_A("ASYNC"),.ASYNC_RESET_RELEASE_B("ASYNC"),
+  .CLKMODE("ASYNC"),.SSROVERCE("DISABLE"),.INIT_FILE("official_logo_index0.mif"),.FILL_ALL("NONE")
+ ) u_official_logo_index0 (
+  .dia(20'd0),.addra(13'd0),.cea(1'b0),.ocea(1'b0),.clka(I_clk),.wea(1'b0),.rsta(1'b0),.bea(1'b0),.doa(),
+  .dib(20'd0),.addrb(wa[12:0]),.ceb(1'b1),.oceb(1'b1),.clkb(I_clk),.web(1'b0),.rstb(1'b0),.beb(1'b0),.dob(q0),
+  .ecc_sbiterrinj(1'b0),.ecc_dbiterrinj(1'b0),.ecc_sbiterr(),.ecc_dbiterr()
+ );
+ PH1P_LOGIC_ERAM #(
+  .DATA_WIDTH_A(20),.ADDR_WIDTH_A(12),.DATA_DEPTH_A(4096),
+  .DATA_WIDTH_B(20),.ADDR_WIDTH_B(12),.DATA_DEPTH_B(4096),
+  .MODE("DP"),.REGMODE_A("NOREG"),.REGMODE_B("OUTREG"),.IMPLEMENT("20K(FAST)"),
+  .RESETMODE_A("ASYNC"),.RESETMODE_B("ASYNC"),.OREGSET_A("RESET"),.OREGSET_B("RESET"),
+  .ASYNC_RESET_RELEASE_A("ASYNC"),.ASYNC_RESET_RELEASE_B("ASYNC"),
+  .CLKMODE("ASYNC"),.SSROVERCE("DISABLE"),.INIT_FILE("official_logo_index1.mif"),.FILL_ALL("NONE")
+ ) u_official_logo_index1 (
+  .dia(20'd0),.addra(12'd0),.cea(1'b0),.ocea(1'b0),.clka(I_clk),.wea(1'b0),.rsta(1'b0),.bea(1'b0),.doa(),
+  .dib(20'd0),.addrb(wa[11:0]),.ceb(1'b1),.oceb(1'b1),.clkb(I_clk),.web(1'b0),.rstb(1'b0),.beb(1'b0),.dob(q1),
+  .ecc_sbiterrinj(1'b0),.ecc_dbiterrinj(1'b0),.ecc_sbiterr(),.ecc_dbiterr()
+ );
+ PH1P_LOGIC_ERAM #(
+  .DATA_WIDTH_A(20),.ADDR_WIDTH_A(9),.DATA_DEPTH_A(512),
+  .DATA_WIDTH_B(20),.ADDR_WIDTH_B(9),.DATA_DEPTH_B(512),
+  .MODE("DP"),.REGMODE_A("NOREG"),.REGMODE_B("OUTREG"),.IMPLEMENT("20K(FAST)"),
+  .RESETMODE_A("ASYNC"),.RESETMODE_B("ASYNC"),.OREGSET_A("RESET"),.OREGSET_B("RESET"),
+  .ASYNC_RESET_RELEASE_A("ASYNC"),.ASYNC_RESET_RELEASE_B("ASYNC"),
+  .CLKMODE("ASYNC"),.SSROVERCE("DISABLE"),.INIT_FILE("official_logo_index2.mif"),.FILL_ALL("NONE")
+ ) u_official_logo_index2 (
+  .dia(20'd0),.addra(9'd0),.cea(1'b0),.ocea(1'b0),.clka(I_clk),.wea(1'b0),.rsta(1'b0),.bea(1'b0),.doa(),
+  .dib(20'd0),.addrb(wa[8:0]),.ceb(1'b1),.oceb(1'b1),.clkb(I_clk),.web(1'b0),.rstb(1'b0),.beb(1'b0),.dob(q2),
+  .ecc_sbiterrinj(1'b0),.ecc_dbiterrinj(1'b0),.ecc_sbiterr(),.ecc_dbiterr()
+ );
+ PH1P_LOGIC_ERAM #(
+  .DATA_WIDTH_A(25),.ADDR_WIDTH_A(10),.DATA_DEPTH_A(1024),
+  .DATA_WIDTH_B(25),.ADDR_WIDTH_B(10),.DATA_DEPTH_B(1024),
+  .MODE("DP"),.REGMODE_A("NOREG"),.REGMODE_B("OUTREG"),.IMPLEMENT("20K(FAST)"),
+  .RESETMODE_A("ASYNC"),.RESETMODE_B("ASYNC"),.OREGSET_A("RESET"),.OREGSET_B("RESET"),
+  .ASYNC_RESET_RELEASE_A("ASYNC"),.ASYNC_RESET_RELEASE_B("ASYNC"),
+  .CLKMODE("ASYNC"),.SSROVERCE("DISABLE"),.INIT_FILE("official_logo_palette.mif"),.FILL_ALL("NONE")
+ ) u_official_logo_palette (
+  .dia(25'd0),.addra(10'd0),.cea(1'b0),.ocea(1'b0),.clka(I_clk),.wea(1'b0),.rsta(1'b0),.bea(1'b0),.doa(),
+  .dib(25'd0),.addrb(index_q),.ceb(1'b1),.oceb(1'b1),.clkb(I_clk),.web(1'b0),.rstb(1'b0),.beb(1'b0),.dob(palette_q),
+  .ecc_sbiterrinj(1'b0),.ecc_dbiterrinj(1'b0),.ecc_sbiterr(),.ecc_dbiterr()
+ );
+ reg [1:0] valid;
+ always @(posedge I_clk or negedge I_rst_n)
+  if(!I_rst_n)valid<=0;else valid<={valid[0],I_addr<17'd25600};
+ assign O_pixel=valid[1]?palette_q:25'd0;
 endmodule
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

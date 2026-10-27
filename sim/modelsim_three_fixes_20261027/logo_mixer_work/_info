@@ -1,0 +1,172 @@
+m255
+K4
+z2
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z0 dD:/HX1P35A_Contest_202606/Anlu2/sim/modelsim_three_fixes_20261027
+vanlogic_logo_eram
+Z1 DXx6 sv_std 3 std 0 22 <EOTafDcUY:cQeO^ICn]m3
+Z2 !s110 1793095715
+!i10b 1
+!s100 N9F[nJgWe:48W_9Fz5N511
+Ia?d]3^KbMD[WiML<f[nl:2
+Z3 V`JN@9S9cnhjKRR_L]QIcM3
+Z4 !s105 hdmi_mixer_v_unit
+S1
+R0
+Z5 w1793090982
+Z6 8../../user_source/hdl_source/hdmi_mixer.v
+Z7 F../../user_source/hdl_source/hdmi_mixer.v
+L0 1116
+Z8 OV;L;10.3c;59
+r1
+!s85 0
+31
+Z9 !s108 1793095715.119000
+Z10 !s107 ../tb/tb_official_logo_mixer_20261027.sv|../../user_source/hdl_source/osd_char_lib.v|../../user_source/hdl_source/video/roi_center_osd.v|../../user_source/hdl_source/hdmi_mixer.v|../../../lab_ex3_osd_SC520/src/hdl_source/anlogic_logo_rom.v|../models/three_fixes_20261027/logo_rom_model.v|
+Z11 !s90 -work|logo_mixer_work|-sv|../models/three_fixes_20261027/logo_rom_model.v|../../../lab_ex3_osd_SC520/src/hdl_source/anlogic_logo_rom.v|../../user_source/hdl_source/hdmi_mixer.v|../../user_source/hdl_source/video/roi_center_osd.v|../../user_source/hdl_source/osd_char_lib.v|../tb/tb_official_logo_mixer_20261027.sv|
+!i113 1
+Z12 o-work logo_mixer_work -sv
+vanlogic_logo_rom
+R1
+R2
+!i10b 1
+!s100 bGkd:4eA4O[X`=VXoAISH3
+IS@LcALmPJE@MD_lROCF=k3
+R3
+!s105 anlogic_logo_rom_v_unit
+S1
+R0
+w1775811698
+8../../../lab_ex3_osd_SC520/src/hdl_source/anlogic_logo_rom.v
+F../../../lab_ex3_osd_SC520/src/hdl_source/anlogic_logo_rom.v
+L0 1
+R8
+r1
+!s85 0
+31
+R9
+R10
+R11
+!i113 1
+R12
+vhdmi_mixer
+R1
+R2
+!i10b 1
+!s100 Q`jd5YZz8ka>Of_GgU[=A2
+I1>bmUFM6AR@l16OS2?U=K3
+R3
+R4
+S1
+R0
+R5
+R6
+R7
+L0 5
+R8
+r1
+!s85 0
+31
+R9
+R10
+R11
+!i113 1
+R12
+vosd_char_lib
+R1
+R2
+!i10b 1
+!s100 Vfo0J9kSe5P2<JojmG]dA3
+I2l62@kK=^aKD2m7G>oYoC2
+R3
+!s105 osd_char_lib_v_unit
+S1
+R0
+w1791123003
+8../../user_source/hdl_source/osd_char_lib.v
+F../../user_source/hdl_source/osd_char_lib.v
+L0 5
+R8
+r1
+!s85 0
+31
+R9
+R10
+R11
+!i113 1
+R12
+vPH1P_LOGIC_ERAM
+R1
+R2
+!i10b 1
+!s100 cLeQCaL6L1<4WVm@OiKk@3
+I`]kbYE99Tl^KSNHHCP@mf0
+R3
+!s105 logo_rom_model_v_unit
+S1
+R0
+w1793095521
+8../models/three_fixes_20261027/logo_rom_model.v
+F../models/three_fixes_20261027/logo_rom_model.v
+L0 1
+R8
+r1
+!s85 0
+31
+R9
+R10
+R11
+!i113 1
+R12
+n@p@h1@p_@l@o@g@i@c_@e@r@a@m
+vroi_center_osd
+R1
+R2
+!i10b 1
+!s100 ]8c`^A9MDb1BcJ6ZbF;2f0
+I]AzZRWO1T;W`=kgImJ:H^1
+R3
+!s105 roi_center_osd_v_unit
+S1
+R0
+w1791693967
+8../../user_source/hdl_source/video/roi_center_osd.v
+F../../user_source/hdl_source/video/roi_center_osd.v
+L0 4
+R8
+r1
+!s85 0
+31
+R9
+R10
+R11
+!i113 1
+R12
+vtb_official_logo_mixer
+R1
+R2
+!i10b 1
+!s100 6EAAMXaHjlHcQ2jhiZ;GN0
+ImT0Ca<J?6oRNA@n9SG9Xa2
+R3
+!s105 tb_official_logo_mixer_20261027_sv_unit
+S1
+R0
+w1793095707
+8../tb/tb_official_logo_mixer_20261027.sv
+F../tb/tb_official_logo_mixer_20261027.sv
+L0 2
+R8
+r1
+!s85 0
+31
+R9
+R10
+R11
+!i113 1
+R12

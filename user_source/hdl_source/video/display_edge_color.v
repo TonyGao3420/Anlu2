@@ -2,10 +2,12 @@
 // Six clocks for RGB/VS/HS/DE/protect. Black/OSD remain exact; green is unchanged.
 // Coefficients are bounded residual tuning from spatial feedback, not RAW measurements.
 module display_edge_color #(
- parameter integer W=1280,H=720,ENABLE=1,BLACK_LEVEL=14
+ parameter integer W=1280,H=720,ENABLE=1,BLACK_LEVEL=14,SOURCE_ROTATE_180=0
 )(input clk,rst_n,in_vs,in_hs,in_de,in_protect,input [23:0] in_rgb,
  output out_vs,out_hs,out_de,out_protect,output reg [23:0] out_rgb);
  reg [11:0] x,y;reg vs_d;
+ wire [11:0] source_x=SOURCE_ROTATE_180?(W-1-x):x;
+ wire [11:0] source_y=SOURCE_ROTATE_180?(H-1-y):y;
  reg [5:0] vp,hp,dp,pp;
  reg [23:0] raw[0:4];
  reg [8:0] left1,right1,left2,right2;
@@ -42,8 +44,8 @@ module display_edge_color #(
  vp<={vp[4:0],in_vs};hp<={hp[4:0],in_hs};dp<={dp[4:0],in_de};pp<={pp[4:0],in_protect};
  raw[0]<=in_rgb;for(i=1;i<5;i=i+1)raw[i]<=raw[i-1];
  // P1: full-frame distances; zero correction in the central rectangle.
- left1<=(x<384)?384-x:0;right1<=(x>896)?((x>=1280)?384:x-896):0;
- top1<=(y<216)?216-y:0;bottom1<=(y>504)?((y>=720)?216:y-504):0;
+ left1<=(source_x<384)?384-source_x:0;right1<=(source_x>896)?((source_x>=1280)?384:source_x-896):0;
+ top1<=(source_y<216)?216-source_y:0;bottom1<=(source_y>504)?((source_y>=720)?216:source_y-504):0;
  // P2: normalized edge weights.
  left2<=x_weight(left1);right2<=x_weight(right1);
  top2<=(top1*9'd303+18'd128)>>8;bottom2<=(bottom1*9'd303+18'd128)>>8;

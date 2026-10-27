@@ -11,6 +11,7 @@ module roi_background_stylize #(
  parameter integer BLOCK_LOG2=3,EDGE_THRESHOLD=40,
  parameter integer MOTION_ENABLE=0,STATUS_ENABLE=0,MOTION_HIGH=12,MOTION_LOW=6,
  parameter integer MODEL_STYLE_ENABLE=0,MODEL_EDGE_THRESHOLD=24,
+ parameter integer CLEAN_STYLE_ENABLE=0,
  parameter integer FRAME_TIMEOUT_CYCLES=18750000
 )(
  input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,in_enable,
@@ -19,8 +20,8 @@ module roi_background_stylize #(
  input wire [7:0] in_gray,
  input wire bbox_valid,
  input wire [15:0] bbox_x0,bbox_y0,bbox_x1,bbox_y1,
- output reg out_vs,out_hs,out_de,out_protect,
- output reg [23:0] out_rgb,output reg out_roi,output reg out_enable
+ output wire out_vs,out_hs,out_de,out_protect,
+ output wire [23:0] out_rgb,output wire out_roi,output wire out_enable
 );
  localparam integer B=1<<BLOCK_LOG2,COLS=IMG_W>>BLOCK_LOG2;
  localparam integer CW=(COLS<2)?1:$clog2(COLS);
@@ -111,8 +112,14 @@ module roi_background_stylize #(
  // camera exposure is low. Contours darken only a two-pixel tile boundary;
  // unlike the legacy style, a whole edge tile is never painted black.
  wire [7:0] model_levels=8'd96+{1'b0,mean_gray[7:4],3'b0}+{3'b0,mean_gray[7:4],1'b0};
+ // Smooth low-contrast tile noise without averaging across strong boundaries.
+ wire [7:0] smooth_left=(col!=0 && dx<=12)?left_gray:mean_gray;
+ wire [7:0] smooth_above=(y>=B && dy<=12)?above_q:mean_gray;
+ wire [9:0] surface_sum={1'b0,mean_gray,1'b0}+{2'b0,smooth_left}+{2'b0,smooth_above};
+ wire [7:0] smooth_surface=surface_sum[9:2];
+ wire [7:0] clean_levels=8'd96+{1'b0,smooth_surface[7:1]};
  wire [1:0] model_edges=MODEL_STYLE_ENABLE?{dy>=MODEL_EDGE_THRESHOLD,dx>=MODEL_EDGE_THRESHOLD}:2'd0;
- wire [7:0] styled_gray=MODEL_STYLE_ENABLE?model_levels:((gradient>=EDGE_THRESHOLD)?8'd0:levels);
+ wire [7:0] styled_gray=MODEL_STYLE_ENABLE?(CLEAN_STYLE_ENABLE?clean_levels:model_levels):((gradient>=EDGE_THRESHOLD)?8'd0:levels);
  always @(posedge clk)if(rst_n && in_de && armed && x<IMG_W && y<IMG_H)begin
   if(x[BLOCK_LOG2-1:0]==B-3)begin
    sum_q<=column_sum[col];above_q<=above_gray[col];
@@ -232,14 +239,27 @@ module roi_background_stylize #(
  wire edge_x=background_q[9],edge_y=background_q[10];
  wire contour_core=(edge_x && v1_x[BLOCK_LOG2-1:0]==0) || (edge_y && v1_y[BLOCK_LOG2-1:0]==0);
  wire contour_soft=(edge_x && v1_x[BLOCK_LOG2-1:0]==1) || (edge_y && v1_y[BLOCK_LOG2-1:0]==1);
- wire [7:0] model_gray=background_q[7:0]-(contour_core?8'd40:(contour_soft?8'd20:8'd0));
+ wire [7:0] model_gray=background_q[7:0]-(contour_core?(CLEAN_STYLE_ENABLE?8'd24:8'd40):(contour_soft?(CLEAN_STYLE_ENABLE?8'd12:8'd20):8'd0));
+ reg stage_vs,stage_hs,stage_de,stage_protect,stage_roi,stage_enable;
+ reg [23:0] stage_rgb,stage_raw;reg [7:0] stage_background;
+ generate if(CLEAN_STYLE_ENABLE)begin: clean_output
+  style_target_clean clean(
+   .clk(clk),.rst_n(rst_n),.in_vs(stage_vs),.in_hs(stage_hs),.in_de(stage_de),
+   .in_protect(stage_protect),.in_roi(stage_roi),.in_enable(stage_enable),
+   .in_rgb(stage_rgb),.in_raw(stage_raw),.in_background(stage_background),
+   .out_vs(out_vs),.out_hs(out_hs),.out_de(out_de),.out_protect(out_protect),
+   .out_roi(out_roi),.out_enable(out_enable),.out_rgb(out_rgb));
+ end else begin: original_output
+  assign {out_vs,out_hs,out_de,out_protect,out_roi,out_enable,out_rgb}=
+         {stage_vs,stage_hs,stage_de,stage_protect,stage_roi,stage_enable,stage_rgb};
+ end endgenerate
  wire visible_status=status_hit && !v1[26] && !v1[25];
  always @(posedge clk)if(rst_n && q[27] && q_armed && qx[BLOCK_LOG2-1:0]==0)
   background_q<=background_row[qx>>BLOCK_LOG2];
  always @(posedge clk or negedge rst_n)begin
   if(!rst_n)begin
    q_vs_d<=0;q_armed<=0;qx<=0;qy<=0;v1<=0;v1_x<=0;v1_y<=0;
-   out_vs<=0;out_hs<=0;out_de<=0;out_protect<=0;out_rgb<=0;out_roi<=0;out_enable<=0;
+   stage_vs<=0;stage_hs<=0;stage_de<=0;stage_protect<=0;stage_rgb<=0;stage_roi<=0;stage_enable<=0;stage_raw<=0;stage_background<=0;
   end else begin
    q_vs_d<=q[29];
    if(q[29] && !q_vs_d)begin q_armed<=1;qx<=0;qy<=0;end
@@ -248,15 +268,16 @@ module roi_background_stylize #(
     else qx<=qx+1'b1;
    end
    v1<=q;v1_x<=qx;v1_y<=qy;
-   out_vs<=v1[29];out_hs<=v1[28];out_de<=v1[27];out_protect<=v1[26] || (v1[27] && visible_status);out_roi<=v1[27] && v1[25];out_enable<=v1[24];
-   if(!v1[27])out_rgb<=0;
-   else if(v1[26] || (v1[25] && (!MODEL_STYLE_ENABLE || v1[30])))out_rgb<=v1[23:0];
-   else if(visible_status)out_rgb<=status_rgb;
-   else if(!v1[24])out_rgb<=v1[23:0];
-   else if(MODEL_STYLE_ENABLE)out_rgb<={model_gray,model_gray,model_gray};
-   else if(background_q[8])out_rgb<=(background_q[7:0]==0)?24'h30c8d8:
+   stage_vs<=v1[29];stage_hs<=v1[28];stage_de<=v1[27];stage_protect<=v1[26] || (v1[27] && visible_status);stage_roi<=v1[27] && v1[25];stage_enable<=v1[24];
+   stage_raw<=v1[23:0];stage_background<=model_gray;
+   if(!v1[27])stage_rgb<=0;
+   else if(v1[26] || (v1[25] && (!MODEL_STYLE_ENABLE || v1[30])))stage_rgb<=v1[23:0];
+   else if(visible_status)stage_rgb<=status_rgb;
+   else if(!v1[24])stage_rgb<=v1[23:0];
+   else if(MODEL_STYLE_ENABLE)stage_rgb<={model_gray,model_gray,model_gray};
+   else if(background_q[8])stage_rgb<=(background_q[7:0]==0)?24'h30c8d8:
        {1'b0,background_q[7:1],background_q[7:0],background_q[7:0]};
-   else out_rgb<={background_q[7:0],background_q[7:0],background_q[7:0]};
+   else stage_rgb<={background_q[7:0],background_q[7:0],background_q[7:0]};
   end
  end
  // synthesis translate_off
@@ -265,6 +286,72 @@ module roi_background_stylize #(
    $fatal(1,"Unsupported stylizer geometry (B>=4, whole tiles, positive blanking required)");
  end
  // synthesis translate_on
+endmodule
+
+// Five-pixel horizontal median for target rendering only. The center sample
+// and all metadata are delayed together by six clocks. No line/frame RAM.
+// Protected overlays never enter a median window; normal-mode RGB is exact.
+module style_target_clean(input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,in_roi,in_enable,
+ input wire [23:0] in_rgb,in_raw,input wire [7:0] in_background,
+ output reg out_vs,out_hs,out_de,out_protect,out_roi,out_enable,output reg [23:0] out_rgb);
+ // [61:56] VS HS DE protect ROI enable; [55:32] display, [31:8] raw, [7:0] gray.
+ wire [61:0] current={in_vs,in_hs,in_de,in_protect,in_roi,in_enable,in_rgb,in_raw,in_background};
+ reg [61:0] history[0:3];
+ function [7:0] median3;
+  input [7:0] a,b,c;
+  begin
+   median3=(a>b)?((b>c)?b:((a>c)?c:a)):((a>c)?a:((b>c)?c:b));
+  end
+ endfunction
+ wire window_ok=current[59] && history[0][59] && history[1][59] && history[2][59] && history[3][59] &&
+                !current[58] && !history[0][58] && !history[1][58] && !history[2][58] && !history[3][58];
+ reg [7:0] low_ab[0:2],high_ab[0:2],low_cd[0:2],high_cd[0:2],fifth_a[0:2];
+ reg [7:0] middle_lo[0:2],middle_hi[0:2],fifth_b[0:2];
+ reg [61:0] meta_a,meta_b,center;
+ reg filter_a,filter_b;reg [23:0] filtered;
+ wire [7:0] r=filtered[23:16],g=filtered[15:8],b=filtered[7:0];
+ wire [7:0] lo=(r<b)?r:b,hi=(r>b)?r:b;
+ wire [7:0] chroma=(g>lo)?g-lo:8'd0,delta=hi-lo;
+ wire [8:0] required_green={1'b0,hi}+9'd2;
+ // Rendering inside a tracked green object also keeps olive/dark faces.
+ // Detection remains strict upstream; do not turn its narrow hue test into
+ // pixel-sized holes in a dim surface. Neutral/white/red/blue still fail.
+ wire green=g>=8 && {1'b0,g}>=required_green && chroma>=6 && chroma>=(g>>2) &&
+            (g<248 || ({1'b0,g}-{1'b0,hi})>=(g>>2));
+ integer i,ch;
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin
+   for(i=0;i<4;i=i+1)history[i]<=0;
+   for(ch=0;ch<3;ch=ch+1)begin
+    low_ab[ch]<=0;high_ab[ch]<=0;low_cd[ch]<=0;high_cd[ch]<=0;fifth_a[ch]<=0;
+    middle_lo[ch]<=0;middle_hi[ch]<=0;fifth_b[ch]<=0;
+   end
+   meta_a<=0;meta_b<=0;center<=0;filter_a<=0;filter_b<=0;filtered<=0;
+   out_vs<=0;out_hs<=0;out_de<=0;out_protect<=0;out_roi<=0;out_enable<=0;out_rgb<=0;
+  end else begin
+   history[0]<=current;for(i=1;i<4;i=i+1)history[i]<=history[i-1];
+   meta_a<=history[1];meta_b<=meta_a;center<=meta_b;
+   filter_a<=window_ok;filter_b<=filter_a;
+   // median5(a,b,c,d,e) = median3(min(max(a,b),max(c,d)),
+   // max(min(a,b),min(c,d)),e). Split comparisons across registers.
+   for(ch=0;ch<3;ch=ch+1)begin
+    low_ab[ch]<=(history[3][8+ch*8+:8]<history[2][8+ch*8+:8])?history[3][8+ch*8+:8]:history[2][8+ch*8+:8];
+    high_ab[ch]<=(history[3][8+ch*8+:8]>history[2][8+ch*8+:8])?history[3][8+ch*8+:8]:history[2][8+ch*8+:8];
+    low_cd[ch]<=(history[1][8+ch*8+:8]<history[0][8+ch*8+:8])?history[1][8+ch*8+:8]:history[0][8+ch*8+:8];
+    high_cd[ch]<=(history[1][8+ch*8+:8]>history[0][8+ch*8+:8])?history[1][8+ch*8+:8]:history[0][8+ch*8+:8];
+    fifth_a[ch]<=current[8+ch*8+:8];
+    middle_lo[ch]<=(high_ab[ch]<high_cd[ch])?high_ab[ch]:high_cd[ch];
+    middle_hi[ch]<=(low_ab[ch]>low_cd[ch])?low_ab[ch]:low_cd[ch];
+    fifth_b[ch]<=fifth_a[ch];
+    filtered[ch*8+:8]<=filter_b?median3(middle_lo[ch],middle_hi[ch],fifth_b[ch]):meta_b[8+ch*8+:8];
+   end
+   {out_vs,out_hs,out_de,out_protect,out_roi,out_enable}<=center[61:56];
+   if(!center[59])out_rgb<=0;
+   else if(center[58] || !center[56])out_rgb<=center[55:32];
+   else if(center[57] && green)out_rgb<=filtered;
+   else out_rgb<={center[7:0],center[7:0],center[7:0]};
+  end
+ end
 endmodule
 
 // Compact frame-stable algorithm/activity HUD. Counts describe the preceding
