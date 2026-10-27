@@ -10,7 +10,7 @@
 //
 // 控制逻辑参考 Servo_PWM_Test 的拨码版本：
 //   - 位置 0..1024，初始位置由 pan/tilt 各自的 HOME 参数决定；
-//   - 每 STEP_PERIOD_MS 走一步，每步 STEP_POSITION；
+//   - pan/tilt 各自使用独立步长和独立步进周期，步长随误差大小动态增大；
 //   - x 与画面中心的误差决定 pan 增大/减小；
 //   - y 与画面中心的误差决定 tilt 增大/减小；
 //   - 死区内不动，目标丢失时保持最后位置；
@@ -23,8 +23,8 @@ module visual_servo_pwm #(
     parameter integer IMG_W = 1280,             // 图像宽度
     parameter integer IMG_H = 720,              // 图像高度
     parameter integer PAN_REVERSE = 0,          // 水平方向取反
-    parameter integer TILT_REVERSE = 0,         // 垂直方向取反
-    parameter integer DEAD_BAND_PIXELS = 3,     // 中心死区（像素）
+    parameter integer TILT_REVERSE = 1,         // 垂直方向取反
+    parameter integer DEAD_BAND_PIXELS = 50,     // 中心死区（像素）
 
     // 50 MHz 下的 PWM 参数
     parameter integer PWM_PERIOD_CYCLES = 1000000, // PWM 周期，20 ms
@@ -36,11 +36,17 @@ module visual_servo_pwm #(
     parameter integer PAN_MIN_POSITION   = 0,     // pan 最小限位
     parameter integer PAN_MAX_POSITION   = 1024,  // pan 最大限位（可改）
     parameter integer PAN_HOME_POSITION  = 512,   // pan 默认位置，90°
-    parameter integer TILT_MIN_POSITION  = 0,     // tilt 最小限位
-    parameter integer TILT_MAX_POSITION  = 1024,  // tilt 最大限位（可改）
-    parameter integer TILT_HOME_POSITION = 512,   // tilt 默认位置，90°
-    parameter integer STEP_POSITION      = 8,     // 每步增量
-    parameter integer STEP_PERIOD_MS     = 10     // 步进周期，10 ms
+    parameter integer TILT_MIN_POSITION  = 512,     // tilt 最小限位
+    parameter integer TILT_MAX_POSITION  = 800,  // tilt 最大限位（可改）
+    parameter integer TILT_HOME_POSITION = 656,   // tilt 默认位置，90°
+    parameter integer PAN_STEP_MIN       = 1,     // pan 最小步长
+    parameter integer PAN_STEP_MAX       = 4,     // pan 最大步长
+    parameter integer PAN_STEP_SHIFT     = 6,     // pan 步长 = error >> SHIFT
+    parameter integer TILT_STEP_MIN      = 1,     // tilt 最小步长
+    parameter integer TILT_STEP_MAX      = 8,     // tilt 最大步长
+    parameter integer TILT_STEP_SHIFT    = 6,     // tilt 步长 = error >> SHIFT
+    parameter integer PAN_STEP_PERIOD_MS  = 10,   // pan 步进周期，10 ms
+    parameter integer TILT_STEP_PERIOD_MS = 50    // tilt 步进周期，50 ms
 ) (
     input  wire        clk_50m,          // 50 MHz 系统时钟
     input  wire        rst_n,            // 异步复位，低有效
@@ -63,7 +69,8 @@ module visual_servo_pwm #(
         ((PAN_HOME_POSITION * SPAN_CYCLES) >> POSITION_SHIFT);       // pan 默认脉宽
     localparam integer TILT_HOME_PULSE = MIN_PULSE_CYCLES +
         ((TILT_HOME_POSITION * SPAN_CYCLES) >> POSITION_SHIFT);      // tilt 默认脉宽
-    localparam integer STEP_CYCLES = (50_000_000 / 1_000) * STEP_PERIOD_MS; // 步进周期（时钟数）
+    localparam integer PAN_STEP_CYCLES  = (50_000_000 / 1_000) * PAN_STEP_PERIOD_MS;  // pan 步进周期（时钟数）
+    localparam integer TILT_STEP_CYCLES = (50_000_000 / 1_000) * TILT_STEP_PERIOD_MS; // tilt 步进周期（时钟数）
 
     // ------------------------------------------------------------------
     // 经典 bundled-data CDC：source_toggle 每次翻转时采样一次坐标，
@@ -97,8 +104,8 @@ module visual_servo_pwm #(
             target_y_meta <= 16'd0;
             target_y_sync <= 16'd0;
             target_valid_held <= 1'b0;
-            target_x_held <= 16'd0;
-            target_y_held <= 16'd0;
+            target_x_held <= PAN_CENTER_X;
+            target_y_held <= TILT_CENTER_Y;
         end else begin
             source_toggle_meta <= source_toggle;
             source_toggle_sync <= source_toggle_meta;
@@ -113,8 +120,10 @@ module visual_servo_pwm #(
             if (source_toggle_sync != source_toggle_seen) begin
                 source_toggle_seen <= source_toggle_sync;
                 target_valid_held <= target_valid_sync;
-                target_x_held <= target_x_sync;
-                target_y_held <= target_y_sync;
+                if (target_valid_sync) begin
+                    target_x_held <= target_x_sync;
+                    target_y_held <= target_y_sync;
+                end
             end
         end
     end
@@ -139,30 +148,60 @@ module visual_servo_pwm #(
         (tilt_error > DEAD_BAND_PIXELS) : (tilt_error < -DEAD_BAND_PIXELS);
 
     // ------------------------------------------------------------------
-    // 10 ms 步进节拍；目标无效时清零并保持位置。
+    // 动态步长：误差越大，步长越大；上限由 STEP_MAX 限制。
     // ------------------------------------------------------------------
-    reg [19:0] step_cnt;
-    reg        step_tick;
+    wire [12:0] pan_abs_error  = pan_error[12]  ? (13'd0 - pan_error)  : pan_error;
+    wire [12:0] tilt_abs_error = tilt_error[12] ? (13'd0 - tilt_error) : tilt_error;
+
+    wire [12:0] pan_step_calc  = PAN_STEP_MIN  + (pan_abs_error  >> PAN_STEP_SHIFT);
+    wire [12:0] tilt_step_calc = TILT_STEP_MIN + (tilt_abs_error >> TILT_STEP_SHIFT);
+
+    wire [10:0] pan_step_dyn =
+        (pan_step_calc > PAN_STEP_MAX) ? PAN_STEP_MAX : pan_step_calc[10:0];
+    wire [10:0] tilt_step_dyn =
+        (tilt_step_calc > TILT_STEP_MAX) ? TILT_STEP_MAX : tilt_step_calc[10:0];
+
+    // ------------------------------------------------------------------
+    // pan/tilt 独立步进节拍；目标无效时清零并保持位置。
+    // ------------------------------------------------------------------
+    reg [31:0] pan_step_cnt;
+    reg [31:0] tilt_step_cnt;
+    reg        pan_step_tick;
+    reg        tilt_step_tick;
 
     always @(posedge clk_50m or negedge rst_n) begin
         if (!rst_n) begin
-            step_cnt  <= 20'd0;
-            step_tick <= 1'b0;
+            pan_step_cnt   <= 32'd0;
+            tilt_step_cnt  <= 32'd0;
+            pan_step_tick  <= 1'b0;
+            tilt_step_tick <= 1'b0;
         end else if (!target_valid_held) begin
-            step_cnt  <= 20'd0;
-            step_tick <= 1'b0;
-        end else if (step_cnt >= (STEP_CYCLES - 1)) begin
-            step_cnt  <= 20'd0;
-            step_tick <= 1'b1;
+            pan_step_cnt   <= 32'd0;
+            tilt_step_cnt  <= 32'd0;
+            pan_step_tick  <= 1'b0;
+            tilt_step_tick <= 1'b0;
         end else begin
-            step_cnt  <= step_cnt + 20'd1;
-            step_tick <= 1'b0;
+            if (pan_step_cnt >= (PAN_STEP_CYCLES - 1)) begin
+                pan_step_cnt  <= 32'd0;
+                pan_step_tick <= 1'b1;
+            end else begin
+                pan_step_cnt  <= pan_step_cnt + 32'd1;
+                pan_step_tick <= 1'b0;
+            end
+
+            if (tilt_step_cnt >= (TILT_STEP_CYCLES - 1)) begin
+                tilt_step_cnt  <= 32'd0;
+                tilt_step_tick <= 1'b1;
+            end else begin
+                tilt_step_cnt  <= tilt_step_cnt + 32'd1;
+                tilt_step_tick <= 1'b0;
+            end
         end
     end
 
     // ------------------------------------------------------------------
     // 位置寄存器：pan/tilt 各自 0..1024，初始位置分别取 HOME 参数。
-    // 每个 step_tick 只按误差方向走一步，死区内保持。
+    // 每个各自的 step_tick 只按误差方向走一步，死区内保持。
     // ------------------------------------------------------------------
     reg [10:0] pan_position;
     reg [10:0] tilt_position;
@@ -172,27 +211,27 @@ module visual_servo_pwm #(
         if (!rst_n) begin
             pan_position  <= PAN_HOME_POSITION;
             tilt_position <= TILT_HOME_POSITION;
-        end else if (step_tick && target_valid_held) begin
-            if (pan_step_pos) begin
-                if ((pan_position + STEP_POSITION) <= PAN_MAX_POSITION)
-                    pan_position <= pan_position + STEP_POSITION;
+        end else if (target_valid_held && (pan_step_tick || tilt_step_tick)) begin
+            if (pan_step_tick && pan_step_pos) begin
+                if ((pan_position + pan_step_dyn) <= PAN_MAX_POSITION)
+                    pan_position <= pan_position + pan_step_dyn;
                 else
                     pan_position <= PAN_MAX_POSITION;
-            end else if (pan_step_neg) begin
-                if (pan_position >= (PAN_MIN_POSITION + STEP_POSITION))
-                    pan_position <= pan_position - STEP_POSITION;
+            end else if (pan_step_tick && pan_step_neg) begin
+                if (pan_position >= (PAN_MIN_POSITION + pan_step_dyn))
+                    pan_position <= pan_position - pan_step_dyn;
                 else
                     pan_position <= PAN_MIN_POSITION;
             end
 
-            if (tilt_step_pos) begin
-                if ((tilt_position + STEP_POSITION) <= TILT_MAX_POSITION)
-                    tilt_position <= tilt_position + STEP_POSITION;
+            if (tilt_step_tick && tilt_step_pos) begin
+                if ((tilt_position + tilt_step_dyn) <= TILT_MAX_POSITION)
+                    tilt_position <= tilt_position + tilt_step_dyn;
                 else
                     tilt_position <= TILT_MAX_POSITION;
-            end else if (tilt_step_neg) begin
-                if (tilt_position >= (TILT_MIN_POSITION + STEP_POSITION))
-                    tilt_position <= tilt_position - STEP_POSITION;
+            end else if (tilt_step_tick && tilt_step_neg) begin
+                if (tilt_position >= (TILT_MIN_POSITION + tilt_step_dyn))
+                    tilt_position <= tilt_position - tilt_step_dyn;
                 else
                     tilt_position <= TILT_MIN_POSITION;
             end

@@ -837,9 +837,7 @@ module design_top_wrapper (
 
     visual_servo_pwm #(
         .IMG_W(1280),
-        .IMG_H(720),
-        .PAN_REVERSE(0),
-        .TILT_REVERSE(0)
+        .IMG_H(720)
     ) u_visual_servo_pwm (
         .clk_50m          (I_sys_clk),
         .rst_n            (I_rst_n),
