@@ -1173,3 +1173,136 @@ module anlogic_logo_eram(input wire I_clk,I_rst_n,input wire [16:0] I_addr,outpu
   if(!I_rst_n)valid<=0;else valid<={valid[0],I_addr<17'd25600};
  assign O_pixel=valid[1]?palette_q:25'd0;
 endmodule
+
+// Three-clock display-only overlay. All metadata is sampled once per frame.
+module multi_target_overlay #(parameter integer W=1280,H=720,N=8)(
+ input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,input wire [23:0] in_rgb,
+ input wire enable,input wire [N-1:0] valid,input wire [N*12-1:0] x0,y0,x1,y1,
+ input wire [3:0] count,input wire [15:0] total,process_us,input wire overflow,late,
+ input wire [23:0] age_us,input wire [15:0] frame_id,input wire latency_valid,
+ output reg out_vs,out_hs,out_de,output reg [23:0] out_rgb);
+ reg vs_d,armed;reg [11:0] x,y;wire first=in_de && armed && x==0 && y==0;
+ reg mode;reg [N-1:0] fv;reg [N*12-1:0] fx0,fy0,fx1,fy1;
+ reg [3:0] fc;reg [15:0] ft,fu,fid;reg fo,fl,lv,stale;
+ reg [23:0] fa;reg stale_sticky;reg [15:0] last_id;
+ // Three values share one 24-cycle binary-to-BCD engine. No divider or DSP.
+ reg [4:0] job;reg [4:0] bitn;reg busy,load;
+ reg [23:0] binary,bcd;
+ reg [23:0] total_bcd,us_bcd,age_bcd;
+ reg [23:0] adjusted;integer q,i;
+ always @*begin adjusted=bcd;for(q=0;q<6;q=q+1)if(bcd[q*4+:4]>=5)adjusted[q*4+:4]=bcd[q*4+:4]+4'd3;end
+ always @(posedge clk or negedge rst_n)if(!rst_n)begin
+  vs_d<=0;armed<=0;x<=0;y<=0;mode<=0;fv<=0;fx0<=0;fy0<=0;fx1<=0;fy1<=0;
+  fc<=0;ft<=0;fu<=0;fid<=0;fo<=0;fl<=0;lv<=0;stale<=0;fa<=0;last_id<=0;stale_sticky<=0;
+  job<=0;bitn<=0;busy<=0;load<=0;binary<=0;bcd<=0;total_bcd<=0;us_bcd<=0;age_bcd<=0;
+
+ end else begin
+  vs_d<=in_vs;
+  if(in_vs && !vs_d)begin armed<=1;x<=0;y<=0;end
+  else if(in_de && armed)if(x==W-1)begin x<=0;y<=(y==H-1)?12'd0:y+1'b1;end else x<=x+1'b1;
+  if(frame_id!=last_id)begin last_id<=frame_id;stale_sticky<=0;end
+  else if(latency_valid && age_us>=24'd200000)stale_sticky<=1;
+  if(first)begin
+   mode<=enable;fv<=valid;fx0<=x0;fy0<=y0;fx1<=x1;fy1<=y1;
+   fc<=count;ft<=total;fu<=process_us;fid<=frame_id;fo<=overflow;fl<=late;
+   lv<=latency_valid;stale<=stale_sticky || age_us>=24'd200000;fa<=age_us;
+   job<=0;busy<=1;load<=1;
+  end else if(busy)begin
+   if(load)begin
+    load<=0;bitn<=0;bcd<=0;
+    case(job)0:binary<={8'd0,ft};1:binary<={8'd0,fu};default:binary<=fa;endcase
+   end else begin
+    bcd<={adjusted[22:0],binary[23]};binary<={binary[22:0],1'b0};
+    if(bitn==23)begin
+     case(job)0:total_bcd<={adjusted[22:0],binary[23]};1:us_bcd<={adjusted[22:0],binary[23]};default:age_bcd<={adjusted[22:0],binary[23]};endcase
+     if(job==2)busy<=0;else begin job<=job+1'b1;load<=1;end
+    end else bitn<=bitn+1'b1;
+   end
+  end
+ end
+ reg [11:0] px,py;reg [23:0] rgb1,rgb2;reg [3:0] c1,c2;reg md1,protect1;
+ reg hit2;reg [23:0] paint2;reg hit;reg [23:0] paint;
+ reg [7:0] ch;reg [34:0] bits;reg [4:0] row;reg ink,hud;reg [3:0] col,hr,idx;reg [3:0] dig;
+ function [23:0] color;input integer n;begin case(n)
+  0:color=24'h00ffff;1:color=24'hffb030;2:color=24'hffff30;3:color=24'h70a0ff;
+  4:color=24'hff70dd;5:color=24'h70ff90;6:color=24'hffffff;default:color=24'hff8050;endcase end endfunction
+ function [7:0] dec;input [3:0] d;begin dec="0"+d;end endfunction
+ function [7:0] hexch;input [3:0] d;begin hexch=d<10?"0"+d:"A"+d-10;end endfunction
+ function [34:0] glyph;
+  input [7:0] c;
+  begin case(c)
+   "A":glyph={5'b01110,5'b10001,5'b10001,5'b11111,5'b10001,5'b10001,5'b10001};
+   "B":glyph={5'b11110,5'b10001,5'b10001,5'b11110,5'b10001,5'b10001,5'b11110};
+   "C":glyph={5'b01111,5'b10000,5'b10000,5'b10000,5'b10000,5'b10000,5'b01111};
+   "D":glyph={5'b11110,5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b11110};
+   "E":glyph={5'b11111,5'b10000,5'b10000,5'b11110,5'b10000,5'b10000,5'b11111};
+   "G":glyph={5'b01111,5'b10000,5'b10000,5'b10111,5'b10001,5'b10001,5'b01111};
+   "L":glyph={5'b10000,5'b10000,5'b10000,5'b10000,5'b10000,5'b10000,5'b11111};
+   "M":glyph={5'b10001,5'b11011,5'b10101,5'b10101,5'b10001,5'b10001,5'b10001};
+   "O":glyph={5'b01110,5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b01110};
+   "R":glyph={5'b11110,5'b10001,5'b10001,5'b11110,5'b10100,5'b10010,5'b10001};
+   "S":glyph={5'b01111,5'b10000,5'b10000,5'b01110,5'b00001,5'b00001,5'b11110};
+   "T":glyph={5'b11111,5'b00100,5'b00100,5'b00100,5'b00100,5'b00100,5'b00100};
+   "Y":glyph={5'b10001,5'b10001,5'b01010,5'b00100,5'b00100,5'b00100,5'b00100};
+   "0":glyph={5'b01110,5'b10001,5'b10011,5'b10101,5'b11001,5'b10001,5'b01110};
+   "1":glyph={5'b00100,5'b01100,5'b00100,5'b00100,5'b00100,5'b00100,5'b01110};
+   "2":glyph={5'b01110,5'b10001,5'b00001,5'b00010,5'b00100,5'b01000,5'b11111};
+   "3":glyph={5'b11110,5'b00001,5'b00001,5'b01110,5'b00001,5'b00001,5'b11110};
+   "4":glyph={5'b00010,5'b00110,5'b01010,5'b10010,5'b11111,5'b00010,5'b00010};
+   "5":glyph={5'b11111,5'b10000,5'b10000,5'b11110,5'b00001,5'b00001,5'b11110};
+   "6":glyph={5'b01110,5'b10000,5'b10000,5'b11110,5'b10001,5'b10001,5'b01110};
+   "7":glyph={5'b11111,5'b00001,5'b00010,5'b00100,5'b01000,5'b01000,5'b01000};
+   "8":glyph={5'b01110,5'b10001,5'b10001,5'b01110,5'b10001,5'b10001,5'b01110};
+   "9":glyph={5'b01110,5'b10001,5'b10001,5'b01111,5'b00001,5'b00001,5'b01110};
+   ":":glyph={5'b00000,5'b00100,5'b00100,5'b00000,5'b00100,5'b00100,5'b00000};
+   "-":glyph={5'b00000,5'b00000,5'b00000,5'b11111,5'b00000,5'b00000,5'b00000};
+   "F":glyph={5'b11111,5'b10000,5'b10000,5'b11110,5'b10000,5'b10000,5'b10000};
+   "I":glyph={5'b01110,5'b00100,5'b00100,5'b00100,5'b00100,5'b00100,5'b01110};
+   "N":glyph={5'b10001,5'b11001,5'b11001,5'b10101,5'b10011,5'b10011,5'b10001};
+   "U":glyph={5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b01110};
+   "X":glyph={5'b10001,5'b10001,5'b01010,5'b00100,5'b01010,5'b10001,5'b10001};
+   "+":glyph={5'b00000,5'b00100,5'b00100,5'b11111,5'b00100,5'b00100,5'b00000};
+   default:glyph=35'd0;
+  endcase end
+ endfunction
+ integer z;reg [12:0] bx,by;reg [11:0] ox,oy;reg tag;reg [3:0] tx,ty;
+ always @*begin
+  hit=0;paint=rgb1;ch=" ";col=0;hr=0;idx=0;dig=0;hud=0;tag=0;tx=0;ty=0;ox=0;oy=0;bx=0;by=0;
+  if(md1 && c1[0])begin
+   // Preserve existing Logo/OSD; each independent box has a fixed slot color.
+   for(z=0;z<N;z=z+1)begin
+    if(fv[z] && !protect1 && px>=fx0[z*12+:12] && px<=fx1[z*12+:12] && py>=fy0[z*12+:12] && py<=fy1[z*12+:12] &&
+      (px==fx0[z*12+:12] || px==fx0[z*12+:12]+12'd1 || px==fx1[z*12+:12] || px+12'd1==fx1[z*12+:12] ||
+       py==fy0[z*12+:12] || py==fy0[z*12+:12]+12'd1 || py==fy1[z*12+:12] || py+12'd1==fy1[z*12+:12]))begin hit=1;paint=color(z);end
+   end
+   // Replaces the previous right-side mode HUD only in mode 4.
+   if(px>=1008 && px<1264 && py>=16 && py<112)begin
+    hud=1;col=(px-1008)>>4;hr=(py-16)>>4;tx=px[3:0];ty=py[3:0];ch=" ";
+    case(hr)
+     0:case(col)0:ch="M";1:ch="O";2:ch="D";3:ch="E";4:ch=":";5:ch="M";6:ch="U";7:ch="L";8:ch="T";9:ch="I";endcase
+     1:case(col)0:ch="N";1:ch=":";2:ch=dec(fc);4:ch="T";5:ch="O";6:ch="T";7:ch=":";8,9,10,11,12:ch=dec(total_bcd[(12-col)*4+:4]);14:ch=fo?"+":" ";15:ch=fl?"L":" ";endcase
+     2:case(col)0:ch="L";1:ch="A";2:ch="T";3:ch=":";
+      4,5,6,7,8,9:ch=lv && !stale?dec(age_bcd[(9-col)*4+:4]):"-";
+      10:ch="U";11:ch="S";13:ch=stale?"S":" ";endcase
+     3:case(col)0:ch="D";1:ch="E";2:ch="T";3:ch=":";4,5,6,7,8,9:ch=dec(us_bcd[(9-col)*4+:4]);10:ch="U";11:ch="S";endcase
+     4:case(col)0:ch="F";1:ch="I";2:ch="D";3:ch=":";4,5,6,7:ch=hexch(fid[(7-col)*4+:4]);endcase
+     5:begin if(col<N*2 && !col[0])ch="1"+col[3:1];end
+    endcase
+    paint=hr==5?color(col[3:1]):24'h60ffff;
+   end
+  end
+  bits=glyph(ch);row=0;
+  case(ty[3:1])0:row=bits[34:30];1:row=bits[29:25];2:row=bits[24:20];3:row=bits[19:15];4:row=bits[14:10];5:row=bits[9:5];6:row=bits[4:0];endcase
+  ink=tx[3:1]<5 && row[4-tx[3:1]];
+  if(hud)begin hit=1;if(!ink)paint=24'h101820;end
+  else if(tag)begin if(ink)hit=1;else if(!hit)paint=rgb1;end
+ end
+ always @(posedge clk or negedge rst_n)if(!rst_n)begin
+  px<=0;py<=0;rgb1<=0;rgb2<=0;c1<=0;c2<=0;md1<=0;protect1<=0;hit2<=0;paint2<=0;
+  out_vs<=0;out_hs<=0;out_de<=0;out_rgb<=0;
+ end else begin
+  px<=x;py<=y;rgb1<=in_rgb;c1<={in_vs,in_hs,in_protect,in_de};md1<=first?enable:mode;protect1<=in_protect;
+  rgb2<=rgb1;c2<=c1;hit2<=hit;paint2<=paint;
+  out_vs<=c2[3];out_hs<=c2[2];out_de<=c2[0];out_rgb<=hit2?paint2:rgb2;
+ end
+endmodule

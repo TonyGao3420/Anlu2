@@ -66,3 +66,7 @@ set_pin_assignment	{ O_tmds_clk_p }	{ PULLTYPE = NONE; }
 
 
 # HX1P35B manual, GPIO J2 pins 1/2: V2/V1, 3.3 V logic outputs for external servo signal inputs.
+
+set_pin_assignment { I_sw3 } { LOCATION = E11; }
+set_pin_assignment { I_sw3 } { IOSTANDARD = LVCMOS33; }
+set_pin_assignment { I_sw3 } { PULLTYPE = PULLUP; }

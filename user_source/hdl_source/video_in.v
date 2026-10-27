@@ -5,6 +5,7 @@
 
 
 module video_in (
+    output wire O_frame_write_start,output wire [1:0] O_frame_write_bank,
     input wire I_rst_n,
 
     input wire         I_camera_clk,
@@ -94,6 +95,8 @@ module video_in (
         S_camera_frame_start_extend_3d <= S_camera_frame_start_extend_2d;
     end
 
+    assign O_frame_write_start=S_frame_start;
+    assign O_frame_write_bank=I_mipi_rx_error?(S_video_in_wp-2'd1):S_video_in_wp;
     assign S_frame_start = ~S_camera_frame_start_extend_3d & S_camera_frame_start_extend_2d;
 
     /*

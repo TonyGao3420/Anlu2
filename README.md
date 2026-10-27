@@ -1,15 +1,43 @@
-# Anlu2：ROI整框原图修复版（2026-10-28）
+# Anlu2 四模式最终总工程（2026-10-28）
 
-主入口为`td_project/camera_to_dsi_display.al`，生产源码为`user_source/`。第三模式整个ROI矩形显示正常彩色原图，含白色、暗面及其他颜色；只对框外做现有灰色风格化。移除了造成目标碎点观感的逐像素保色选择，保留原Logo、坐标、边框及一秒轨迹叠加。
+单目标识别、舵机跟踪、风格化与八目标识别现已全部合入本工程。唯一入口是 **td_project/camera_to_dsi_display.al**，生产源码是 **user_source/**。正常使用及最终提交均以本目录为准，不再需要单独的多目标子工程。
 
-SW1=A4继续控制原舵机追踪，SW2=B4继续选择第三模式。180度转正、颜色校正、检测阈值、ROI高度及屏幕中心原点不变。仅有两处ROI输出选择修改，显示延迟及全部控制时序保持不变。
+## 拨码使用
 
-小画面184320像素及完整720p三帧2764800像素仿真通过：ROI原RGB逐位一致，框外和普通模式与修改前逐位一致。完整综合、布局布线、bitgen通过：Slice 18628/21216，ERAM 103/108，DSP 40/40；Setup +304ps、Hold +20ps，TNS均0。未降低时钟或放松约束，未上板验证。
+HX1P35A V1.0：SW1=A4、SW2=B4、SW3=E11；拨上为1，拨下为0。SW3优先选择多目标模式，SW1继续独立控制原主目标舵机。
 
-命名比特流和完整干净工程ZIP位于`sim/build/roi_original_20261027/Anlu2_ROI_Original_20261028.bit`与同名ZIP。主输出位于`td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit`，与命名bit的SHA256一致：`51d343a58b5db03d2aaa9779c300c51ddfccfeb8133a8e18cf00a809638f4ed3`。
+| SW3 | SW2 | SW1 | 显示/控制 |
+|---|---|---|---|
+| 下 | 下 | 下 | 模式1：单目标ROI、屏幕中心原点坐标、正常彩色视频 |
+| 下 | 下 | 上 | 模式2：单目标识别与原双轴云台跟踪 |
+| 下 | 上 | 任意 | 模式3：ROI整个矩形保持原图，框外灰色风格化，保留1秒平滑轨迹；SW1仍控制云台 |
+| 上 | 任意 | 任意 | 模式4：最多8个分离绿色区域分别框选，数量/容量提示及帧延迟显示；SW1仍控制原主目标云台 |
 
-TD GUI正常打开主工程，完整运行综合和物理设计即可，不需要Python。保留完整user_source，尤其是4个official_logo_*.mif。Logo模块anlogic_logo_eram在hdmi_mixer.v内，历史独立同名文件不是当前实现。
+演示多目标时建议SW1拨下，防止相机转动；无需先进入风格化模式。模式4右上显示 MODE:MULTI 和 N/TOT/LAT/DET/FID。目标彼此接触、遮挡或过小时，绿色区域可能合并；上限8个，超出保留面积最大的8个并提示“+”。这不是八路舵机跟踪。
 
-完整验证入口：`powershell -ExecutionPolicy Bypass -File tools/roi_original_20261028/rebuild.ps1`。仿真依赖工作区保留的修改前快照、Python和ModelSim；干净ZIP用于常规GUI编译。历史three_fixes工具只对应历史版本，不能用其旧预期验证新ROI行为。
+官方安路Logo、180度画面转正、颜色校正与亮度、ROI高度修复、中心坐标和原舵机参数均保留。模式3按整个ROI矩形选择原RGB，包含白色高光和暗面，避免逐像素保色造成碎点。全部模式继续保留现有OSD。
 
-第四模式在独立目录`../Anlu2_MultiTarget_20261028/`开发，不覆盖本工程。此前历史报告见doc/THREE_FIXES_20261027.md，本修复详见doc/ROI_ORIGINAL_20261028.md；历史资源数字不能作为当前版本结果。
+## 编译与下载
+
+TD GUI打开上述唯一.al，完整运行综合与物理设计。GUI编译不需要Python。必须保留完整user_source，包括4个official_logo_*.mif。anlogic_logo_eram定义在hdmi_mixer.v内。
+
+- 常规主输出：td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit
+- 正式命名输出：output/Anlu2_Final_4Mode_20261028.bit
+- 完整提交包：output/Anlu2_Final_4Mode_20261028.zip
+- 校验记录：output/manifest.json；当前状态：BUILD_STATUS.md
+
+正式命名文件只在合并后的Anlu2完成仿真、综合、布局布线及时序检查后生成。主输出与命名输出须SHA256相同；旧的Anlu2_ROI_Original比特流属于合并前的三模式历史版本。
+
+完整自动检查与重建入口为 tools/rebuild.ps1，参数可指定本机Python、ModelSim和TD路径。测试资料均随总工程携带。若移动工程目录，可先运行prepare_tests.py更新工程根路径，或在TD中按新目录重新保存工程。
+
+合并前工程及旧编译产物已完整备份至 ../recovery_backups/Anlu2_before_final_four_mode_merge_20261028。历史报告和实验工具不代表本次最终状态；具体实现、限制和验证口径见 doc/FINAL_FOUR_MODES_20261028.md。
+
+当前构建结果由发布检查追加于下方。软件验证通过后仍须实板验收显示、拨码、舵机方向和光照适应性。
+
+## 本次主工程构建结果
+
+合并后Anlu2重新完成全部5项仿真、综合、布局布线及bitgen。Slice 20751/21216，ERAM 103/108，DSP 40/40；Setup WNS +30ps，Hold WNS +20ps，TNS均0。
+
+原三模式5529600像素逐位对比通过（统一增加3个对齐像素时钟），原主目标反馈/PWM逐周期一致；直接拨SW3启动8目标、独立区域/关联/容量、真实DDR槽位延迟测试均通过。
+
+标准主输出与output/Anlu2_Final_4Mode_20261028.bit完全相同。SHA256：`e42b60c661e2e958c193bfe430a86d3da31743f4f72fe94448486acf95aaa61e`。本次没有实板验证。

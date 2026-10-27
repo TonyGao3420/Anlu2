@@ -23,6 +23,7 @@ module video_out #(
     input  wire        I_dsi_clk,
     input  wire        I_video_vsync,
     input  wire        I_video_rd_en,
+    output wire O_frame_read_start,
     output wire [23:0] O_vdieo_data
 );
 
@@ -70,6 +71,7 @@ module video_out #(
         S_video_vsync_3d <= S_video_vsync_2d;
     end
 
+    assign O_frame_read_start=S_video_frame_start;
     assign S_video_frame_start = ~S_video_vsync_3d & S_video_vsync_2d;
 
 
@@ -196,4 +198,43 @@ module video_out #(
     end
 
 
+endmodule
+
+// Observer only. Timestamp follows the actual DDR bank selected for display.
+// Endpoint: RAW frame header reception -> first HDMI active pixel (microseconds).
+module frame_latency(input wire sys_clk,rst_n,raw_clk,raw_sof,ddr_clk,
+ input wire write_start,input wire [1:0] write_bank,input wire write_en,input wire [24:0] write_addr,
+ input wire read_start,input wire [1:0] read_bank,input wire pixel_clk,
+ output wire [23:0] age_us,output wire [15:0] frame_id,output wire valid);
+ reg [5:0] div50;reg [23:0] now_us,gray_us;
+ wire [23:0] next_us=now_us+1'b1;
+ always @(posedge sys_clk or negedge rst_n)if(!rst_n)begin div50<=0;now_us<=0;gray_us<=0;end
+ else if(div50==49)begin div50<=0;now_us<=next_us;gray_us<=next_us^(next_us>>1);end else div50<=div50+1'b1;
+ (* ASYNC_REG="TRUE" *) reg [23:0] raw_g1,raw_g2,pix_g1,pix_g2;
+ wire [23:0] raw_now,pix_now;genvar k;
+ generate for(k=0;k<24;k=k+1)begin:gray_decode
+  assign raw_now[k]=^raw_g2[23:k];assign pix_now[k]=^pix_g2[23:k];
+ end endgenerate
+ reg [23:0] raw_stamp;reg [15:0] raw_id;reg raw_seen;
+ always @(posedge raw_clk or negedge rst_n)if(!rst_n)begin raw_g1<=0;raw_g2<=0;raw_stamp<=0;raw_id<=0;raw_seen<=0;end
+ else begin raw_g1<=gray_us;raw_g2<=raw_g1;if(raw_sof)begin raw_stamp<=raw_now;raw_id<=raw_id+1'b1;raw_seen<=1;end end
+ // Bundled metadata is held throughout a camera frame, before delayed ISP SOF.
+ (* ASYNC_REG="TRUE" *) reg [40:0] meta1,meta2;
+ reg [40:0] bank[0:3],selected;
+ reg [3:0] complete;integer i;
+ wire [1:0] last_bank=(write_addr==25'd1382392)?2'd0:(write_addr==25'd8382392)?2'd1:
+                         (write_addr==25'd15382392)?2'd2:2'd3;
+ wire last_word=write_addr==25'd1382392 || write_addr==25'd8382392 || write_addr==25'd15382392 || write_addr==25'd22382392;
+ always @(posedge ddr_clk or negedge rst_n)if(!rst_n)begin
+  meta1<=0;meta2<=0;complete<=0;selected<=0;for(i=0;i<4;i=i+1)bank[i]<=0;
+ end else begin
+  meta1<={raw_seen,raw_id,raw_stamp};meta2<=meta1;
+  if(write_en && last_word)complete[last_bank]<=1;
+  if(write_start)begin bank[write_bank]<=meta2;complete[write_bank]<=0;end
+  if(read_start)selected<={bank[read_bank][40] && complete[read_bank] && !(write_start && write_bank==read_bank),bank[read_bank][39:0]};
+ end
+ (* ASYNC_REG="TRUE" *) reg [40:0] sel1,sel2;
+ always @(posedge pixel_clk or negedge rst_n)if(!rst_n)begin pix_g1<=0;pix_g2<=0;sel1<=0;sel2<=0;end
+ else begin pix_g1<=gray_us;pix_g2<=pix_g1;sel1<=selected;sel2<=sel1;end
+ assign age_us=pix_now-sel2[23:0];assign frame_id=sel2[39:24];assign valid=sel2[40];
 endmodule

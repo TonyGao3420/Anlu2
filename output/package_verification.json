@@ -1,0 +1,8 @@
+{
+  "zip_crc_and_content_sha256": "PASS",
+  "fresh_extract_prepare_and_source_audit": "PASS",
+  "self_contained_test_baseline": "PASS",
+  "single_active_project": "PASS",
+  "original_timing_constraints_retained": true,
+  "board_test_performed": false
+}

@@ -1,0 +1,1 @@
+唯一总工程入口：../td_project/camera_to_dsi_display.al。旧Anlu2.al已归档到recovery_backups/Anlu2_before_final_four_mode_merge_20261028/legacy_entry/。

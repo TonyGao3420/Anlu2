@@ -13,6 +13,7 @@
 module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     input wire I_sys_clk,
     input wire I_rst_n,
+    input wire I_sw3,          // SW3 E11: fourth mode overrides SW2.
     input wire I_sw2,          // SW2: 1=style + one-second trail; SW1 still controls servo.
     input wire I_sw1,          // SW1：视觉伺服使能，1=开启，0=保持当前位置
 
@@ -619,7 +620,14 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     );
 
 
+    wire S_stamp_write_start,S_stamp_read_start;wire [1:0] S_stamp_write_bank;
+    wire [23:0] S_latency_us;wire [15:0] S_latency_id;wire S_latency_valid;
+    frame_latency u_frame_latency(.sys_clk(I_sys_clk),.rst_n(S_rst_n),.raw_clk(S_csi_rx_clk),.raw_sof(S_raw10_frame_start),
+        .ddr_clk(S_ddr_clk),.write_start(S_stamp_write_start),.write_bank(S_stamp_write_bank),
+        .write_en(S_vi_ddr_wr_en),.write_addr(S_vi_ddr_wr_addr),.read_start(S_stamp_read_start),.read_bank(S_video_out_rp),
+        .pixel_clk(S_hdmi_pixel_clk),.age_us(S_latency_us),.frame_id(S_latency_id),.valid(S_latency_valid));
     video_in u_video_in (
+        .O_frame_write_start(S_stamp_write_start),.O_frame_write_bank(S_stamp_write_bank),
         .I_rst_n(S_rst_n),
 
         .I_camera_clk        (S_csi_rx_clk),
@@ -655,6 +663,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     assign S_video_out_rst_n = S_hdmi_rst_n;
 
     video_out #(.ROTATE_180(CAMERA_ROTATE_180)) u_video_out (
+        .O_frame_read_start(S_stamp_read_start),
         .I_rst_n  (S_video_out_rst_n),
         .I_ddr_clk(S_ddr_clk),
 
@@ -780,6 +789,12 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .roi_sof(S_color_roi_sof),.roi_last(S_color_roi_last)
     );
 
+    wire [7:0] S_multi_valid;wire [95:0] S_multi_x0,S_multi_y0,S_multi_x1,S_multi_y1;
+    wire [3:0] S_multi_count;wire [15:0] S_multi_total,S_multi_us;wire S_multi_overflow,S_multi_late;
+    wire S_multi_request;reg S_multi_frame;
+    style_switch_control u_multi_switch(.clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),.sw2_async(I_sw3),.style_request(S_multi_request));
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n)
+        if(!S_hdmi_rst_n)S_multi_frame<=0;else if(S_color_roi_sof)S_multi_frame<=S_multi_request;
     // Read-only ROI tap on corrected camera pixels, before OSD and brightness.
     roi_target_tracker #(
         .IMG_W       (1280),
@@ -788,6 +803,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .ROI_HALF_H  (180),
         .MIN_VALUE   (24),
         .MIN_AREA    (64),
+        .MULTI_ENABLE(1),.MAX_TARGETS(8),
         .MAX_AREA    (120000)
     ) u_roi_target_tracker (
         .clk             (S_hdmi_pixel_clk),
@@ -806,6 +822,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .target_area     (S_track2_area),
         .frame_done      (S_track2_frame_done),
         .result_update   (S_track2_result_update),
+        .multi_valid(S_multi_valid),.multi_x0(S_multi_x0),.multi_y0(S_multi_y0),.multi_x1(S_multi_x1),.multi_y1(S_multi_y1),
+        .multi_count(S_multi_count),.multi_total(S_multi_total),.multi_us(S_multi_us),.multi_overflow(S_multi_overflow),.multi_late(S_multi_late),
         .mask_valid      (),
         .green_mask      (),
         .mask_x          (),
@@ -865,7 +883,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .I_video_user   (S_hdmi_user),
         .I_video_last   (S_hdmi_last),
         .I_debug_status (S_hdmi_debug_status),
-        .I_target_bbox_valid   (S_track2_valid),
+        .I_target_bbox_valid   (S_track2_valid && !S_multi_frame),
         .I_target_bbox_x0      (S_track2_bbox_x0),
         .I_target_bbox_y0      (S_track2_bbox_y0),
         .I_target_bbox_x1      (S_track2_bbox_x1),
@@ -960,7 +978,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(1),.MODEL_STYLE_ENABLE(1),.CLEAN_STYLE_ENABLE(1),.MODEL_EDGE_THRESHOLD(32)) u_background_stylize(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_tone_vs),.in_hs(S_tone_hs),.in_de(S_tone_de),
-        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request),
+        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request && !S_multi_frame),
         .in_rgb(S_tone_rgb),.in_gray(S_style_luma_delay[14]),
         .bbox_valid(S_track2_valid),.bbox_x0(S_track2_bbox_x0),.bbox_y0(S_track2_bbox_y0),
         .bbox_x1(S_track2_bbox_x1),.bbox_y1(S_track2_bbox_y1),
@@ -985,6 +1003,13 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
     // MERGED STYLE MODE END
 
+    wire S_multi_vs,S_multi_hs,S_multi_de;wire [23:0] S_multi_rgb;
+    multi_target_overlay u_multi_overlay(.clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+        .in_vs(S_trail_vs),.in_hs(S_trail_hs),.in_de(S_trail_de),.in_protect(S_trail_protect),.in_rgb(S_trail_rgb),
+        .enable(S_multi_frame),.valid(S_multi_valid),.x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
+        .count(S_multi_count),.total(S_multi_total),.process_us(S_multi_us),.overflow(S_multi_overflow),.late(S_multi_late),
+        .age_us(S_latency_us),.frame_id(S_latency_id),.latency_valid(S_latency_valid),
+        .out_vs(S_multi_vs),.out_hs(S_multi_hs),.out_de(S_multi_de),.out_rgb(S_multi_rgb));
     hdmi_tx u_hdmi_tx (
         .I_pixel_clk       (S_hdmi_pixel_clk),
         .I_serial_clk      (S_hdmi_serial_clk),
@@ -994,13 +1019,13 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .O_edid_read_valid (),
         .O_edid_read_data  (),
         .I_video_rgb_enable(1'b1),
-        .I_video_in_vs     (S_trail_vs),
-        .I_video_in_de     (S_trail_de),
+        .I_video_in_vs     (S_multi_vs),
+        .I_video_in_de     (S_multi_de),
         .I_video_in_user   (1'b0),
         .I_video_in_valid  (1'b0),
         .I_video_in_last   (1'b0),
         .O_video_in_ready  (),
-        .I_video_in_data   (S_trail_rgb),
+        .I_video_in_data   (S_multi_rgb),
         .I_audio_valid     (1'b0),
         .I_audio_left_data (24'd0),
         .I_audio_right_data(24'd0),
