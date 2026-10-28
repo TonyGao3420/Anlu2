@@ -22,8 +22,8 @@
 module visual_servo_pwm #(
     parameter integer IMG_W = 1280,             // 图像宽度
     parameter integer IMG_H = 720,              // 图像高度
-    parameter integer PAN_REVERSE = 0,          // 水平方向取反
-    parameter integer TILT_REVERSE = 1,         // 垂直方向取反
+    parameter integer PAN_REVERSE = 1,          // 水平方向取反
+    parameter integer TILT_REVERSE = 0,         // 垂直方向取反
     parameter integer DEAD_BAND_PIXELS = 50,     // 中心死区（像素）
 
     // 50 MHz 下的 PWM 参数
