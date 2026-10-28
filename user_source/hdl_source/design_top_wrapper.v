@@ -778,7 +778,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     wire S_color_vs,S_color_hs,S_color_de,S_color_protect;
     wire S_color_roi_de,S_color_roi_sof,S_color_roi_last;
     wire [23:0] S_color_display_rgb,S_color_roi_rgb;
-    scene_color_stream #(.RGB_SHADING_ENABLE(0)) u_scene_color_stream(
+    scene_color_stream #(.RGB_SHADING_ENABLE(0),.POSITION_BIAS_ENABLE(1),
+        .SOURCE_ROTATE_180(CAMERA_ROTATE_180)) u_scene_color_stream(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_hdmi_out_vsync),.in_hs(S_hdmi_out_hsync),.in_de(S_hdmi_out_de),
         .in_protect (S_hdmi_out_protect),.camera_rgb(S_camera_rgb_aligned),
@@ -899,10 +900,11 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .O_hdmi_y       (S_hdmi_out_y)
     );
 
-    // Additional perimeter correction is display-only; ROI above is unchanged.
+    // Perimeter correction now runs once in the shared scene stage, before ROI.
+    // Keep this existing six-clock display stage as an exact timing bypass.
     wire S_edge_vs,S_edge_hs,S_edge_de,S_edge_protect;
     wire [23:0] S_edge_rgb;
-    display_edge_color #(.SOURCE_ROTATE_180(CAMERA_ROTATE_180)) u_display_edge_color(
+    display_edge_color #(.ENABLE(0),.SOURCE_ROTATE_180(CAMERA_ROTATE_180)) u_display_edge_color(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_color_vs),.in_hs(S_color_hs),.in_de(S_color_de),
         .in_protect(S_color_protect),.in_rgb(S_color_display_rgb),

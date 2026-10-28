@@ -1,18 +1,18 @@
 {
-  "release": "Anlu2_Final_4Mode_20261028",
-  "generated_utc": "2026-10-27T19:27:55.443900+00:00",
+  "release": "Anlu2_SpatialColor_20261028",
+  "generated_utc": "2026-10-28T04:44:22.717709+00:00",
   "authoritative_project": "Anlu2/td_project/camera_to_dsi_display.al",
   "generated_from_merged_main": true,
   "board_test_performed": false,
   "standard_bit": "td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit",
-  "named_bit": "output/Anlu2_Final_4Mode_20261028.bit",
-  "bit_sha256": "e42b60c661e2e958c193bfe430a86d3da31743f4f72fe94448486acf95aaa61e",
+  "named_bit": "output/Anlu2_SpatialColor_20261028.bit",
+  "bit_sha256": "d133ea117a0055c169ddaf7b537907b58478c64669953c18c845304230c4b9f3",
   "metrics_ps_and_resource_counts": {
-    "Setup WNS": 30,
+    "Setup WNS": 114,
     "Setup TNS": 0,
     "Hold WNS": 20,
     "Hold TNS": 0,
-    "#slices": 20751,
+    "#slices": 20929,
     "#RAMs": 103,
     "#DSPs": 40
   },
@@ -21,12 +21,16 @@
     "ERAM": 108,
     "DSP": 40
   },
+  "color_note": "Empirical residual coefficients from screen feedback, not calibrated from the monitor photograph. Top R -16 maximum; upright lower-right R -12, B -24 maximum; shared old perimeter stage; neutral guard.",
+  "test_scope": "Color golden model plus preserved pure-green/black four-mode control equivalence; not all original colors unchanged",
+  "compatibility_aliases": [
+    "output/Anlu2_Final_4Mode_20261028.bit",
+    "output/Anlu2_Final_4Mode_20261028.zip"
+  ],
   "tests": {
-    "slots": "PASS multi_slots: reverse scan stable IDs, top8 largest, overflow count, atomic late hold/recovery, clipped margins, coasting expiry, independent reassignment",
-    "latency": "PASS frame_latency: asynchronous 50/103/66/75MHz, actual DDR bank association, repeated/older reads, incomplete invalidation; exact decoded timestamp subtraction",
-    "tracker": "PASS multi_tracker: 8 independent/moving IDs, white rejection, empty hold/release, overflow, full-height/dense/3600 components, original primary cycle exact, worst tail       46606/49500 clocks",
-    "coldboot": "PASS final_coldboot: SW3 high from reset, SW2 always low, native VTC, direct multi before any ROI result, eight independent targets, 1843200 active pixels",
-    "main": "PASS final_main_vtc: 5529600 actual VTC pixels; late VS at 725, 30 blank lines; normal/servo/style/multi/return; unchanged primary ROI/PWM/read requests; all original-mode RGB exact +3 aligned clocks"
+    "color": "PASS spatial_bias: 1843200 pixels x both rotation mappings; scalar golden RGB; upright top and bottom-right offsets; original 8-clock metadata; OSD exact; shared display/ROI; whites not green; green targets retained and corner cast recovered",
+    "coldboot": "PASS spatial_coldboot: SW3 high from reset, SW2 always low, native VTC, direct multi before any ROI result, eight independent targets, 1843200 active pixels",
+    "main": "PASS spatial_main_vtc: 5529600 actual VTC pixels; late VS at 725, 30 blank lines; normal/servo/style/multi/return; unchanged primary ROI/PWM/read requests; preserved pure-green/black stimulus: RGB/OSD exact +3 aligned clocks; color changes separately golden-model checked"
   },
   "production_sha256": {
     "user_source/constraints_source/pin.adc": "a329340c07b8574bf14eb428d8b1097d820970f2bd3205176c607de2348f0dc6",
@@ -41,7 +45,7 @@
     "user_source/hdl_source/csi_unpacket.v": "2ac4f719b5aae520bb62ba936df1491ae27d8f3d37f00586e62545935fd53919",
     "user_source/hdl_source/data_96bit_to_128bit.v": "b7f221fbb6045266cdbdaffad34a7c841b1e635aedc6f700ab8e2b164a142d86",
     "user_source/hdl_source/debug/video_path_debug.v": "1d1ede64d9ff546c8cecba5ba81190efeaf17d01b7c14fc6d19ab81a64d43e3b",
-    "user_source/hdl_source/design_top_wrapper.v": "65292da1f3bcf1cda4a364d451009cb5094411ce2accbf81d193267f5049254d",
+    "user_source/hdl_source/design_top_wrapper.v": "8b2290a31aa3cc223af3666a0f89e55dca880f4972506dc4bb15fc17dc5e451f",
     "user_source/hdl_source/dsi_tx_packet/config_data.mif": "0f5842f2ca3e46634e0215cc55cf2c9b5afab16517e96d9e5dde6bf3845813ad",
     "user_source/hdl_source/dsi_tx_packet/config_data.mif.dat": "4e05846962e371e436714ac3268109d6322e333620ad4e95e3391c6da9f432e2",
     "user_source/hdl_source/hdmi_1_4b_transmitter_core_wrapper.enc.v": "867e0b0bdd874bc383d00918c9e1be3fe01edf41f343b6a0d73e262776596a63",
@@ -197,7 +201,7 @@
     "user_source/hdl_source/video/roi_background_stylize.v": "7f7819125375fba2d4a632e602a36d20a9ae53a8fbc0d162eb218b0ddbd367ea",
     "user_source/hdl_source/video/roi_center_osd.v": "d0a01dc0c96281bd49b7fc55f9347bbb4cbd00fd8af1f61022fb818c14b9d32d",
     "user_source/hdl_source/video/roi_motion_trail.v": "07f219585f49fed334027f3c6d79603bccfc60906869a46de7c64b9982a373d4",
-    "user_source/hdl_source/video/scene_color_stream.v": "0989d55b0ea9fe756aad461ac4ac76ecff5d82f0024595cc6d24cefd1149ecc7",
+    "user_source/hdl_source/video/scene_color_stream.v": "147d01d979e5627f1feeff3d797bddc5b129b34012609f65c510d860073241cf",
     "user_source/hdl_source/video/style_switch_control.v": "4a958d99c3d4a7f84cc5a5ca1dbcba76a82c7e33fa4fc15dca94a860f1ad3e5e",
     "user_source/hdl_source/video/video_enhance.v": "805d092887c5bfdc39e89adbec963ece4144bdbf83670742fe384beffb49d762",
     "user_source/hdl_source/video_cuttting.v": "3e6a516caeca053b688cf4613f659c12c1505a79a3a224c6b982b39ece2412ee",
@@ -268,45 +272,41 @@
     "td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.prj": "b68c5418facc10bbbdfa5acbf439782eb635da47efb624bfdf1b307faeea6766",
     "td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.tcl": "d1a5d4291706dac224cc33008d8945e79ed2eb1adf8ce86cca46be564975bade"
   },
-  "backup_before_merge": "D:\\HX1P35A_Contest_202606\\recovery_backups\\Anlu2_before_final_four_mode_merge_20261028",
+  "backup_before_merge": "D:\\HX1P35A_Contest_202606\\recovery_backups\\Anlu2_before_spatial_bias_20261028",
   "changed_hardware": [
-    "user_source/constraints_source/pin.adc",
     "user_source/hdl_source/design_top_wrapper.v",
-    "user_source/hdl_source/hdmi_mixer.v",
-    "user_source/hdl_source/track2/roi_target_tracker.v",
-    "user_source/hdl_source/video_in.v",
-    "user_source/hdl_source/video_out.v"
+    "user_source/hdl_source/video/scene_color_stream.v"
   ],
-  "previous_main_bit_sha256": "51d343a58b5db03d2aaa9779c300c51ddfccfeb8133a8e18cf00a809638f4ed3",
-  "reference_four_mode_bit_sha256": "75be165f439b13f560ce7f74df8cc738caf01fab302692851bab805c8a85accd",
+  "previous_main_bit_sha256": "e42b60c661e2e958c193bfe430a86d3da31743f4f72fe94448486acf95aaa61e",
+  "reference_four_mode_bit_sha256": "e42b60c661e2e958c193bfe430a86d3da31743f4f72fe94448486acf95aaa61e",
   "build_evidence": {
     "td_project/camera_to_dsi_display_Runs/syn_1/camera_to_dsi_display_gate.db": {
-      "sha256": "a321c627bb2f533eb9a229891fc11d394a68d5e28f829a303e8618972e0b7e62",
-      "mtime_utc": "2026-10-27T18:53:58.142198+00:00"
+      "sha256": "626a8e280fd30e03a827e167b9ee180b6f69921af4ddcaf848ef2c30a2d86360",
+      "mtime_utc": "2026-10-28T04:25:00.099732+00:00"
     },
     "td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display_place.db": {
-      "sha256": "291c8f311f8697281515ef9d9397a509801b25e0941b8f7bfd4e8aeef3e040db",
-      "mtime_utc": "2026-10-27T18:59:20.805821+00:00"
+      "sha256": "7f773e8e7ea4716b03eaf60f18f7e1215cba385ab74d5c491331409610ac61c7",
+      "mtime_utc": "2026-10-28T04:28:28.783426+00:00"
     },
     "td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display_pr.db": {
-      "sha256": "bcb0c18169aa3a2f15d1cacb70c629b745104b955524594e42cdba36984eee9f",
-      "mtime_utc": "2026-10-27T19:27:37.541282+00:00"
+      "sha256": "bb8b778b0766c1aac6c97ba7b907a06921f6dfba322697b50cd579c14d6825ca",
+      "mtime_utc": "2026-10-28T04:43:46.112607+00:00"
     },
     "td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit": {
-      "sha256": "e42b60c661e2e958c193bfe430a86d3da31743f4f72fe94448486acf95aaa61e",
-      "mtime_utc": "2026-10-27T19:27:41.802396+00:00"
+      "sha256": "d133ea117a0055c169ddaf7b537907b58478c64669953c18c845304230c4b9f3",
+      "mtime_utc": "2026-10-28T04:43:50.645523+00:00"
     },
-    "sim/build/final_four_modes_20261028/synthesis.log": {
-      "sha256": "e9e917d02d57604d9abb168d33ac6ddc7ac01896e89599123f3ccffcbd317f5b",
-      "mtime_utc": "2026-10-27T18:53:58.885504+00:00"
+    "sim/build/spatial_bias_20261028/synthesis.log": {
+      "sha256": "1d10e2c94fa0533d6644196f2b360a81fada53e21ce134275a679f56e082caee",
+      "mtime_utc": "2026-10-28T04:25:00.857785+00:00"
     },
-    "sim/build/final_four_modes_20261028/route_bitgen.log": {
-      "sha256": "553e6e8d301935d8501ef7ed8186297571abd2f39914a111972bb5b69ed69f74",
-      "mtime_utc": "2026-10-27T19:27:42.914483+00:00"
+    "sim/build/spatial_bias_20261028/route_bitgen.log": {
+      "sha256": "7494905391b734779aac36803b2194fd2ddaed066a47d39503bb31a6634f4740",
+      "mtime_utc": "2026-10-28T04:43:51.766929+00:00"
     },
     "td_project/camera_to_dsi_display_Runs/phy_1/route.qor": {
-      "sha256": "c198c7e626d046c3d7ccde5cc752c9bb46fab955dcab1e1d110e84c17a7173e3",
-      "mtime_utc": "2026-10-27T19:27:22.487370+00:00"
+      "sha256": "6bfd4fc40ba204996bdede21e30644a83befa910df4e191be3a26a6a6057d72e",
+      "mtime_utc": "2026-10-28T04:43:30.412067+00:00"
     }
   }
 }

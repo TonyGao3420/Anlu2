@@ -1,5 +1,7 @@
 # Anlu2四模式总工程
 
+此文记录四模式合并阶段。后续顶部红偏、右下紫偏的位置颜色修正见SPATIAL_BIAS_20261028.md；最新资源、时序和比特流以output/manifest.json及BUILD_STATUS.md为准。
+
 四种功能现已全部合入Anlu2，唯一工程入口为td_project/camera_to_dsi_display.al，生产源码为user_source。主工程的旧D:/Anlogic/Anlu2路径声明已改为实际目录；旧prj/Anlu2.al已归档，避免打开另一套代码。发布总工程ZIP只包含这一套入口和源码。
 
 ## 功能与拨码

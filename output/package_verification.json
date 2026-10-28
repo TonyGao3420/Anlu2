@@ -1,8 +1,9 @@
 {
-  "zip_crc_and_content_sha256": "PASS",
+  "release": "Anlu2_SpatialColor_20261028",
+  "bit_sha256": "d133ea117a0055c169ddaf7b537907b58478c64669953c18c845304230c4b9f3",
+  "zip_crc_and_content": "PASS",
   "fresh_extract_prepare_and_source_audit": "PASS",
-  "self_contained_test_baseline": "PASS",
-  "single_active_project": "PASS",
-  "original_timing_constraints_retained": true,
+  "same_standard_named_and_compatibility_bits": "PASS",
+  "single_project": "PASS",
   "board_test_performed": false
 }
