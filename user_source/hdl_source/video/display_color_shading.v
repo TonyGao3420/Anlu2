@@ -17,30 +17,30 @@ module display_color_shading #(
     function [9:0] r_gain;
         input [3:0] node;
         begin case(node)
-            4'd0: r_gain=10'd242;
-            4'd1: r_gain=10'd283;
-            4'd2: r_gain=10'd256;
-            4'd3: r_gain=10'd234;
-            4'd4: r_gain=10'd308;
-            4'd5: r_gain=10'd251;
-            4'd6: r_gain=10'd228;
-            4'd7: r_gain=10'd288;
-            4'd8: r_gain=10'd250;
+            4'd0: r_gain=10'd241;
+            4'd1: r_gain=10'd249;
+            4'd2: r_gain=10'd243;
+            4'd3: r_gain=10'd257;
+            4'd4: r_gain=10'd273;
+            4'd5: r_gain=10'd243;
+            4'd6: r_gain=10'd249;
+            4'd7: r_gain=10'd260;
+            4'd8: r_gain=10'd193;
             default:r_gain=10'd256;
         endcase end
     endfunction
     function [9:0] b_gain;
         input [3:0] node;
         begin case(node)
-            4'd0: b_gain=10'd251;
-            4'd1: b_gain=10'd289;
-            4'd2: b_gain=10'd240;
-            4'd3: b_gain=10'd243;
-            4'd4: b_gain=10'd303;
-            4'd5: b_gain=10'd236;
-            4'd6: b_gain=10'd232;
-            4'd7: b_gain=10'd283;
-            4'd8: b_gain=10'd224;
+            4'd0: b_gain=10'd268;
+            4'd1: b_gain=10'd236;
+            4'd2: b_gain=10'd273;
+            4'd3: b_gain=10'd281;
+            4'd4: b_gain=10'd242;
+            4'd5: b_gain=10'd273;
+            4'd6: b_gain=10'd277;
+            4'd7: b_gain=10'd254;
+            4'd8: b_gain=10'd221;
             default:b_gain=10'd256;
         endcase end
     endfunction

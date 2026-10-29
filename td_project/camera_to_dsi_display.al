@@ -336,7 +336,6 @@
             </File>
             <File Path="../user_source/hdl_source/video/display_color_shading.v">
                 <FileInfo>
-                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
@@ -356,7 +355,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="59"/>
+                    <Attr Name="CompileOrder" Val="60"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/isp/raw_measured_shading.v">
@@ -364,7 +363,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="60"/>
+                    <Attr Name="CompileOrder" Val="61"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/video/display_common_tone.v">
@@ -372,7 +371,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="61"/>
+                    <Attr Name="CompileOrder" Val="62"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/video/display_edge_color.v">
@@ -380,7 +379,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="62"/>
+                    <Attr Name="CompileOrder" Val="63"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/video/roi_center_osd.v">
@@ -388,7 +387,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="58"/>
+                    <Attr Name="CompileOrder" Val="59"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/video/roi_background_stylize.v">
@@ -396,7 +395,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="63"/>
+                    <Attr Name="CompileOrder" Val="64"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/video/roi_motion_trail.v">
@@ -404,7 +403,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="64"/>
+                    <Attr Name="CompileOrder" Val="65"/>
                 </FileInfo>
             </File>
             <File Path="../user_source/hdl_source/video/style_switch_control.v">
@@ -412,7 +411,16 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="65"/>
+                    <Attr Name="CompileOrder" Val="66"/>
+                </FileInfo>
+            </File>
+            <File Path="../user_source/hdl_source/video/white_field_rgb_osd.v">
+                <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="58"/>
                 </FileInfo>
             </File>
         </Verilog>

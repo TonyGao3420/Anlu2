@@ -1,6 +1,6 @@
-// Anlu2 源码说明：板级顶层：连接 SC520 配置、两路 MIPI 接收、ISP、DDR2 四帧缓存、OSD 和 HDMI 输出。
-// 接口与使用约定：50 MHz板钟输入；显示端沿用官方mixer通路，ROI检测器只读观察DDR输出RGB并提供框坐标。
-// 工程状态：已列入TD编译清单。
+// Anlu2 婧愮爜璇存槑锛氭澘绾ч《灞傦細杩炴帴 SC520 閰嶇疆銆佷袱璺?MIPI 鎺ユ敹銆両SP銆丏DR2 鍥涘抚缂撳瓨銆丱SD 鍜?HDMI 杈撳嚭銆?
+// 鎺ュ彛涓庝娇鐢ㄧ害瀹氾細50 MHz鏉块挓杈撳叆锛涙樉绀虹娌跨敤瀹樻柟mixer閫氳矾锛孯OI妫€娴嬪櫒鍙瑙傚療DDR杈撳嚭RGB骞舵彁渚涙鍧愭爣銆?
+// 宸ョ▼鐘舵€侊細宸插垪鍏D缂栬瘧娓呭崟銆?
 
 // ================================================================
 // design_top_wrapper.v
@@ -15,7 +15,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     input wire I_rst_n,
     input wire I_sw3,          // SW3 E11: fourth mode overrides SW2.
     input wire I_sw2,          // SW2: 1=style + one-second trail; SW1 still controls servo.
-    input wire I_sw1,          // SW1：视觉伺服使能，1=开启，0=保持当前位置
+    input wire I_sw1,          // SW1锛氳瑙変己鏈嶄娇鑳斤紝1=寮€鍚紝0=淇濇寔褰撳墠浣嶇疆
 
     output wire O_cam_scl,
     inout  wire IO_cam_sda,
@@ -69,6 +69,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     (* keep = "true" *)wire        S_cam_i2c_error;
     localparam integer CAM_PWDNB_LOW_CYCLES = 23810;   // >= 1 ms at 23.809524 MHz
     localparam integer CAM_I2C_START_CYCLES = 142857;  // release + >= 5 ms
+    // 1 = 鐧藉満鏍囧畾妯″紡锛氬叧闂鑹叉牎姝ｃ€丩ogo/ROI/鏂囧瓧锛岃緭鍑哄共鍑€鎽勫儚澶寸敾闈?
+    localparam integer CALIBRATION_MODE = 0;
 
     wire [ 15:0] S_ae;
     wire [ 15:0] S_ag;
@@ -196,7 +198,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     wire         S_track2_dbg_color_match;
     reg          S_track2_result_toggle;
 
-    // SW1 使能：异步开关在 HDMI 像素时钟域做 2 级同步
+    // SW1 浣胯兘锛氬紓姝ュ紑鍏冲湪 HDMI 鍍忕礌鏃堕挓鍩熷仛 2 绾у悓姝?
     reg  [1:0]   S_sw1_sync;
     reg          S_sw1_seen;
     wire         S_sw1_enable = S_sw1_sync[1];
@@ -412,8 +414,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         (|S_ddr_user_rd_data), S_ddr_user_rd_valid, S_vo_ddr_rd_en, S_vi_ddr_wr_en
     };
 
-    // SC520CS上电后先保持PWDNB/XSHUTDN为低，再释放并等待内部上电完成，
-    // 避免PLL刚锁定就开始I2C初始化而造成寄存器偶发写入失败。
+    // SC520CS涓婄數鍚庡厛淇濇寔PWDNB/XSHUTDN涓轰綆锛屽啀閲婃斁骞剁瓑寰呭唴閮ㄤ笂鐢靛畬鎴愶紝
+    // 閬垮厤PLL鍒氶攣瀹氬氨寮€濮婭2C鍒濆鍖栬€岄€犳垚瀵勫瓨鍣ㄥ伓鍙戝啓鍏ュけ璐ャ€?
     always @(posedge S_24m_clk or negedge S_pll_lock) begin
         if (!S_pll_lock) begin
             S_cam_power_cnt <= 18'd0;
@@ -461,20 +463,20 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .O_ag(S_ag)
     );
 
-    // SC520CS原厂真实HD模式：1280x720@60、RAW10、2-Lane、828 Mbps/Lane。
-    // 当前寄存器表已关闭Slave/FSIN等待，Sensor以free-run方式连续输出。
+    // SC520CS鍘熷巶鐪熷疄HD妯″紡锛?280x720@60銆丷AW10銆?-Lane銆?28 Mbps/Lane銆?
+    // 褰撳墠瀵勫瓨鍣ㄨ〃宸插叧闂璖lave/FSIN绛夊緟锛孲ensor浠ree-run鏂瑰紡杩炵画杈撳嚭銆?
     uicfgcs520 #(
         .CLK_DIV(23809524 / 100000 - 1)
     ) u_uicfgcs520 (
-        .I_clk(S_24m_clk),  //系统时钟输入
+        .I_clk(S_24m_clk),  //绯荤粺鏃堕挓杈撳叆
         .I_rst_n(S_cam_i2c_ready),  // SC520CS power-up delay completed
         .I_ae_req(S_ae_req),
         .I_ae(S_ae),
         .I_ag(S_ag),
-        .O_cam_scl(O_cam_scl),  //I2C总线，SCL时钟
-        .IO_cam_sda(IO_cam_sda),  //I2C总线，SDA数据
-        .O_cfg_done(S_cam_cfg_done),  //摄像头寄存器初始化完成
-        .O_ae_cfg_done(S_ae_cfg_done),  //AE配置完成
+        .O_cam_scl(O_cam_scl),  //I2C鎬荤嚎锛孲CL鏃堕挓
+        .IO_cam_sda(IO_cam_sda),  //I2C鎬荤嚎锛孲DA鏁版嵁
+        .O_cfg_done(S_cam_cfg_done),  //鎽勫儚澶村瘎瀛樺櫒鍒濆鍖栧畬鎴?
+        .O_ae_cfg_done(S_ae_cfg_done),  //AE閰嶇疆瀹屾垚
         .O_sensor_id(S_cam_sensor_id),
         .O_sensor_id_ok(S_cam_sensor_id_ok),
         .O_iic_error(S_cam_i2c_error)
@@ -482,7 +484,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
     mipi_dphy_rx_ph1p_mipiio_wrapper #(
         .DPHY_RX_LOCATION("DPHY0"),
-        .HS_EQUALIZER    ("3dB"),    // 828 Mbps/Lane接收均衡
+        .HS_EQUALIZER    ("3dB"),    // 828 Mbps/Lane鎺ユ敹鍧囪　
         .HS_VGA_GAIN     ("8dB"),    //"-3dB","-1.5dB","0dB","1.5dB","3dB","4.5dB","6dB","7.5dB"
         .LANE_NUM        (2),
         .BYTE_NUM        (1)
@@ -527,7 +529,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     //    .clk(S_csi_rx_clk)
     //);
 
-    //csi 解码为RAW数据
+    //csi 瑙ｇ爜涓篟AW鏁版嵁
     csi_unpacket_2lane u_csi_unpacket (
         .I_clk     (S_csi_rx_clk),
         .I_rst_n   (S_rst_n),
@@ -541,7 +543,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     );
 
 
-    //解码为RAW8
+    //瑙ｇ爜涓篟AW8
     raw10_unpacket_2lane u_raw10_unpacket (
         .I_clk  (S_csi_rx_clk),
         .I_rst_n(S_rst_n),
@@ -558,7 +560,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     );
 
 
-    //将数据转为stream流
+    //灏嗘暟鎹浆涓簊tream娴?
     uial2axis #(
         .IMG_WIDTH(1280),
         .IMG_HEIGHT(720),
@@ -577,7 +579,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     );
 
 
-    // 原厂HD模式直接输出1280x720 RAW10，不再进行FPGA固定窗口裁剪。
+    // 鍘熷巶HD妯″紡鐩存帴杈撳嚭1280x720 RAW10锛屼笉鍐嶈繘琛孎PGA鍥哄畾绐楀彛瑁佸壀銆?
     assign S_raw_tdata  = S_axis_tdata;
     assign S_raw_tlast  = S_axis_tlast;
     assign S_raw_tvalid = S_axis_tvalid;
@@ -602,7 +604,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     //  );
 
 
-    //ISP算法顶层模块
+    //ISP绠楁硶椤跺眰妯″潡
     isp_top u_isp_top (
         .axi4s_video_aclk(S_csi_rx_clk),
         .I_rst_n         (S_rst_n),
@@ -611,7 +613,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .I_tdata         (S_raw_tdata),
         .I_tvalid        (S_raw_tvalid),
         .I_tdest         (10'd0),
-        .O_tready        (1'b1),            // 摄像头连续流，ISP不支持反压
+        .O_tready        (1'b1),            // 鎽勫儚澶磋繛缁祦锛孖SP涓嶆敮鎸佸弽鍘?
         .O_tdata         (S_ISP_O_tdata),
         .O_tlast         (S_ISP_O_tlast),
         .O_tuser         (S_ISP_O_tuser),
@@ -778,7 +780,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     wire S_color_vs,S_color_hs,S_color_de,S_color_protect;
     wire S_color_roi_de,S_color_roi_sof,S_color_roi_last;
     wire [23:0] S_color_display_rgb,S_color_roi_rgb;
-    scene_color_stream #(.RGB_SHADING_ENABLE(0),.POSITION_BIAS_ENABLE(1),
+    scene_color_stream #(.RGB_SHADING_ENABLE(1'b1),
+        .POSITION_BIAS_ENABLE(1'b0),
         .SOURCE_ROTATE_180(CAMERA_ROTATE_180)) u_scene_color_stream(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_hdmi_out_vsync),.in_hs(S_hdmi_out_hsync),.in_de(S_hdmi_out_de),
@@ -833,7 +836,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .dbg_color_match (S_track2_dbg_color_match)
     );
 
-    // SW1 异步输入同步到 HDMI 像素时钟域；变化时产生一次更新事件。
+    // SW1 寮傛杈撳叆鍚屾鍒?HDMI 鍍忕礌鏃堕挓鍩燂紱鍙樺寲鏃朵骇鐢熶竴娆℃洿鏂颁簨浠躲€?
     always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
         if (!S_hdmi_rst_n) begin
             S_sw1_sync <= 2'b00;
@@ -846,7 +849,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
     // The tracker publishes only complete frame results. Toggle-based bundled
     // data crosses safely to the independent 50 MHz servo timing domain.
-    // SW1 关闭时也翻转一次 toggle，让舵机锁存 valid=0 并保持当前位置。
+    // SW1 鍏抽棴鏃朵篃缈昏浆涓€娆?toggle锛岃鑸垫満閿佸瓨 valid=0 骞朵繚鎸佸綋鍓嶄綅缃€?
     always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
         if (!S_hdmi_rst_n)
             S_track2_result_toggle <= 1'b0;
@@ -874,6 +877,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .V_OFFSET  (0),
         .IMG_WIDTH (1280),
         .IMG_HEIGHT(720),
+        .OSD_ENABLE(CALIBRATION_MODE ? 1'b0 : 1'b1),
+        .CENTER_OSD_ENABLE(CALIBRATION_MODE ? 1'b0 : 1'b1),
         .DEBUG_MODE(0)
     ) u_hdmi_mixer (
         .I_clk          (S_hdmi_pixel_clk),
@@ -884,7 +889,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .I_video_user   (S_hdmi_user),
         .I_video_last   (S_hdmi_last),
         .I_debug_status (S_hdmi_debug_status),
-        .I_target_bbox_valid   (S_track2_valid && !S_multi_frame),
+        .I_target_bbox_valid   (CALIBRATION_MODE ? 1'b0 : (S_track2_valid && !S_multi_frame)),
         .I_target_bbox_x0      (S_track2_bbox_x0),
         .I_target_bbox_y0      (S_track2_bbox_y0),
         .I_target_bbox_x1      (S_track2_bbox_x1),
@@ -921,7 +926,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .CONTRAST_ENABLE(0),
         .SATURATION_ENABLE(0),
         .BRIGHTNESS_OFFSET(0),
-        .RGB_GAIN_Q8(256),
+        .RGB_GAIN_Q8(307),
         .BLACK_LEVEL(12),
         .WHITE_LEVEL(238),
         .SATURATION_Q8(320),
@@ -977,10 +982,10 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .sw2_async(I_sw2),.style_request(S_style_request));
     wire S_style_vs,S_style_hs,S_style_de,S_style_protect,S_style_roi,S_style_enable;
     wire [23:0] S_style_rgb;
-    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(1),.MODEL_STYLE_ENABLE(1),.CLEAN_STYLE_ENABLE(1),.MODEL_EDGE_THRESHOLD(32)) u_background_stylize(
+    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(CALIBRATION_MODE ? 1'b0 : 1'b1),.MODEL_STYLE_ENABLE(1),.CLEAN_STYLE_ENABLE(1),.MODEL_EDGE_THRESHOLD(32)) u_background_stylize(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_tone_vs),.in_hs(S_tone_hs),.in_de(S_tone_de),
-        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request && !S_multi_frame),
+        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request && !S_multi_frame && !CALIBRATION_MODE),
         .in_rgb(S_tone_rgb),.in_gray(S_style_luma_delay[14]),
         .bbox_valid(S_track2_valid),.bbox_x0(S_track2_bbox_x0),.bbox_y0(S_track2_bbox_y0),
         .bbox_x1(S_track2_bbox_x1),.bbox_y1(S_track2_bbox_y1),
@@ -996,7 +1001,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     roi_motion_trail #(.TTL_MS(1000),.SMOOTH_ENABLE(1),.SAMPLE_INTERVAL_MS(50),.JITTER_PIXELS(4)) u_motion_trail(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_style_vs),.in_hs(S_style_hs),.in_de(S_style_de),
-        .in_protect(S_style_protect),.in_roi(S_style_roi),.in_enable(S_style_enable),.in_clear(1'b0),
+        .in_protect(S_style_protect),.in_roi(S_style_roi),.in_enable(S_style_enable && !CALIBRATION_MODE),.in_clear(1'b0),
         .in_rgb(S_style_rgb),.ms_now(S_trail_ms),
         .point_valid(S_track2_valid),.point_x(S_track2_cx),.point_y(S_track2_cy),
         .out_vs(S_trail_vs),.out_hs(S_trail_hs),.out_de(S_trail_de),
@@ -1005,13 +1010,41 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
     // MERGED STYLE MODE END
 
+    // Restore multi-target overlay for normal servo + single/multi target modes.
     wire S_multi_vs,S_multi_hs,S_multi_de;wire [23:0] S_multi_rgb;
     multi_target_overlay u_multi_overlay(.clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_trail_vs),.in_hs(S_trail_hs),.in_de(S_trail_de),.in_protect(S_trail_protect),.in_rgb(S_trail_rgb),
-        .enable(S_multi_frame),.valid(S_multi_valid),.x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
+        .enable(CALIBRATION_MODE ? 1'b0 : S_multi_frame),.valid(S_multi_valid),.x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
         .count(S_multi_count),.total(S_multi_total),.process_us(S_multi_us),.overflow(S_multi_overflow),.late(S_multi_late),
         .age_us(S_latency_us),.frame_id(S_latency_id),.latency_valid(S_latency_valid),
         .out_vs(S_multi_vs),.out_hs(S_multi_hs),.out_de(S_multi_de),.out_rgb(S_multi_rgb));
+
+    // Calibration-only: nine patch averages and sampling rectangles.
+    wire S_dbg_vs,S_dbg_hs,S_dbg_de;
+    wire [23:0] S_dbg_rgb;
+    generate if (CALIBRATION_MODE) begin: white_field_debug
+        white_field_rgb_osd #(
+            .W(1280),
+            .H(720)
+        ) u_white_field_rgb_osd (
+            .clk    (S_hdmi_pixel_clk),
+            .rst_n  (S_hdmi_rst_n),
+            .in_vs  (S_multi_vs),
+            .in_hs  (S_multi_hs),
+            .in_de  (S_multi_de),
+            .in_rgb (S_multi_rgb),
+            .out_vs (S_dbg_vs),
+            .out_hs (S_dbg_hs),
+            .out_de (S_dbg_de),
+            .out_rgb(S_dbg_rgb)
+        );
+    end else begin: no_white_field_debug
+        assign S_dbg_vs  = S_multi_vs;
+        assign S_dbg_hs  = S_multi_hs;
+        assign S_dbg_de  = S_multi_de;
+        assign S_dbg_rgb = S_multi_rgb;
+    end endgenerate
+
     hdmi_tx u_hdmi_tx (
         .I_pixel_clk       (S_hdmi_pixel_clk),
         .I_serial_clk      (S_hdmi_serial_clk),
@@ -1021,13 +1054,13 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .O_edid_read_valid (),
         .O_edid_read_data  (),
         .I_video_rgb_enable(1'b1),
-        .I_video_in_vs     (S_multi_vs),
-        .I_video_in_de     (S_multi_de),
+        .I_video_in_vs     (S_dbg_vs),
+        .I_video_in_de     (S_dbg_de),
         .I_video_in_user   (1'b0),
         .I_video_in_valid  (1'b0),
         .I_video_in_last   (1'b0),
         .O_video_in_ready  (),
-        .I_video_in_data   (S_multi_rgb),
+        .I_video_in_data   (S_dbg_rgb),
         .I_audio_valid     (1'b0),
         .I_audio_left_data (24'd0),
         .I_audio_right_data(24'd0),
@@ -1046,3 +1079,4 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
 
 endmodule
+
