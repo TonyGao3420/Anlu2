@@ -1,5 +1,5 @@
 // Green-only detector. Read-only tap: no pixel modification or video backpressure.
-// 90..150 degree hue, >=25% saturation, >=12 chroma, G>=MIN_VALUE.
+// 90..150 degree hue, >=25% saturation, >=10 chroma, G>=MIN_VALUE.
 // Near-clipped G additionally needs >=25% separation from BOTH R and B.
 // Connected tile regions are evaluated separately; outputs change only at SOF.
 module roi_target_tracker #(
@@ -42,7 +42,7 @@ module roi_target_tracker #(
     wire green_match=(rgb_pipe[15:8]>=rgb_pipe[23:16]) &&
                      (rgb_pipe[15:8]>=rgb_pipe[7:0]) &&
                      ({1'b0,rb_diff,1'b0}<={2'b0,chroma}) &&
-                     (chroma>=12) && (chroma>=(rgb_pipe[15:8]>>2)) &&
+                     (chroma>=10) && (chroma>=(rgb_pipe[15:8]>>2)) &&
                      (rgb_pipe[15:8]>=MIN_VALUE) && highlight_ok;
     reg [IMG_W-1:0] line1,line2;
     reg t1,t2,m1,m2,b1,b2;

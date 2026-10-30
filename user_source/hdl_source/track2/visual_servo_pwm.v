@@ -40,11 +40,11 @@ module visual_servo_pwm #(
     parameter integer TILT_MAX_POSITION  = 800,  // tilt 最大限位（可改）
     parameter integer TILT_HOME_POSITION = 656,   // tilt 默认位置，90°
     parameter integer PAN_STEP_MIN       = 1,     // pan 最小步长
-    parameter integer PAN_STEP_MAX       = 4,     // pan 最大步长
+    parameter integer PAN_STEP_MAX       = 8,     // pan 最大步长
     parameter integer PAN_STEP_SHIFT     = 6,     // pan 步长 = error >> SHIFT
     parameter integer TILT_STEP_MIN      = 1,     // tilt 最小步长
-    parameter integer TILT_STEP_MAX      = 8,     // tilt 最大步长
-    parameter integer TILT_STEP_SHIFT    = 6,     // tilt 步长 = error >> SHIFT
+    parameter integer TILT_STEP_MAX      = 6,     // tilt 最大步长
+    parameter integer TILT_STEP_SHIFT    = 5,     // tilt 步长 = error >> SHIFT
     parameter integer PAN_STEP_PERIOD_MS  = 10,   // pan 步进周期，10 ms
     parameter integer TILT_STEP_PERIOD_MS = 50    // tilt 步进周期，50 ms
 ) (

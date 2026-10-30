@@ -169,7 +169,6 @@ proc opt_place_fun {} {
   }
 
 ### Editable zone for opt_place ###
-  set_param place seed 0
   place
   update_timing -mode manhattan
   report_timing_summary -file ${prj_name}_place.timing
