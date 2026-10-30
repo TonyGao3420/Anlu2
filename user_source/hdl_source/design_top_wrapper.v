@@ -999,12 +999,14 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),.ms_now(S_trail_ms));
     wire S_trail_vs,S_trail_hs,S_trail_de,S_trail_protect,S_trail_hit;
     wire [23:0] S_trail_rgb;
-    roi_motion_trail #(.TTL_MS(1000),.SMOOTH_ENABLE(1),.SAMPLE_INTERVAL_MS(50),.JITTER_PIXELS(4)) u_motion_trail(
+    roi_motion_trail #(.MULTI_ENABLE(1),.TTL_MS(1000),.SMOOTH_ENABLE(1),.SAMPLE_INTERVAL_MS(50),.JITTER_PIXELS(4)) u_motion_trail(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_style_vs),.in_hs(S_style_hs),.in_de(S_style_de),
         .in_protect(S_style_protect),.in_roi(S_style_roi),.in_enable(S_style_enable && !CALIBRATION_MODE),.in_clear(1'b0),
         .in_rgb(S_style_rgb),.ms_now(S_trail_ms),
         .point_valid(S_track2_valid),.point_x(S_track2_cx),.point_y(S_track2_cy),
+        .multi_mode(S_multi_frame),.multi_valid(S_multi_valid),
+        .multi_x0(S_multi_x0),.multi_y0(S_multi_y0),.multi_x1(S_multi_x1),.multi_y1(S_multi_y1),
         .out_vs(S_trail_vs),.out_hs(S_trail_hs),.out_de(S_trail_de),
         .out_protect(S_trail_protect),.out_hit(S_trail_hit),.out_rgb(S_trail_rgb),
         .render_busy(),.point_count(),.bank_valid());

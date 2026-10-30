@@ -1,12 +1,8 @@
 {
-  "passed": true,
-  "release": "Anlu2_Combo_Optimized_20261030",
-  "bit_sha256": "39439cb19ef7182d67b36a85f2c8f7db0e8f9e12e2b835177f3ee03f80d47872",
-  "zip_sha256": "81e281b47a90931a79fd2d1a0acdc4b323caf1566f239b1434221b2669e30cf4",
-  "crc_checked": true,
-  "one_al_entry": true,
-  "independent_preparation_and_audit": true,
-  "portable_simulation_source_references_checked": 77,
-  "standard_and_alias_bits_identical": true,
-  "legacy_zip_aliases_identical": true
+  "zip_sha256": "c083f6cbefbbe98be633c5df7e9dfe38a5d25d7f2c09c13becf0312d61bb0cde",
+  "production_source_files": 232,
+  "crc_and_all_source_config_and_bit_hashes_match": true,
+  "unpacked_audit_and_prepare_pass": true,
+  "simulation_compile_references_present": 25,
+  "unpacked_root": "D:\\HX1P35A_Contest_202606\\work\\eight_trails_package_check_221741\\Anlu2"
 }

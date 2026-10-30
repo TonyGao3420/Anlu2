@@ -1,0 +1,322 @@
+// Recent target-center polyline. Entirely display-only; no camera/ROI feedback.
+// History stores millisecond timestamps, not an assumed number of video frames.
+// Rebuild an inactive 1-bit quarter-resolution bitmap; publish only at VS.
+// RGB/VS/HS/DE/protect/ROI share the bitmap-prefetch and output register stages.
+module before_roi_motion_trail #(
+ parameter integer IMG_W=1280,IMG_H=720,SCALE_LOG2=2,HISTORY_DEPTH=256,
+ parameter integer TTL_MS=1000,MAX_LINK_GAP_MS=150,MAX_JUMP_PIXELS=320,FRAME_TIMEOUT_MS=250,
+ parameter integer SMOOTH_ENABLE=0,SAMPLE_INTERVAL_MS=0,JITTER_PIXELS=4,
+ parameter [23:0] TRAIL_RGB=24'hff8800
+)(
+ input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,in_roi,in_enable,in_clear,
+ input wire [23:0] in_rgb,
+ input wire [15:0] ms_now,
+ input wire point_valid,
+ input wire [15:0] point_x,point_y,
+ output reg out_vs,out_hs,out_de,out_protect,out_hit,
+ output reg [23:0] out_rgb,
+ output wire render_busy,output wire [8:0] point_count,output wire bank_valid
+);
+ localparam integer GW=(IMG_W+(1<<SCALE_LOG2)-1)>>SCALE_LOG2;
+ localparam integer GH=(IMG_H+(1<<SCALE_LOG2)-1)>>SCALE_LOG2;
+ localparam integer CELLS=GW*GH,AW=(CELLS<2)?1:$clog2(CELLS);
+ localparam integer HW=$clog2(HISTORY_DEPTH);
+ localparam [2:0] IDLE=0,CLEAR=1,REQ=2,USE=3,DRAW=4,ADV=5;
+ reg [2:0] state;
+ reg front_bank,front_valid,ready;
+ reg vs_d,armed,frame_enable;
+ reg [11:0] rx,ry;
+ reg [AW-1:0] raster_row;
+ wire sof=in_de && armed && rx==0 && ry==0;
+ wire vs_start=in_vs && !vs_d;
+ reg stream_seen;
+ reg [15:0] last_frame_ms;
+ wire [15:0] frame_gap=ms_now-last_frame_ms;
+ wire video_timeout=(FRAME_TIMEOUT_MS!=0) && stream_seen && frame_gap>=FRAME_TIMEOUT_MS;
+ wire clear_frame=sof && (!in_enable || in_clear);
+ wire clear_event=clear_frame || video_timeout;
+ // Rebuild/expire at every frame; storage samples have an independent cadence.
+ wire rebuild_frame=sof && in_enable && !in_clear && !video_timeout;
+ wire mode=sof?in_enable:frame_enable;
+ wire point_ok=point_valid && point_x<IMG_W && point_y<IMG_H;
+ wire [15:0] plot_x,plot_y;
+ generate if(SMOOTH_ENABLE)begin: smooth_path
+  before_roi_trail_point_filter #(.IMG_W(IMG_W),.IMG_H(IMG_H),.JITTER_PIXELS(JITTER_PIXELS),
+   .MAX_JUMP_PIXELS(MAX_JUMP_PIXELS),.MAX_LINK_GAP_MS(MAX_LINK_GAP_MS)) point_filter(
+   .clk(clk),.rst_n(rst_n),.update(rebuild_frame),.clear(clear_event),
+   .ms_now(ms_now),.point_valid(point_ok),.point_x(point_x),.point_y(point_y),
+   .filtered_x(plot_x),.filtered_y(plot_y));
+ end else begin: direct_path
+  assign plot_x=point_x;assign plot_y=point_y;
+ end endgenerate
+ reg previous_valid;
+ reg sample_started;
+ reg [15:0] next_sample_ms;
+ wire [15:0] due_age=ms_now-next_sample_ms;
+ wire sample_due=(SAMPLE_INTERVAL_MS==0) || !sample_started || !due_age[15];
+ // Always record loss, so decimation cannot reconnect across a missing target.
+ wire record=rebuild_frame && (!point_ok || !previous_valid || sample_due);
+ wire [8:0] gx=plot_x>>SCALE_LOG2;
+ wire [7:0] gy=plot_y>>SCALE_LOG2;
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin sample_started<=0;next_sample_ms<=0;end
+  else if(clear_event)begin sample_started<=0;next_sample_ms<=0;end
+  else if(record)begin
+   sample_started<=point_ok;
+   if(!point_ok || !sample_started || !previous_valid || due_age>=SAMPLE_INTERVAL_MS)
+    next_sample_ms<=ms_now+SAMPLE_INTERVAL_MS;
+   else next_sample_ms<=next_sample_ms+SAMPLE_INTERVAL_MS;
+  end
+ end
+ reg [8:0] previous_x;
+ reg [7:0] previous_y;
+ reg [15:0] previous_ms;
+ wire [15:0] sample_gap=ms_now-previous_ms;
+
+ reg [39:0] history[0:HISTORY_DEPTH-1];
+ reg [HW-1:0] head,scan_addr;
+ reg [HW:0] count,scan_left;
+ wire [HW-1:0] next_head=head+1'b1;
+ wire [HW:0] next_count=(count<HISTORY_DEPTH)?count+1'b1:count;
+ wire [HW-1:0] rebuild_head=record?next_head:head;
+ wire [HW:0] rebuild_count=record?next_count:count;
+ reg [39:0] entry_q;
+ reg [15:0] build_ms;
+ wire [15:0] entry_age=build_ms-entry_q[39:24];
+ wire expired=entry_age>=TTL_MS;
+ // Capture a sample at SOF, then validate its segment link on the next clock.
+ // The bitmap CLEAR pass precedes all history reads, so this write retiming
+ // preserves timestamps/publication while breaking the filter-to-ERAM path.
+ reg record_pending;
+ reg [HW-1:0] pending_addr;
+ reg [15:0] pending_ms;
+ reg pending_good,pending_link_base;
+ reg [8:0] pending_x,pending_previous_x;
+ reg [7:0] pending_y,pending_previous_y;
+ wire [8:0] pending_move_x=(pending_x>=pending_previous_x)?
+                         pending_x-pending_previous_x:pending_previous_x-pending_x;
+ wire [7:0] pending_move_y=(pending_y>=pending_previous_y)?
+                         pending_y-pending_previous_y:pending_previous_y-pending_y;
+ wire pending_link=pending_link_base &&
+   pending_move_x<=(MAX_JUMP_PIXELS>>SCALE_LOG2) && pending_move_y<=(MAX_JUMP_PIXELS>>SCALE_LOG2);
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin
+   record_pending<=0;pending_addr<=0;pending_ms<=0;pending_good<=0;pending_link_base<=0;
+   pending_x<=0;pending_y<=0;pending_previous_x<=0;pending_previous_y<=0;
+  end else begin
+   record_pending<=record && !clear_event;
+   if(record)begin
+    pending_addr<=head;pending_ms<=ms_now;pending_good<=point_ok;
+    pending_link_base<=previous_valid && point_ok && sample_gap<=MAX_LINK_GAP_MS;
+    pending_x<=gx;pending_y<=gy;pending_previous_x<=previous_x;pending_previous_y<=previous_y;
+   end
+  end
+ end
+ always @(posedge clk)if(rst_n)begin
+  if(record_pending && !clear_event)
+   history[pending_addr]<={pending_ms,pending_good,pending_link,pending_x,pending_y,5'd0};
+  else if(state==USE && entry_q[23] && expired)
+   history[scan_addr]<={entry_q[39:24],1'b0,entry_q[22:0]};
+  // An expired entry is permanently invalidated, so a 16-bit time wrap cannot
+  // resurrect an old trace during a long period with no target.
+  if(state==REQ)entry_q<=history[scan_addr];
+ end
+
+ reg mask0[0:CELLS-1];reg mask1[0:CELLS-1];
+ reg bit0,bit1;
+ reg [AW-1:0] clear_addr;
+ reg have_previous;
+ reg [8:0] last_x,draw_x,end_x;
+ reg [7:0] last_y,draw_y,end_y;
+ reg step_x_positive,step_y_positive;
+ reg signed [12:0] delta_x,delta_y,error;
+ wire signed [13:0] twice_error=$signed({error[12],error})<<<1;
+ wire step_x=twice_error>=-$signed({delta_y[12],delta_y});
+ wire step_y=twice_error<=$signed({delta_x[12],delta_x});
+ wire signed [12:0] next_error=error-(step_x?delta_y:13'sd0)+(step_y?delta_x:13'sd0);
+ wire [8:0] ex=entry_q[21:13];wire [7:0] ey=entry_q[12:5];
+ wire connect=have_previous && entry_q[22];
+ wire [8:0] sx=connect?last_x:ex;wire [7:0] sy=connect?last_y:ey;
+ wire [8:0] abs_dx=(ex>=sx)?ex-sx:sx-ex;
+ wire [7:0] abs_dy=(ey>=sy)?ey-sy:sy-ey;
+ // Constant shift/add, deliberately avoiding a pixel-address DSP multiplier.
+ function [AW-1:0] row_address;
+  input [7:0] yy;integer k;reg [AW-1:0] a,wide_y;
+  begin
+   a=0;wide_y=yy;
+   for(k=0;k<12;k=k+1)if((GW>>k)&1)a=a+(wide_y<<k);
+   row_address=a;
+  end
+ endfunction
+ wire [AW-1:0] draw_addr=row_address(draw_y)+draw_x;
+ wire [AW-1:0] read_addr=raster_row+(rx>>SCALE_LOG2);
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin stream_seen<=0;last_frame_ms<=0;end
+  else if(video_timeout)stream_seen<=0;
+  else if(sof)begin stream_seen<=1;last_frame_ms<=ms_now;end
+ end
+ always @(posedge clk)if(rst_n)begin
+  if(in_de && armed)begin bit0<=mask0[read_addr];bit1<=mask1[read_addr];end
+  // The front bitmap is never written. Reads from an inactive bank are unused.
+  if(state==CLEAR)begin
+   if(front_bank)mask0[clear_addr]<=0;else mask1[clear_addr]<=0;
+  end else if(state==DRAW)begin
+   if(front_bank)mask0[draw_addr]<=1;else mask1[draw_addr]<=1;
+  end
+ end
+
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin
+   vs_d<=0;armed<=0;frame_enable<=0;rx<=0;ry<=0;raster_row<=0;
+  end else begin
+   vs_d<=in_vs;
+   if(vs_start)begin armed<=1;rx<=0;ry<=0;raster_row<=0;end
+   else if(in_de && armed)begin
+    if(rx==IMG_W-1)begin
+     rx<=0;
+     if(ry==IMG_H-1)begin ry<=0;raster_row<=0;end
+     else begin
+      ry<=ry+1'b1;
+      if(ry[SCALE_LOG2-1:0]==(1<<SCALE_LOG2)-1)raster_row<=raster_row+GW;
+     end
+    end else rx<=rx+1'b1;
+   end
+   if(sof)frame_enable<=in_enable;
+  end
+ end
+
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin
+   state<=IDLE;front_bank<=0;front_valid<=0;ready<=0;
+   head<=0;count<=0;previous_valid<=0;previous_x<=0;previous_y<=0;previous_ms<=0;
+   scan_addr<=0;scan_left<=0;build_ms<=0;clear_addr<=0;have_previous<=0;
+   last_x<=0;last_y<=0;draw_x<=0;draw_y<=0;end_x<=0;end_y<=0;
+   step_x_positive<=0;step_y_positive<=0;delta_x<=0;delta_y<=0;error<=0;
+  end else begin
+   if(vs_start && ready)begin front_bank<=~front_bank;front_valid<=1;ready<=0;end
+   if(clear_event)begin
+    state<=IDLE;ready<=0;front_valid<=0;head<=0;count<=0;previous_valid<=0;have_previous<=0;
+   end else begin
+    if(record)begin
+     head<=next_head;count<=next_count;previous_valid<=point_ok;previous_ms<=ms_now;
+     if(point_ok)begin previous_x<=gx;previous_y<=gy;end
+    end
+    case(state)
+     IDLE:if(rebuild_frame && !ready && rebuild_count!=0)begin
+      build_ms<=ms_now;clear_addr<=0;have_previous<=0;
+      scan_addr<=rebuild_head-rebuild_count[HW-1:0];scan_left<=rebuild_count;state<=CLEAR;
+     end
+     CLEAR:if(clear_addr==CELLS-1)state<=REQ;else clear_addr<=clear_addr+1'b1;
+     REQ:state<=USE;
+     USE:if(entry_q[23] && !expired)begin
+      draw_x<=sx;draw_y<=sy;end_x<=ex;end_y<=ey;
+      delta_x<=$signed({4'd0,abs_dx});delta_y<=$signed({5'd0,abs_dy});
+      error<=$signed({4'd0,abs_dx})-$signed({5'd0,abs_dy});
+      step_x_positive<=sx<ex;step_y_positive<=sy<ey;
+      last_x<=ex;last_y<=ey;have_previous<=1;state<=DRAW;
+     end else begin have_previous<=0;state<=ADV;end
+     DRAW:if(draw_x==end_x && draw_y==end_y)state<=ADV;
+      else begin
+       error<=next_error;
+       if(step_x)draw_x<=step_x_positive?draw_x+1'b1:draw_x-1'b1;
+       if(step_y)draw_y<=step_y_positive?draw_y+1'b1:draw_y-1'b1;
+      end
+     ADV:if(scan_left==1)begin state<=IDLE;ready<=1;end
+      else begin scan_left<=scan_left-1'b1;scan_addr<=scan_addr+1'b1;state<=REQ;end
+     default:state<=IDLE;
+    endcase
+   end
+  end
+ end
+
+ reg pvs,phs,pde,pprotect,proi,pmode,pbank,pvalid;
+ reg [23:0] prgb;
+ wire hit=pde && pmode && pvalid && !pprotect && !proi && (pbank?bit1:bit0);
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin
+   pvs<=0;phs<=0;pde<=0;pprotect<=0;proi<=0;pmode<=0;pbank<=0;pvalid<=0;prgb<=0;
+   out_vs<=0;out_hs<=0;out_de<=0;out_protect<=0;out_hit<=0;out_rgb<=0;
+  end else begin
+   pvs<=in_vs;phs<=in_hs;pde<=in_de;pprotect<=in_protect;proi<=in_roi;pmode<=mode;
+   pbank<=front_bank;pvalid<=front_valid && !clear_event;prgb<=in_rgb;
+   out_vs<=pvs;out_hs<=phs;out_de<=pde;out_protect<=pprotect || hit;out_hit<=hit;
+   out_rgb<=!pde?24'd0:(hit?TRAIL_RGB:prgb);
+  end
+ end
+ assign render_busy=(state!=IDLE);assign point_count=count;assign bank_valid=front_valid;
+ // synthesis translate_off
+ initial begin
+  if(SCALE_LOG2<1 || GW>512 || GH>256 || HISTORY_DEPTH<2 || HISTORY_DEPTH>256 ||
+     (HISTORY_DEPTH&(HISTORY_DEPTH-1))!=0 || TTL_MS<1 || TTL_MS>=32768 || SAMPLE_INTERVAL_MS<0 || SAMPLE_INTERVAL_MS>=32768)
+   $fatal(1,"Unsupported trajectory geometry/history/time parameters");
+ end
+ // synthesis translate_on
+endmodule
+
+// Display-only trajectory conditioner. Detector coordinates/servo are untouched.
+// Combinational candidate is consumed at update by both history and filter state.
+module before_roi_trail_point_filter #(
+ parameter integer IMG_W=1280,IMG_H=720,JITTER_PIXELS=4,
+ parameter integer MAX_JUMP_PIXELS=320,MAX_LINK_GAP_MS=150
+)(input wire clk,rst_n,update,clear,input wire [15:0] ms_now,
+ input wire point_valid,input wire [15:0] point_x,point_y,
+ output wire [15:0] filtered_x,filtered_y);
+ reg seeded;reg [1:0] history_count;
+ reg [15:0] raw_x0,raw_x1,raw_y0,raw_y1,last_ms;
+ reg [17:0] smooth_x_q2,smooth_y_q2;
+ wire good=point_valid && point_x<IMG_W && point_y<IMG_H;
+ wire [15:0] gap=ms_now-last_ms;
+ wire restart=!seeded || gap>MAX_LINK_GAP_MS;
+ function [15:0] median3;
+  input [15:0] a,b,c;
+  begin
+   if(a>b)median3=(b>c)?b:((a>c)?c:a);
+   else median3=(a>c)?a:((b>c)?c:b);
+  end
+ endfunction
+ wire [15:0] mx=(history_count!=0)?median3(point_x,raw_x0,raw_x1):point_x;
+ wire [15:0] my=(history_count!=0)?median3(point_y,raw_y0,raw_y1):point_y;
+ wire [18:0] round_x={1'b0,smooth_x_q2}+19'd2;
+ wire [18:0] round_y={1'b0,smooth_y_q2}+19'd2;
+ wire [15:0] current_x=round_x[17:2],current_y=round_y[17:2];
+ wire [15:0] dx=(mx>=current_x)?mx-current_x:current_x-mx;
+ wire [15:0] dy=(my>=current_y)?my-current_y:current_y-my;
+ wire [18:0] average_x={1'b0,smooth_x_q2}+{1'b0,mx,2'b0}+19'd1;
+ wire [18:0] average_y={1'b0,smooth_y_q2}+{1'b0,my,2'b0}+19'd1;
+ wire [17:0] candidate_x=restart?{point_x,2'b0}:
+  ((dx>MAX_JUMP_PIXELS)?{mx,2'b0}:((dx<=JITTER_PIXELS)?smooth_x_q2:average_x[18:1]));
+ wire [17:0] candidate_y=restart?{point_y,2'b0}:
+  ((dy>MAX_JUMP_PIXELS)?{my,2'b0}:((dy<=JITTER_PIXELS)?smooth_y_q2:average_y[18:1]));
+ wire [18:0] result_x={1'b0,candidate_x}+19'd2,result_y={1'b0,candidate_y}+19'd2;
+ assign filtered_x=result_x[17:2];assign filtered_y=result_y[17:2];
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin
+   seeded<=0;history_count<=0;raw_x0<=0;raw_x1<=0;raw_y0<=0;raw_y1<=0;
+   last_ms<=0;smooth_x_q2<=0;smooth_y_q2<=0;
+  end else if(clear)begin seeded<=0;history_count<=0;end
+  else if(update)begin
+   if(!good)begin seeded<=0;history_count<=0;end
+   else begin
+    seeded<=1;last_ms<=ms_now;smooth_x_q2<=candidate_x;smooth_y_q2<=candidate_y;
+    raw_x0<=point_x;raw_y0<=point_y;
+    raw_x1<=restart?point_x:raw_x0;raw_y1<=restart?point_y:raw_y0;
+    if(restart)history_count<=1;else if(history_count<2)history_count<=history_count+1'b1;
+   end
+  end
+ end
+endmodule
+
+module before_video_ms_clock #(parameter integer CLK_HZ=75000000)(
+ input wire clk,rst_n,output reg [15:0] ms_now
+);
+ localparam integer DIV=CLK_HZ/1000,CW=(DIV<2)?1:$clog2(DIV);
+ reg [CW-1:0] cycles;
+ always @(posedge clk or negedge rst_n)begin
+  if(!rst_n)begin cycles<=0;ms_now<=0;end
+  else if(cycles==DIV-1)begin cycles<=0;ms_now<=ms_now+1'b1;end
+  else cycles<=cycles+1'b1;
+ end
+ // synthesis translate_off
+ initial if(CLK_HZ<1000 || CLK_HZ%1000!=0)$fatal(1,"Clock must be an integer number of kHz");
+ // synthesis translate_on
+endmodule
