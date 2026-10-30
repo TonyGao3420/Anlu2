@@ -40,11 +40,19 @@ module visual_servo_pwm #(
     parameter integer TILT_MAX_POSITION  = 800,  // tilt 最大限位（可改）
     parameter integer TILT_HOME_POSITION = 656,   // tilt 默认位置，90°
     parameter integer PAN_STEP_MIN       = 1,     // pan 最小步长
-    parameter integer PAN_STEP_MAX       = 8,     // pan 最大步长
-    parameter integer PAN_STEP_SHIFT     = 6,     // pan 步长 = error >> SHIFT
+    parameter integer PAN_STEP_MAX       = 21,    // pan 边缘最大步长（约 369°/s）
+    parameter integer PAN_STEP_NEAR_MAX  = 8,     // 近距离仍使用原最大步长
+    parameter integer PAN_STEP_KNEE      = 192,   // 超过该误差才开始加速
+    parameter integer PAN_STEP_FAST_MUL  = 15,    // 远距离加速斜率
+    parameter integer PAN_STEP_FAST_SHIFT= 9,
+    parameter integer PAN_STEP_SHIFT     = 6,     // 近距离步长 = error >> SHIFT
     parameter integer TILT_STEP_MIN      = 1,     // tilt 最小步长
-    parameter integer TILT_STEP_MAX      = 6,     // tilt 最大步长
-    parameter integer TILT_STEP_SHIFT    = 5,     // tilt 步长 = error >> SHIFT
+    parameter integer TILT_STEP_MAX      = 107,   // tilt 边缘最大步长（约 376°/s）
+    parameter integer TILT_STEP_NEAR_MAX = 6,     // 近距离原最大步长
+    parameter integer TILT_STEP_KNEE     = 192,   // 超过该误差才开始加速
+    parameter integer TILT_STEP_FAST_MUL = 77,
+    parameter integer TILT_STEP_FAST_SHIFT=7,
+    parameter integer TILT_STEP_SHIFT    = 6,     // 近距离步长 = error >> SHIFT
     parameter integer PAN_STEP_PERIOD_MS  = 10,   // pan 步进周期，10 ms
     parameter integer TILT_STEP_PERIOD_MS = 50    // tilt 步进周期，50 ms
 ) (
@@ -148,13 +156,23 @@ module visual_servo_pwm #(
         (tilt_error > DEAD_BAND_PIXELS) : (tilt_error < -DEAD_BAND_PIXELS);
 
     // ------------------------------------------------------------------
-    // 动态步长：误差越大，步长越大；上限由 STEP_MAX 限制。
+    // 步长分两段：近距离保持原步长；超过 KNEE 后随误差线性加速，
+    // 到画面最边缘时接近 SG5010 在 5V 下的最大速度。
     // ------------------------------------------------------------------
     wire [12:0] pan_abs_error  = pan_error[12]  ? (13'd0 - pan_error)  : pan_error;
     wire [12:0] tilt_abs_error = tilt_error[12] ? (13'd0 - tilt_error) : tilt_error;
 
-    wire [12:0] pan_step_calc  = PAN_STEP_MIN  + (pan_abs_error  >> PAN_STEP_SHIFT);
-    wire [12:0] tilt_step_calc = TILT_STEP_MIN + (tilt_abs_error >> TILT_STEP_SHIFT);
+    wire [12:0] pan_slow_calc  = PAN_STEP_MIN  + (pan_abs_error  >> PAN_STEP_SHIFT);
+    wire [12:0] tilt_slow_calc = TILT_STEP_MIN + (tilt_abs_error >> TILT_STEP_SHIFT);
+    wire [12:0] pan_slow_cap   = (pan_slow_calc  > PAN_STEP_NEAR_MAX)  ? PAN_STEP_NEAR_MAX  : pan_slow_calc;
+    wire [12:0] tilt_slow_cap  = (tilt_slow_calc > TILT_STEP_NEAR_MAX) ? TILT_STEP_NEAR_MAX : tilt_slow_calc;
+
+    wire [12:0] pan_fast_delta  = (pan_abs_error  > PAN_STEP_KNEE)  ? (pan_abs_error  - PAN_STEP_KNEE)  : 13'd0;
+    wire [12:0] tilt_fast_delta = (tilt_abs_error > TILT_STEP_KNEE) ? (tilt_abs_error - TILT_STEP_KNEE) : 13'd0;
+    wire [12:0] pan_extra  = (pan_fast_delta  * PAN_STEP_FAST_MUL)  >> PAN_STEP_FAST_SHIFT;
+    wire [12:0] tilt_extra = (tilt_fast_delta * TILT_STEP_FAST_MUL) >> TILT_STEP_FAST_SHIFT;
+    wire [12:0] pan_step_calc  = pan_slow_cap  + pan_extra;
+    wire [12:0] tilt_step_calc = tilt_slow_cap + tilt_extra;
 
     wire [10:0] pan_step_dyn =
         (pan_step_calc > PAN_STEP_MAX) ? PAN_STEP_MAX : pan_step_calc[10:0];
