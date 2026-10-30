@@ -69,10 +69,18 @@ module display_color_shading #(
     assign out_vs=vp[7];assign out_hs=hp[7];
     assign out_de=dp[7];assign out_protect=pp[7];
     reg [8:0] fx1,fy1,fy2,fy3;
-    reg [9:0] r00,r01,r10,r11,b00,b01,b10,b11;
-    reg signed [20:0] rt_product,rb_product,bt_product,bb_product;
+    // Exact pre-rounded horizontal interpolants, two channels per ERAM row.
+    // Three 1024x18 ROMs replace four per-pixel horizontal multipliers.
+    wire [9:0] row_addr={(x>=640),fx};
+    wire [17:0] row0,row1,row2;
+    shading_horizontal_rom #(.INIT_FILE("shading_row0.mif")) rom0(clk,row_addr,row0);
+    shading_horizontal_rom #(.INIT_FILE("shading_row1.mif")) rom1(clk,row_addr,row1);
+    shading_horizontal_rom #(.INIT_FILE("shading_row2.mif")) rom2(clk,row_addr,row2);
+    reg bottom_half1;
     reg [9:0] rt_base2,rb_base2,bt_base2,bb_base2;
     reg [9:0] rt3,rb3,bt3,bb3;
+    wire signed [8:0] rd=$signed({1'b0,rb3})-$signed({1'b0,rt3});
+    wire signed [8:0] bd=$signed({1'b0,bb3})-$signed({1'b0,bt3});
     reg signed [20:0] r_vertical,b_vertical;
     reg [9:0] r_base4,b_base4;
     reg [9:0] r5,b5,r6,b6;
@@ -95,9 +103,7 @@ module display_color_shading #(
             vp<=0;hp<=0;dp<=0;pp<=0;out_rgb<=0;
             for(i=0;i<7;i=i+1) raw[i]<=0;
             fx1<=0;fy1<=0;fy2<=0;fy3<=0;
-            r00<=256;r01<=256;r10<=256;r11<=256;
-            b00<=256;b01<=256;b10<=256;b11<=256;
-            rt_product<=0;rb_product<=0;bt_product<=0;bb_product<=0;
+            bottom_half1<=0;
             rt_base2<=256;rb_base2<=256;bt_base2<=256;bb_base2<=256;
             rt3<=256;rb3<=256;bt3<=256;bb3<=256;
             r_vertical<=0;b_vertical<=0;r_base4<=256;b_base4<=256;
@@ -107,26 +113,17 @@ module display_color_shading #(
             vp<={vp[6:0],in_vs};hp<={hp[6:0],in_hs};
             dp<={dp[6:0],in_de};pp<={pp[6:0],in_protect};
             raw[0]<=in_rgb;for(i=1;i<7;i=i+1) raw[i]<=raw[i-1];
-            // 1: coordinates, node gains.
-            fx1<=fx;fy1<=fy;
-            r00<=r_gain(tl);r01<=r_gain(tl+4'd1);
-            r10<=r_gain(tl+4'd3);r11<=r_gain(tl+4'd4);
-            b00<=b_gain(tl);b01<=b_gain(tl+4'd1);
-            b10<=b_gain(tl+4'd3);b11<=b_gain(tl+4'd4);
-            // 2: horizontal products, signed to allow lower edge gains.
-            rt_product<=($signed({1'b0,r01})-$signed({1'b0,r00}))*$signed({1'b0,fx1});
-            rb_product<=($signed({1'b0,r11})-$signed({1'b0,r10}))*$signed({1'b0,fx1});
-            bt_product<=($signed({1'b0,b01})-$signed({1'b0,b00}))*$signed({1'b0,fx1});
-            bb_product<=($signed({1'b0,b11})-$signed({1'b0,b10}))*$signed({1'b0,fx1});
-            rt_base2<=r00;rb_base2<=r10;bt_base2<=b00;bb_base2<=b10;fy2<=fy1;
-            // 3: two horizontally interpolated rows.
-            rt3<=$signed({1'b0,rt_base2})+((rt_product+21'sd128)>>>8);
-            rb3<=$signed({1'b0,rb_base2})+((rb_product+21'sd128)>>>8);
-            bt3<=$signed({1'b0,bt_base2})+((bt_product+21'sd128)>>>8);
-            bb3<=$signed({1'b0,bb_base2})+((bb_product+21'sd128)>>>8);fy3<=fy2;
+            // P1 ROM read; P2 row selection; P3 original horizontal boundary.
+            fy1<=fy;bottom_half1<=(y>=360);
+            rt_base2<=bottom_half1?{1'b0,row1[8:0]}:{1'b0,row0[8:0]};
+            rb_base2<=bottom_half1?{1'b0,row2[8:0]}:{1'b0,row1[8:0]};
+            bt_base2<=bottom_half1?{1'b0,row1[17:9]}:{1'b0,row0[17:9]};
+            bb_base2<=bottom_half1?{1'b0,row2[17:9]}:{1'b0,row1[17:9]};
+            fy2<=fy1;
+            rt3<=rt_base2;rb3<=rb_base2;bt3<=bt_base2;bb3<=bb_base2;fy3<=fy2;
             // 4/5: vertical interpolation.
-            r_vertical<=($signed({1'b0,rb3})-$signed({1'b0,rt3}))*$signed({1'b0,fy3});
-            b_vertical<=($signed({1'b0,bb3})-$signed({1'b0,bt3}))*$signed({1'b0,fy3});
+            r_vertical<=rd*$signed({1'b0,fy3});
+            b_vertical<=bd*$signed({1'b0,fy3});
             r_base4<=rt3;b_base4<=bt3;
             r5<=$signed({1'b0,r_base4})+((r_vertical+21'sd128)>>>8);
             b5<=$signed({1'b0,b_base4})+((b_vertical+21'sd128)>>>8);
@@ -142,4 +139,18 @@ module display_color_shading #(
                            finish_channel(raw[6][7:0],blue_product)};
         end
     end
+endmodule
+
+// Native single-cycle ROM. File is relative to this HDL source directory.
+module shading_horizontal_rom #(parameter INIT_FILE="shading_row0.mif")(
+ input clk,input [9:0] addr,output [17:0] q);
+ PH1P_LOGIC_ERAM #(.DATA_WIDTH_A(18),.ADDR_WIDTH_A(10),.DATA_DEPTH_A(1024),
+ .DATA_WIDTH_B(18),.ADDR_WIDTH_B(10),.DATA_DEPTH_B(1024),.MODE("DP"),
+ .REGMODE_A("NOREG"),.REGMODE_B("OUTREG"),.IMPLEMENT("20K(FAST)"),
+ .RESETMODE_A("ASYNC"),.RESETMODE_B("ASYNC"),.OREGSET_A("RESET"),.OREGSET_B("RESET"),
+ .ASYNC_RESET_RELEASE_A("ASYNC"),.ASYNC_RESET_RELEASE_B("ASYNC"),.CLKMODE("ASYNC"),
+ .SSROVERCE("DISABLE"),.INIT_FILE(INIT_FILE),.FILL_ALL("NONE")) ram(
+ .dia(18'd0),.addra(10'd0),.cea(1'b0),.ocea(1'b0),.clka(clk),.wea(1'b0),.rsta(1'b0),.bea(1'b0),.doa(),
+ .dib(18'd0),.addrb(addr),.ceb(1'b1),.oceb(1'b1),.clkb(clk),.web(1'b0),.rstb(1'b0),.beb(1'b0),.dob(q),
+ .ecc_sbiterrinj(1'b0),.ecc_dbiterrinj(1'b0),.ecc_sbiterr(),.ecc_dbiterr());
 endmodule

@@ -1175,14 +1175,27 @@ module anlogic_logo_eram(input wire I_clk,I_rst_n,input wire [16:0] I_addr,outpu
 endmodule
 
 // Three-clock display-only overlay. All metadata is sampled once per frame.
-module multi_target_overlay #(parameter integer W=1280,H=720,N=8)(
+module multi_target_overlay #(parameter integer W=1280,H=720,N=8,COMBO_STATUS=0,FRAME_STABLE_BOXES=0)(
  input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,input wire [23:0] in_rgb,
- input wire enable,input wire [N-1:0] valid,input wire [N*12-1:0] x0,y0,x1,y1,
+ input wire style_active,input wire enable,input wire [N-1:0] valid,input wire [N*12-1:0] x0,y0,x1,y1,
  input wire [3:0] count,input wire [15:0] total,process_us,input wire overflow,late,
  input wire [23:0] age_us,input wire [15:0] frame_id,input wire latency_valid,
  output reg out_vs,out_hs,out_de,output reg [23:0] out_rgb);
  reg vs_d,armed;reg [11:0] x,y;wire first=in_de && armed && x==0 && y==0;
- reg mode;reg [N-1:0] fv;reg [N*12-1:0] fx0,fy0,fx1,fy1;
+ reg mode,style_mode;reg [N-1:0] sv;reg [N*12-1:0] sx0,sy0,sx1,sy1;
+ // The main detector already holds these boxes for the complete active frame.
+ // Generic callers retain the original local snapshot unless explicitly enabled.
+ wire [N-1:0] fv=FRAME_STABLE_BOXES?valid:sv;
+ wire [N*12-1:0] fx0=FRAME_STABLE_BOXES?x0:sx0,fy0=FRAME_STABLE_BOXES?y0:sy0;
+ wire [N*12-1:0] fx1=FRAME_STABLE_BOXES?x1:sx1,fy1=FRAME_STABLE_BOXES?y1:sy1;
+ // synthesis translate_off
+ generate if(FRAME_STABLE_BOXES)begin: check_frame_boxes
+  reg [N*49-1:0] held;
+  always @(posedge clk)if(first)held<={valid,x0,y0,x1,y1};
+  else if(rst_n && in_de && armed && {valid,x0,y0,x1,y1}!==held)
+   $fatal(1,"Overlay detector boxes changed during active frame");
+ end endgenerate
+ // synthesis translate_on
  reg [3:0] fc;reg [15:0] ft,fu,fid;reg fo,fl,lv,stale;
  reg [23:0] fa;reg stale_sticky;reg [15:0] last_id;
  // Three values share one 24-cycle binary-to-BCD engine. No divider or DSP.
@@ -1192,7 +1205,7 @@ module multi_target_overlay #(parameter integer W=1280,H=720,N=8)(
  reg [23:0] adjusted;integer q,i;
  always @*begin adjusted=bcd;for(q=0;q<6;q=q+1)if(bcd[q*4+:4]>=5)adjusted[q*4+:4]=bcd[q*4+:4]+4'd3;end
  always @(posedge clk or negedge rst_n)if(!rst_n)begin
-  vs_d<=0;armed<=0;x<=0;y<=0;mode<=0;fv<=0;fx0<=0;fy0<=0;fx1<=0;fy1<=0;
+  vs_d<=0;armed<=0;x<=0;y<=0;mode<=0;style_mode<=0;sv<=0;sx0<=0;sy0<=0;sx1<=0;sy1<=0;
   fc<=0;ft<=0;fu<=0;fid<=0;fo<=0;fl<=0;lv<=0;stale<=0;fa<=0;last_id<=0;stale_sticky<=0;
   job<=0;bitn<=0;busy<=0;load<=0;binary<=0;bcd<=0;total_bcd<=0;us_bcd<=0;age_bcd<=0;
 
@@ -1203,7 +1216,7 @@ module multi_target_overlay #(parameter integer W=1280,H=720,N=8)(
   if(frame_id!=last_id)begin last_id<=frame_id;stale_sticky<=0;end
   else if(latency_valid && age_us>=24'd200000)stale_sticky<=1;
   if(first)begin
-   mode<=enable;fv<=valid;fx0<=x0;fy0<=y0;fx1<=x1;fy1<=y1;
+   mode<=enable;style_mode<=COMBO_STATUS?style_active:1'b0;sv<=valid;sx0<=x0;sy0<=y0;sx1<=x1;sy1<=y1;
    fc<=count;ft<=total;fu<=process_us;fid<=frame_id;fo<=overflow;fl<=late;
    lv<=latency_valid;stale<=stale_sticky || age_us>=24'd200000;fa<=age_us;
    job<=0;busy<=1;load<=1;
@@ -1279,7 +1292,7 @@ module multi_target_overlay #(parameter integer W=1280,H=720,N=8)(
    if(px>=1008 && px<1264 && py>=16 && py<112)begin
     hud=1;col=(px-1008)>>4;hr=(py-16)>>4;tx=px[3:0];ty=py[3:0];ch=" ";
     case(hr)
-     0:case(col)0:ch="M";1:ch="O";2:ch="D";3:ch="E";4:ch=":";5:ch="M";6:ch="U";7:ch="L";8:ch="T";9:ch="I";endcase
+     0:case(col)0:ch="M";1:ch="O";2:ch="D";3:ch="E";4:ch=":";5:ch="M";6:ch="U";7:ch="L";8:ch="T";9:ch="I";10:ch=style_mode?"+":" ";11:ch=style_mode?"S":" ";12:ch=style_mode?"T":" ";13:ch=style_mode?"Y":" ";14:ch=style_mode?"L":" ";15:ch=style_mode?"E":" ";endcase
      1:case(col)0:ch="N";1:ch=":";2:ch=dec(fc);4:ch="T";5:ch="O";6:ch="T";7:ch=":";8,9,10,11,12:ch=dec(total_bcd[(12-col)*4+:4]);14:ch=fo?"+":" ";15:ch=fl?"L":" ";endcase
      2:case(col)0:ch="L";1:ch="A";2:ch="T";3:ch=":";
       4,5,6,7,8,9:ch=lv && !stale?dec(age_bcd[(9-col)*4+:4]):"-";

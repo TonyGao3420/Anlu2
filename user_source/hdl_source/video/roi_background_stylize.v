@@ -11,7 +11,7 @@ module roi_background_stylize #(
  parameter integer BLOCK_LOG2=3,EDGE_THRESHOLD=40,
  parameter integer MOTION_ENABLE=0,STATUS_ENABLE=0,MOTION_HIGH=12,MOTION_LOW=6,
  parameter integer MODEL_STYLE_ENABLE=0,MODEL_EDGE_THRESHOLD=24,
- parameter integer CLEAN_STYLE_ENABLE=0,
+ parameter integer CLEAN_STYLE_ENABLE=0,MULTI_ROI_ENABLE=0,MULTI_ROI_STABLE_INPUT=0,
  parameter integer FRAME_TIMEOUT_CYCLES=18750000
 )(
  input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,in_enable,
@@ -21,7 +21,9 @@ module roi_background_stylize #(
  input wire bbox_valid,
  input wire [15:0] bbox_x0,bbox_y0,bbox_x1,bbox_y1,
  output wire out_vs,out_hs,out_de,out_protect,
- output wire [23:0] out_rgb,output wire out_roi,output wire out_enable
+ output wire [23:0] out_rgb,output wire out_roi,output wire out_enable,
+ input wire multi_mode,input wire [7:0] multi_valid,
+ input wire [95:0] multi_x0,multi_y0,multi_x1,multi_y1
 );
  localparam integer B=1<<BLOCK_LOG2,COLS=IMG_W>>BLOCK_LOG2;
  localparam integer CW=(COLS<2)?1:$clog2(COLS);
@@ -39,8 +41,38 @@ module roi_background_stylize #(
  wire use_enable=first_pixel?in_enable:frame_enable;
  wire [15:0] use_x0=first_pixel?bbox_x0:fx0,use_y0=first_pixel?bbox_y0:fy0;
  wire [15:0] use_x1=first_pixel?bbox_x1:fx1,use_y1=first_pixel?bbox_y1:fy1;
- wire keep_roi=use_valid && {4'd0,x}>=use_x0 && {4'd0,x}<=use_x1 &&
+ wire keep_single=use_valid && {4'd0,x}>=use_x0 && {4'd0,x}<=use_x1 &&
                            {4'd0,y}>=use_y0 && {4'd0,y}<=use_y1;
+ // Reuse the existing one-bit ROI metadata and video RAM for the union.
+ wire keep_roi;
+ generate if(MULTI_ROI_ENABLE)begin: multi_roi
+  reg fm;wire [7:0] fv;wire [95:0] fx0,fy0,fx1,fy1;
+  if(MULTI_ROI_STABLE_INPUT)begin: stable_source
+   // The detector already publishes atomic SOF results, stable for active video.
+   assign fv=multi_valid;assign fx0=multi_x0;assign fy0=multi_y0;assign fx1=multi_x1;assign fy1=multi_y1;
+   // synthesis translate_off
+   reg [391:0] held;
+   always @(posedge clk)if(first_pixel)held<={multi_valid,multi_x0,multi_y0,multi_x1,multi_y1};
+   else if(rst_n && in_de && armed && {multi_valid,multi_x0,multi_y0,multi_x1,multi_y1}!==held)$fatal(1,"Detector box contract violated during active frame");
+   // synthesis translate_on
+  end else begin: snapshot_source
+   reg [7:0] sv;reg [95:0] sx0,sy0,sx1,sy1;
+   always @(posedge clk or negedge rst_n)if(!rst_n)begin sv<=0;sx0<=0;sy0<=0;sx1<=0;sy1<=0;end
+   else if(first_pixel)begin sv<=multi_valid;sx0<=multi_x0;sy0<=multi_y0;sx1<=multi_x1;sy1<=multi_y1;end
+   assign fv=sv;assign fx0=sx0;assign fy0=sy0;assign fx1=sx1;assign fy1=sy1;
+  end
+  wire [7:0] roi_hits,first_hits;
+  genvar ri;
+  for(ri=0;ri<8;ri=ri+1)begin: target
+   assign roi_hits[ri]=fv[ri] && x>=fx0[ri*12+:12] && x<=fx1[ri*12+:12] && y>=fy0[ri*12+:12] && y<=fy1[ri*12+:12];
+   // At first_pixel x=y=0, unsigned upper bounds always include zero.
+   assign first_hits[ri]=multi_valid[ri] && multi_x0[ri*12+:12]==0 && multi_y0[ri*12+:12]==0;
+  end
+  always @(posedge clk or negedge rst_n)if(!rst_n)fm<=0;else if(first_pixel)fm<=multi_mode;
+  assign keep_roi=first_pixel?(multi_mode?(|first_hits):keep_single):(fm?(|roi_hits):keep_single);
+ end else begin: single_roi
+  assign keep_roi=keep_single;
+ end endgenerate
  // Display-only green selection with the detector's existing hue/saturation
  // and bright-white rejection rules. It never feeds back into detection.
  wire [7:0] r=in_rgb[23:16],g=in_rgb[15:8],b=in_rgb[7:0];

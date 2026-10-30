@@ -13,7 +13,7 @@
 module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     input wire I_sys_clk,
     input wire I_rst_n,
-    input wire I_sw3,          // SW3 E11: fourth mode overrides SW2.
+    input wire I_sw3,          // SW3 E11: multi-target enable; independent of SW2.
     input wire I_sw2,          // SW2: 1=style + one-second trail; SW1 still controls servo.
     input wire I_sw1,          // SW1锛氳瑙変己鏈嶄娇鑳斤紝1=寮€鍚紝0=淇濇寔褰撳墠浣嶇疆
 
@@ -982,11 +982,12 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .sw2_async(I_sw2),.style_request(S_style_request));
     wire S_style_vs,S_style_hs,S_style_de,S_style_protect,S_style_roi,S_style_enable;
     wire [23:0] S_style_rgb;
-    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(CALIBRATION_MODE ? 1'b0 : 1'b1),.MODEL_STYLE_ENABLE(1),.CLEAN_STYLE_ENABLE(1),.MODEL_EDGE_THRESHOLD(32)) u_background_stylize(
+    roi_background_stylize #(.IMG_W(1280),.IMG_H(720),.LINE_TOTAL(1650),.MOTION_ENABLE(1),.STATUS_ENABLE(CALIBRATION_MODE ? 1'b0 : 1'b1),.MODEL_STYLE_ENABLE(1),.CLEAN_STYLE_ENABLE(1),.MULTI_ROI_ENABLE(1),.MULTI_ROI_STABLE_INPUT(1),.MODEL_EDGE_THRESHOLD(32)) u_background_stylize(
         .clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_tone_vs),.in_hs(S_tone_hs),.in_de(S_tone_de),
-        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request && !S_multi_frame && !CALIBRATION_MODE),
+        .in_protect(S_style_protect_delay[14]),.in_enable(S_style_request && !CALIBRATION_MODE),
         .in_rgb(S_tone_rgb),.in_gray(S_style_luma_delay[14]),
+        .multi_mode(S_multi_frame),.multi_valid(S_multi_valid),.multi_x0(S_multi_x0),.multi_y0(S_multi_y0),.multi_x1(S_multi_x1),.multi_y1(S_multi_y1),
         .bbox_valid(S_track2_valid),.bbox_x0(S_track2_bbox_x0),.bbox_y0(S_track2_bbox_y0),
         .bbox_x1(S_track2_bbox_x1),.bbox_y1(S_track2_bbox_y1),
         .out_vs(S_style_vs),.out_hs(S_style_hs),.out_de(S_style_de),
@@ -1012,9 +1013,9 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
     // Restore multi-target overlay for normal servo + single/multi target modes.
     wire S_multi_vs,S_multi_hs,S_multi_de;wire [23:0] S_multi_rgb;
-    multi_target_overlay u_multi_overlay(.clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
+    multi_target_overlay #(.COMBO_STATUS(1),.FRAME_STABLE_BOXES(1)) u_multi_overlay(.clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_trail_vs),.in_hs(S_trail_hs),.in_de(S_trail_de),.in_protect(S_trail_protect),.in_rgb(S_trail_rgb),
-        .enable(CALIBRATION_MODE ? 1'b0 : S_multi_frame),.valid(S_multi_valid),.x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
+        .style_active(S_style_enable),.enable(CALIBRATION_MODE ? 1'b0 : S_multi_frame),.valid(S_multi_valid),.x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
         .count(S_multi_count),.total(S_multi_total),.process_us(S_multi_us),.overflow(S_multi_overflow),.late(S_multi_late),
         .age_us(S_latency_us),.frame_id(S_latency_id),.latency_valid(S_latency_valid),
         .out_vs(S_multi_vs),.out_hs(S_multi_hs),.out_de(S_multi_de),.out_rgb(S_multi_rgb));
