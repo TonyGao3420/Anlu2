@@ -17,30 +17,30 @@ module display_color_shading #(
     function [9:0] r_gain;
         input [3:0] node;
         begin case(node)
-            4'd0: r_gain=10'd241;
-            4'd1: r_gain=10'd249;
-            4'd2: r_gain=10'd243;
-            4'd3: r_gain=10'd257;
-            4'd4: r_gain=10'd273;
-            4'd5: r_gain=10'd243;
-            4'd6: r_gain=10'd249;
-            4'd7: r_gain=10'd260;
-            4'd8: r_gain=10'd193;
+            4'd0: r_gain=10'd227;
+            4'd1: r_gain=10'd282;
+            4'd2: r_gain=10'd213;
+            4'd3: r_gain=10'd219;
+            4'd4: r_gain=10'd327;
+            4'd5: r_gain=10'd206;
+            4'd6: r_gain=10'd206;
+            4'd7: r_gain=10'd249;
+            4'd8: r_gain=10'd203;
             default:r_gain=10'd256;
         endcase end
     endfunction
     function [9:0] b_gain;
         input [3:0] node;
         begin case(node)
-            4'd0: b_gain=10'd268;
-            4'd1: b_gain=10'd236;
-            4'd2: b_gain=10'd273;
-            4'd3: b_gain=10'd281;
-            4'd4: b_gain=10'd242;
-            4'd5: b_gain=10'd273;
-            4'd6: b_gain=10'd277;
-            4'd7: b_gain=10'd254;
-            4'd8: b_gain=10'd221;
+            4'd0: b_gain=10'd228;
+            4'd1: b_gain=10'd257;
+            4'd2: b_gain=10'd240;
+            4'd3: b_gain=10'd229;
+            4'd4: b_gain=10'd281;
+            4'd5: b_gain=10'd237;
+            4'd6: b_gain=10'd227;
+            4'd7: b_gain=10'd251;
+            4'd8: b_gain=10'd243;
             default:b_gain=10'd256;
         endcase end
     endfunction
@@ -50,17 +50,17 @@ module display_color_shading #(
     reg [17:0] scaled_y;
     always @* begin
         tl=((y<360)?4'd0:4'd3)+((x<640)?4'd0:4'd1);
-        if(x<=128) fx=0;
-        else if(x>=1152) fx=256;
-        else if(x<640) fx=(x-128)>>1;
-        else fx=(x-640)>>1;
+        if(x<=64) fx=0;
+        else if(x>=1216) fx=256;
+        else if(x<640) fx=((x-64)*57)>>7;
+        else fx=((x-640)*57)>>7;
         dy=0;scaled_y=0;
-        if(y<=90) fy=0;
-        else if(y>=630) fy=256;
+        if(y<=32) fy=0;
+        else if(y>=688) fy=256;
         else begin
-            dy=(y<360)?y-90:y-360;
-            // 243/256 approximates 256/270; max error < one weight step.
-            scaled_y=dy*8'd243+18'd128;
+            dy=(y<360)?y-32:y-360;
+            // 200/256 maps the 328-pixel half-span to full weight.
+            scaled_y=dy*8'd200+18'd128;
             fy=scaled_y[16:8];
         end
     end

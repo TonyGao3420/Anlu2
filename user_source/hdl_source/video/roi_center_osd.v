@@ -79,6 +79,8 @@ module roi_center_osd #(
  wire vertical_sign=(glyph_col==7 || glyph_col==8) && glyph_row>=6 && glyph_row<=9;
  wire glyph_on=(character=="-")?horizontal_sign:
                (character=="+")?(horizontal_sign || vertical_sign):row_bits[15-glyph_col];
- assign hit=(pixel_x>=HUD_X && pixel_x<HUD_X+544 && pixel_y>=HUD_Y && pixel_y<HUD_Y+32);
+ // Transparent ROI HUD background: only glyph pixels inside the HUD area.
+ wire hud_area=(pixel_x>=HUD_X && pixel_x<HUD_X+544 && pixel_y>=HUD_Y && pixel_y<HUD_Y+32);
+ assign hit=hud_area && glyph_on;
  assign rgb=glyph_on?24'hfff200:24'h000000;
 endmodule

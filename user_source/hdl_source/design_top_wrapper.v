@@ -889,6 +889,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .I_video_user   (S_hdmi_user),
         .I_video_last   (S_hdmi_last),
         .I_debug_status (S_hdmi_debug_status),
+        .I_center_osd_enable (!(S_multi_frame || S_sw1_enable)),
         .I_target_bbox_valid   (CALIBRATION_MODE ? 1'b0 : (S_track2_valid && !S_multi_frame)),
         .I_target_bbox_x0      (S_track2_bbox_x0),
         .I_target_bbox_y0      (S_track2_bbox_y0),
@@ -1017,7 +1018,10 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     wire S_multi_vs,S_multi_hs,S_multi_de;wire [23:0] S_multi_rgb;
     multi_target_overlay #(.COMBO_STATUS(1),.FRAME_STABLE_BOXES(1)) u_multi_overlay(.clk(S_hdmi_pixel_clk),.rst_n(S_hdmi_rst_n),
         .in_vs(S_trail_vs),.in_hs(S_trail_hs),.in_de(S_trail_de),.in_protect(S_trail_protect),.in_rgb(S_trail_rgb),
-        .style_active(S_style_enable),.enable(CALIBRATION_MODE ? 1'b0 : S_multi_frame),.valid(S_multi_valid),.x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
+        .style_active(S_style_enable),.servo_on(S_sw1_enable),.multi_mode(S_multi_frame),
+        .enable(CALIBRATION_MODE ? 1'b0 : 1'b1),
+        .valid(CALIBRATION_MODE ? 8'd0 : (S_multi_frame ? S_multi_valid : 8'd0)),
+        .x0(S_multi_x0),.y0(S_multi_y0),.x1(S_multi_x1),.y1(S_multi_y1),
         .count(S_multi_count),.total(S_multi_total),.process_us(S_multi_us),.overflow(S_multi_overflow),.late(S_multi_late),
         .age_us(S_latency_us),.frame_id(S_latency_id),.latency_valid(S_latency_valid),
         .out_vs(S_multi_vs),.out_hs(S_multi_hs),.out_de(S_multi_de),.out_rgb(S_multi_rgb));
@@ -1082,4 +1086,3 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
 
 endmodule
-

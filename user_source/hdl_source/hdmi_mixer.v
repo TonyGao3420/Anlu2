@@ -21,6 +21,7 @@ module hdmi_mixer #(
     input wire I_video_last,
 
     input wire [3:0] I_debug_status,
+    input wire       I_center_osd_enable,
 
     // Frame-level target bounds from the single-green-object tracker.
     input wire        I_target_bbox_valid,
@@ -676,7 +677,7 @@ module hdmi_mixer #(
 
     // The tracker publishes at corrected-camera SOF, a few clocks after mixer SOF.
     // Capture on line 1 so both axes use that complete result, well before the HUD.
-    wire S_center_hit;
+    wire S_center_hit_raw;
     wire [23:0] S_center_rgb;
     wire S_center_valid;
     wire signed [15:0] S_center_x,S_center_y;
@@ -688,12 +689,14 @@ module hdmi_mixer #(
             .bbox_x0(I_target_bbox_x0),.bbox_y0(I_target_bbox_y0),
             .bbox_x1(I_target_bbox_x1),.bbox_y1(I_target_bbox_y1),
             .pixel_x(S_x_2d),.pixel_y(S_y_2d),
-            .hit(S_center_hit),.rgb(S_center_rgb),
+            .hit(S_center_hit_raw),.rgb(S_center_rgb),
             .center_valid(S_center_valid),.center_x(S_center_x),.center_y(S_center_y));
     end else begin: no_center_hud
-        assign S_center_hit=1'b0;assign S_center_rgb=24'd0;
+        assign S_center_hit_raw=1'b0;assign S_center_rgb=24'd0;
         assign S_center_valid=1'b0;assign S_center_x=16'd0;assign S_center_y=16'd0;
     end endgenerate
+
+    assign S_center_hit = I_center_osd_enable && S_center_hit_raw;
 
     assign O_video_rd_en = I_video_de;
 
@@ -1177,7 +1180,7 @@ endmodule
 // Three-clock display-only overlay. All metadata is sampled once per frame.
 module multi_target_overlay #(parameter integer W=1280,H=720,N=8,COMBO_STATUS=0,FRAME_STABLE_BOXES=0)(
  input wire clk,rst_n,in_vs,in_hs,in_de,in_protect,input wire [23:0] in_rgb,
- input wire style_active,input wire enable,input wire [N-1:0] valid,input wire [N*12-1:0] x0,y0,x1,y1,
+ input wire style_active,input wire servo_on,input wire multi_mode,input wire enable,input wire [N-1:0] valid,input wire [N*12-1:0] x0,y0,x1,y1,
  input wire [3:0] count,input wire [15:0] total,process_us,input wire overflow,late,
  input wire [23:0] age_us,input wire [15:0] frame_id,input wire latency_valid,
  output reg out_vs,out_hs,out_de,output reg [23:0] out_rgb);
@@ -1273,6 +1276,7 @@ module multi_target_overlay #(parameter integer W=1280,H=720,N=8,COMBO_STATUS=0,
    "I":glyph={5'b01110,5'b00100,5'b00100,5'b00100,5'b00100,5'b00100,5'b01110};
    "N":glyph={5'b10001,5'b11001,5'b11001,5'b10101,5'b10011,5'b10011,5'b10001};
    "U":glyph={5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b01110};
+   "V":glyph={5'b10001,5'b10001,5'b10001,5'b10001,5'b10001,5'b01010,5'b00100};
    "X":glyph={5'b10001,5'b10001,5'b01010,5'b00100,5'b01010,5'b10001,5'b10001};
    "+":glyph={5'b00000,5'b00100,5'b00100,5'b11111,5'b00100,5'b00100,5'b00000};
    default:glyph=35'd0;
@@ -1289,20 +1293,29 @@ module multi_target_overlay #(parameter integer W=1280,H=720,N=8,COMBO_STATUS=0,
        py==fy0[z*12+:12] || py==fy0[z*12+:12]+12'd1 || py==fy1[z*12+:12] || py+12'd1==fy1[z*12+:12]))begin hit=1;paint=color(z);end
    end
    // Replaces the previous right-side mode HUD only in mode 4.
-   if(px>=1008 && px<1264 && py>=16 && py<112)begin
-    hud=1;col=(px-1008)>>4;hr=(py-16)>>4;tx=px[3:0];ty=py[3:0];ch=" ";
-    case(hr)
-     0:case(col)0:ch="M";1:ch="O";2:ch="D";3:ch="E";4:ch=":";5:ch="M";6:ch="U";7:ch="L";8:ch="T";9:ch="I";10:ch=style_mode?"+":" ";11:ch=style_mode?"S":" ";12:ch=style_mode?"T":" ";13:ch=style_mode?"Y":" ";14:ch=style_mode?"L":" ";15:ch=style_mode?"E":" ";endcase
-     1:case(col)0:ch="N";1:ch=":";2:ch=dec(fc);4:ch="T";5:ch="O";6:ch="T";7:ch=":";8,9,10,11,12:ch=dec(total_bcd[(12-col)*4+:4]);14:ch=fo?"+":" ";15:ch=fl?"L":" ";endcase
-     2:case(col)0:ch="L";1:ch="A";2:ch="T";3:ch=":";
-      4,5,6,7,8,9:ch=lv && !stale?dec(age_bcd[(9-col)*4+:4]):"-";
-      10:ch="U";11:ch="S";13:ch=stale?"S":" ";endcase
-     3:case(col)0:ch="D";1:ch="E";2:ch="T";3:ch=":";4,5,6,7,8,9:ch=dec(us_bcd[(9-col)*4+:4]);10:ch="U";11:ch="S";endcase
-     4:case(col)0:ch="F";1:ch="I";2:ch="D";3:ch=":";4,5,6,7:ch=hexch(fid[(7-col)*4+:4]);endcase
-     5:begin if(col<N*2 && !col[0])ch="1"+col[3:1];end
-    endcase
-    paint=hr==5?color(col[3:1]):24'h60ffff;
-   end
+    if(px>=1008 && px<1264 && py>=16 && py<128)begin
+     hud=1;col=(px-1008)>>4;hr=(py-16)>>4;tx=px[3:0];ty=py[3:0];ch=" ";
+     case(hr)
+      0:case(col)0:ch="M";1:ch="O";2:ch="D";3:ch="E";4:ch=":";
+        5:ch=multi_mode?"M":"S";6:ch=multi_mode?"U":"I";7:ch=multi_mode?"L":"N";
+        8:ch=multi_mode?"T":"G";9:ch=multi_mode?"I":"L";10:ch=multi_mode?(style_mode?"+":" "):"E";
+        11:ch=style_mode?"S":" ";12:ch=style_mode?"T":" ";13:ch=style_mode?"Y":" ";
+        14:ch=style_mode?"L":" ";15:ch=style_mode?"E":" ";endcase
+      1:case(col)0:ch="N";1:ch=":";2:ch=dec(fc);
+        4:ch="T";5:ch="O";6:ch="T";7:ch=":";
+        8,9,10,11,12:ch=dec(total_bcd[(12-col)*4+:4]);
+        14:ch=fo?"+":" ";15:ch=fl?"L":" ";endcase
+      2:case(col)0:ch="S";1:ch="E";2:ch="R";3:ch="V";4:ch="O";5:ch=":";
+        6:ch="O";7:ch=servo_on?"N":"F";8:ch=servo_on?" ": "F";9:ch=" ";endcase
+      3:case(col)0:ch="L";1:ch="A";2:ch="T";3:ch=":";
+        4,5,6,7,8,9:ch=lv && !stale?dec(age_bcd[(9-col)*4+:4]):"-";
+        10:ch="U";11:ch="S";13:ch=stale?"S":" ";endcase
+      4:case(col)0:ch="D";1:ch="E";2:ch="T";3:ch=":";4,5,6,7,8,9:ch=dec(us_bcd[(9-col)*4+:4]);10:ch="U";11:ch="S";endcase
+      5:case(col)0:ch="F";1:ch="I";2:ch="D";3:ch=":";4,5,6,7:ch=hexch(fid[(7-col)*4+:4]);endcase
+      6:begin if(col<N*2 && !col[0])ch="1"+col[3:1];end
+     endcase
+     paint=hr==6?color(col[3:1]):24'h60ffff;
+    end
   end
   bits=glyph(ch);row=0;
   case(ty[3:1])0:row=bits[34:30];1:row=bits[29:25];2:row=bits[24:20];3:row=bits[19:15];4:row=bits[14:10];5:row=bits[9:5];6:row=bits[4:0];endcase

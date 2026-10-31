@@ -131,8 +131,6 @@ module video_enhance #(
         end
     endfunction
 
-    // Apply the same small gain/offset to R, G and B; clamp highlights.
-    // With offset zero, black remains black. OSD and ROI colors are protected.
     function [7:0] brighten_channel;
         input [7:0] value;
         integer lifted;
@@ -141,6 +139,7 @@ module video_enhance #(
             brighten_channel = (lifted > 255) ? 8'd255 : lifted[7:0];
         end
     endfunction
+
 
     // 9 个锚点构成分段线性近似，替代每通道 256 项 case LUT。
     // 斜率用常数乘法并右移 5 位，保持暗部提亮且黑白端点精确，显著节省组合逻辑。
