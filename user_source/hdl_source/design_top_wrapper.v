@@ -605,7 +605,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
 
 
     //ISP绠楁硶椤跺眰妯″潡
-    isp_top u_isp_top (
+    isp_top #(.AWB_ENABLE(0)) u_isp_top (
         .axi4s_video_aclk(S_csi_rx_clk),
         .I_rst_n         (S_rst_n),
         .I_tlast         (S_raw_tlast),

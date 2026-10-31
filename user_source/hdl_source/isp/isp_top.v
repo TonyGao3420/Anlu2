@@ -1,4 +1,6 @@
-module isp_top (
+module isp_top #(
+    parameter integer AWB_ENABLE = 1
+) (
     input 			axi4s_video_aclk,
     input 			I_rst_n			,
     input 			I_tlast			,
@@ -83,7 +85,8 @@ data128_96 u_data128_96 (
 
 awb_frame_stable #(
     .IMG_HEIGHT(720 ),
-    .IMG_WIDTH (1280)
+    .IMG_WIDTH (1280),
+    .AWB_ENABLE(AWB_ENABLE)
 ) u_awb (
     .I_clk   (axi4s_video_aclk),
     .I_rst_n (I_rst_n),

@@ -608,10 +608,6 @@
                 <BitgenProperty::GeneralOption>
                     <compress>on</compress>
                 </BitgenProperty::GeneralOption>
-                <RouteProperty>
-                    <effort>normal</effort>
-                    <post_route_opt>auto</post_route_opt>
-                </RouteProperty>
             </Strategy>
             <UserParams>
             </UserParams>

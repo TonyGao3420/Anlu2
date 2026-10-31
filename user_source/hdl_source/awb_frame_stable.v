@@ -20,7 +20,8 @@ version:     :
 // Frame-consistent derivative of official AWB: same stream buffering and IP.
 // Complete-frame statistics, measured black subtraction, update only at SOF.
 module awb_frame_stable #(
- parameter IMG_HEIGHT=720,IMG_WIDTH=1280,BLACK_LEVEL=14,MIN_SAMPLES=256
+ parameter IMG_HEIGHT=720,IMG_WIDTH=1280,BLACK_LEVEL=14,MIN_SAMPLES=256,
+ parameter AWB_ENABLE=1
 )(input I_clk,I_rst_n,I_tlast,I_tuser,input [95:0] I_tdata,input I_tvalid,
  output I_tready,O_tlast,O_tuser,output [95:0] O_tdata,output O_tvalid,input O_tready);
  localparam integer FRAME_BEATS=IMG_HEIGHT*(IMG_WIDTH/4);
@@ -71,10 +72,10 @@ module awb_frame_stable #(
  in_r_r1<=20'h10000;in_b_r1<=20'h10000;candidate_r<=20'h10000;candidate_b<=20'h10000;
  candidate_valid<=0;gain_initialized<=0;
  end else begin
- if(done && frame_eligible)begin candidate_r<=clamp_gain(qr);candidate_b<=clamp_gain(qb);candidate_valid<=1;end
+ if(done && frame_eligible && AWB_ENABLE)begin candidate_r<=clamp_gain(qr);candidate_b<=clamp_gain(qb);candidate_valid<=1;end
  if(I_tuser)begin
   candidate_valid<=0;
-  if(candidate_valid)begin
+  if(candidate_valid && AWB_ENABLE)begin
    in_r_r1<=gain_initialized?approach(in_r_r1,candidate_r):candidate_r;
    in_b_r1<=gain_initialized?approach(in_b_r1,candidate_b):candidate_b;
    gain_initialized<=1;

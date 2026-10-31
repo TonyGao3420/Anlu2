@@ -42,17 +42,21 @@ module visual_servo_pwm #(
     parameter integer PAN_STEP_MIN       = 1,     // pan 最小步长
     parameter integer PAN_STEP_MAX       = 21,    // pan 边缘最大步长（约 369°/s）
     parameter integer PAN_STEP_NEAR_MAX  = 8,     // 近距离仍使用原最大步长
-    parameter integer PAN_STEP_KNEE      = 192,   // 超过该误差才开始加速
-    parameter integer PAN_STEP_FAST_MUL  = 15,    // 远距离加速斜率
+    parameter integer PAN_STEP_KNEE      = 300,   // 超过该误差才开始加速
+    parameter integer PAN_STEP_FAST_MUL  = 20,    // 远距离加速斜率（保持边缘 21）
     parameter integer PAN_STEP_FAST_SHIFT= 9,
     parameter integer PAN_STEP_SHIFT     = 6,     // 近距离步长 = error >> SHIFT
+    parameter integer PAN_D_SHIFT        = 1,     // D 项 = 上一步步长 >> SHIFT（Kd=0.5）
+    parameter integer PAN_D_HIGH         = 560,   // pan D 在接近边缘前退出
     parameter integer TILT_STEP_MIN      = 1,     // tilt 最小步长
-    parameter integer TILT_STEP_MAX      = 107,   // tilt 边缘最大步长（约 376°/s）
+    parameter integer TILT_STEP_MAX      = 27,    // tilt 边缘最大步长（约 1/4 最大速度）
     parameter integer TILT_STEP_NEAR_MAX = 6,     // 近距离原最大步长
     parameter integer TILT_STEP_KNEE     = 192,   // 超过该误差才开始加速
-    parameter integer TILT_STEP_FAST_MUL = 77,
+    parameter integer TILT_STEP_FAST_MUL = 16,
     parameter integer TILT_STEP_FAST_SHIFT=7,
     parameter integer TILT_STEP_SHIFT    = 6,     // 近距离步长 = error >> SHIFT
+    parameter integer TILT_D_SHIFT        = 1,     // D 项 = 上一步步长 >> SHIFT（Kd=0.5）
+    parameter integer TILT_D_HIGH         = 320,   // tilt D 在接近边缘前退出
     parameter integer PAN_STEP_PERIOD_MS  = 10,   // pan 步进周期，10 ms
     parameter integer TILT_STEP_PERIOD_MS = 50    // tilt 步进周期，50 ms
 ) (
@@ -99,6 +103,10 @@ module visual_servo_pwm #(
     reg        target_valid_held;
     reg [15:0] target_x_held;
     reg [15:0] target_y_held;
+
+    // 上一步实际输出的步长，用作 D 项的阻尼输入
+    reg [10:0] pan_last_step;
+    reg [10:0] tilt_last_step;
 
     always @(posedge clk_50m or negedge rst_n) begin
         if (!rst_n) begin
@@ -174,10 +182,21 @@ module visual_servo_pwm #(
     wire [12:0] pan_step_calc  = pan_slow_cap  + pan_extra;
     wire [12:0] tilt_step_calc = tilt_slow_cap + tilt_extra;
 
+    // D 项：中等偏差区间启用，靠近边缘时退出以保留最大速度。
+    // 下限与 extra 的起点一致；上限为靠近边缘的位置。
+    wire pan_d_active  = (pan_abs_error  >= PAN_STEP_KNEE)  && (pan_abs_error  <= PAN_D_HIGH);
+    wire tilt_d_active = (tilt_abs_error >= TILT_STEP_KNEE) && (tilt_abs_error <= TILT_D_HIGH);
+    wire [10:0] pan_d_corr  = pan_d_active  ? (pan_last_step  >> PAN_D_SHIFT)  : 11'd0;
+    wire [10:0] tilt_d_corr = tilt_d_active ? (tilt_last_step >> TILT_D_SHIFT) : 11'd0;
+    wire [12:0] pan_step_pd  = (pan_step_calc  > pan_d_corr)  ? (pan_step_calc  - pan_d_corr)  : 13'd0;
+    wire [12:0] tilt_step_pd = (tilt_step_calc > tilt_d_corr) ? (tilt_step_calc - tilt_d_corr) : 13'd0;
+
     wire [10:0] pan_step_dyn =
-        (pan_step_calc > PAN_STEP_MAX) ? PAN_STEP_MAX : pan_step_calc[10:0];
+        (pan_step_pd < PAN_STEP_MIN) ? PAN_STEP_MIN :
+        (pan_step_pd > PAN_STEP_MAX) ? PAN_STEP_MAX : pan_step_pd[10:0];
     wire [10:0] tilt_step_dyn =
-        (tilt_step_calc > TILT_STEP_MAX) ? TILT_STEP_MAX : tilt_step_calc[10:0];
+        (tilt_step_pd < TILT_STEP_MIN) ? TILT_STEP_MIN :
+        (tilt_step_pd > TILT_STEP_MAX) ? TILT_STEP_MAX : tilt_step_pd[10:0];
 
     // ------------------------------------------------------------------
     // pan/tilt 独立步进节拍；目标无效时清零并保持位置。
@@ -229,17 +248,26 @@ module visual_servo_pwm #(
         if (!rst_n) begin
             pan_position  <= PAN_HOME_POSITION;
             tilt_position <= TILT_HOME_POSITION;
+            pan_last_step  <= 11'd0;
+            tilt_last_step <= 11'd0;
+        end else if (!target_valid_held) begin
+            pan_last_step  <= 11'd0;
+            tilt_last_step <= 11'd0;
         end else if (target_valid_held && (pan_step_tick || tilt_step_tick)) begin
             if (pan_step_tick && pan_step_pos) begin
                 if ((pan_position + pan_step_dyn) <= PAN_MAX_POSITION)
                     pan_position <= pan_position + pan_step_dyn;
                 else
                     pan_position <= PAN_MAX_POSITION;
+                pan_last_step <= pan_step_dyn;
             end else if (pan_step_tick && pan_step_neg) begin
                 if (pan_position >= (PAN_MIN_POSITION + pan_step_dyn))
                     pan_position <= pan_position - pan_step_dyn;
                 else
                     pan_position <= PAN_MIN_POSITION;
+                pan_last_step <= pan_step_dyn;
+            end else if (pan_step_tick) begin
+                pan_last_step <= 11'd0;
             end
 
             if (tilt_step_tick && tilt_step_pos) begin
@@ -247,11 +275,15 @@ module visual_servo_pwm #(
                     tilt_position <= tilt_position + tilt_step_dyn;
                 else
                     tilt_position <= TILT_MAX_POSITION;
+                tilt_last_step <= tilt_step_dyn;
             end else if (tilt_step_tick && tilt_step_neg) begin
                 if (tilt_position >= (TILT_MIN_POSITION + tilt_step_dyn))
                     tilt_position <= tilt_position - tilt_step_dyn;
                 else
                     tilt_position <= TILT_MIN_POSITION;
+                tilt_last_step <= tilt_step_dyn;
+            end else if (tilt_step_tick) begin
+                tilt_last_step <= 11'd0;
             end
         end
     end
