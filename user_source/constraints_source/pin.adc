@@ -70,3 +70,8 @@ set_pin_assignment	{ O_tmds_clk_p }	{ PULLTYPE = NONE; }
 set_pin_assignment { I_sw3 } { LOCATION = E11; }
 set_pin_assignment { I_sw3 } { IOSTANDARD = LVCMOS33; }
 set_pin_assignment { I_sw3 } { PULLTYPE = PULLUP; }
+
+# SW4: D11, servo delayed HOME reset input
+set_pin_assignment { I_sw4 } { LOCATION = D11; }
+set_pin_assignment { I_sw4 } { IOSTANDARD = LVCMOS33; }
+set_pin_assignment { I_sw4 } { PULLTYPE = PULLUP; }

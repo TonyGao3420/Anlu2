@@ -14,6 +14,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
     input wire I_sys_clk,
     input wire I_rst_n,
     input wire I_sw3,          // SW3 E11: multi-target enable; independent of SW2.
+    input wire I_sw4,          // SW4 D11: 1->0 delayed servo HOME reset.
     input wire I_sw2,          // SW2: 1=style + one-second trail; SW1 still controls servo.
     input wire I_sw1,          // SW1锛氳瑙変己鏈嶄娇鑳斤紝1=寮€鍚紝0=淇濇寔褰撳墠浣嶇疆
 
@@ -857,12 +858,68 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
             S_track2_result_toggle <= ~S_track2_result_toggle;
     end
 
+    // SW4 D11: 0->1 starts a 2 s delay, then a 2 s servo HOME reset pulse.
+    // The pulse completes even if SW4 stays high; SW4 must return low before
+    // another rising edge can trigger a new reset.
+    localparam [1:0] SW4_IDLE=2'd0, SW4_DELAY=2'd1, SW4_RESET=2'd2, SW4_DONE=2'd3;
+    reg [2:0] S_sw4_sync;
+    reg       S_sw4_d;
+    reg [26:0] S_servo_home_cnt;
+    reg [1:0]  S_sw4_state;
+    wire      S_sw4_rise = S_sw4_sync[1] && !S_sw4_d;
+    wire      S_servo_home_rst = (S_sw4_state == SW4_RESET);
+    wire      S_servo_rst_n = I_rst_n && !S_servo_home_rst;
+
+    always @(posedge I_sys_clk or negedge I_rst_n) begin
+        if (!I_rst_n) begin
+            S_sw4_sync <= 3'b111;
+            S_sw4_d <= 1'b1;
+            S_servo_home_cnt <= 27'd0;
+            S_sw4_state <= SW4_IDLE;
+        end else begin
+            S_sw4_sync <= {S_sw4_sync[1:0], I_sw4};
+            S_sw4_d <= S_sw4_sync[1];
+            case (S_sw4_state)
+                SW4_IDLE: begin
+                    S_servo_home_cnt <= 27'd0;
+                    if (S_sw4_rise) S_sw4_state <= SW4_DELAY;
+                end
+                SW4_DELAY: begin
+                    if (!S_sw4_sync[1]) begin
+                        S_sw4_state <= SW4_IDLE;
+                        S_servo_home_cnt <= 27'd0;
+                    end else if (S_servo_home_cnt < 27'd99_999_999) begin
+                        S_servo_home_cnt <= S_servo_home_cnt + 27'd1;
+                    end else begin
+                        S_sw4_state <= SW4_RESET;
+                        S_servo_home_cnt <= 27'd0;
+                    end
+                end
+                SW4_RESET: begin
+                    if (!S_sw4_sync[1]) begin
+                        S_sw4_state <= SW4_IDLE;
+                        S_servo_home_cnt <= 27'd0;
+                    end else if (S_servo_home_cnt < 27'd99_999_999) begin
+                        S_servo_home_cnt <= S_servo_home_cnt + 27'd1;
+                    end else begin
+                        S_sw4_state <= SW4_DONE;
+                        S_servo_home_cnt <= 27'd0;
+                    end
+                end
+                SW4_DONE: begin
+                    if (!S_sw4_sync[1]) S_sw4_state <= SW4_IDLE;
+                end
+                default: S_sw4_state <= SW4_IDLE;
+            endcase
+        end
+    end
+
     visual_servo_pwm #(
         .IMG_W(1280),
         .IMG_H(720)
     ) u_visual_servo_pwm (
         .clk_50m          (I_sys_clk),
-        .rst_n            (I_rst_n),
+        .rst_n            (S_servo_rst_n),
         .source_toggle    (S_track2_result_toggle),
         .target_valid_async(S_servo_valid),
         // Detection already uses the upright RGB raster. Do not rotate twice.
