@@ -1,7 +1,7 @@
 # Anlu2 统一代码介绍
 
 > 本文是当前工程的唯一代码总览，替代 2026-10-24 的旧版 `CODE_GUIDE.md`。
-> 旧版已归档到 `doc/legacy/reports/CODE_GUIDE_20261024.md`。
+> 旧版代码指南已移出交付目录，不再随工程提交。
 > 最后更新：2026-10-31
 
 ---
@@ -582,7 +582,7 @@ scene_position_color_bias.v // generate 分支仍引用
 - `PROJECT_LOG_UNIFIED.md`：统一日志、阶段记录、资源/时序历史。
 - `SOURCE_INVENTORY.md`：当前 `.al` 源文件、AutoExcluded 和隐式 MIF 清单。
 - `SHADING_GAINS_20261031.md`：3×3 增益快照。
-- `doc/legacy/reports/CODE_GUIDE_20261024.md`：旧版代码指南。
+- `doc/` 历史资料已移出交付目录。
 
 ---
 

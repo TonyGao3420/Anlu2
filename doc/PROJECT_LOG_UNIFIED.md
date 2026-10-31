@@ -553,9 +553,8 @@ D:\Anlogic\Anlu2\td_project\camera_to_dsi_display.al
 
 ## 11. 原始文档索引
 
-> 下表文件名除特别注明外，均位于 `legacy/reports/`。
-> 图片位于 `legacy/evidence/`，参考代码位于 `legacy/reference/`，
-> docx 和旧 JSON 位于 `legacy/archive/`。
+> 以下仅为历史索引。旧报告、图片、参考代码、docx 和 JSON 已移出 `Anlu2` 交付目录，不在当前工程内。
+> 文件名保留用于追溯，不再对应工程内路径。
 
 ### 11.1 早期链路与算法
 
@@ -581,13 +580,13 @@ D:\Anlogic\Anlu2\td_project\camera_to_dsi_display.al
 | 文件 | 内容 |
 |---|---|
 | `PROJECT_ANALYSIS_20261018.md` | 工程整体分析 |
-| `legacy/reports/CODE_GUIDE_20261024.md` | 旧代码指南（历史版） |
+| `CODE_GUIDE_20261024.md` | 旧代码指南（历史版，已移出） |
 | `architecture.md` | 架构摘要 |
 | `代码结构说明报告.md` | 中文代码结构 |
 | `阶段一报告.md` | 阶段一报告 |
 | `1080p可行性分析.md` | 1080p 可行性 |
-| `legacy/archive/source_descriptions.json` | 旧源文件描述（已归档） |
-| `legacy/archive/source_inventory.json` | 旧源文件清单（已归档） |
+| `source_descriptions.json` | 旧源文件描述（已移出） |
+| `source_inventory.json` | 旧源文件清单（已移出） |
 
 ### 11.3 风格化/轨迹/多目标
 
@@ -687,7 +686,7 @@ D:\Anlogic\Anlu2\td_project\camera_to_dsi_display.al
 
 ### 12.3 旧画质文档的使用边界
 
-`legacy/VIDEO_QUALITY.md` 是 2026-10-09 的红色检测阶段文档，已经被当前的绿色单/多目标方案取代。
+旧画质文档（已移出交付目录）是 2026-10-09 的红色检测阶段文档，已经被当前的绿色单/多目标方案取代。
 
 其中仍然有效的通用结论：
 

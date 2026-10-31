@@ -21,7 +21,7 @@ AutoExcluded：6
 - 以 `.al` 为准；
 - `.prj` 是 TD 运行目录自动生成的副本；
 - 不要递归添加所有 `.v` 文件；
-- `doc/legacy`、`sim`、`lab_user_source`、备份文件不属于当前工程源列表。
+- `sim`、历史归档和备份文件不属于当前工程源列表。
 
 ---
 
@@ -193,7 +193,7 @@ python tools/resource_combo_20261030/generate_shading_rom.py
 
 ```text
 1. 只把生产 RTL 放进 .al
-2. 不递归添加 lab_user_source / sim / doc / 备份目录
+2. 不递归添加 sim / doc / 备份目录
 3. 修改 3×3 后必须重新生成 MIF
 4. 修改颜色/识别后重新跑综合和布局布线
 5. 不把 AutoExcluded 文件重新启用，除非明确需要旧功能
