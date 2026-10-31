@@ -373,8 +373,8 @@ module roi_multi_trail_samples #(
  parameter integer MAX_LINK_GAP_MS=150,MAX_JUMP_PIXELS=320
 )(input wire clk,rst_n,start,clear,input wire [15:0] ms_now,
  input wire [7:0] valid,input wire [95:0] x0,y0,x1,y1,
- output wire record,output wire [39:0] entry,output reg done);
- reg busy;reg [2:0] slot;
+ output reg record,output reg [39:0] entry,output reg done);
+ reg busy;reg [2:0] slot;reg [1:0] phase;
  reg [15:0] batch_ms;
  reg [7:0] seeded,sampled,linked;
  // Dimensions bound these registers; arithmetic candidates use wider temporaries.
@@ -383,67 +383,120 @@ module roi_multi_trail_samples #(
  reg [12:0] smooth_x[0:7];reg [11:0] smooth_y[0:7];
  reg [15:0] last_ms[0:7],sample_ms[0:7];
  reg [8:0] previous_x[0:7];reg [7:0] previous_y[0:7];
- wire [12:0] sum_x={1'b0,x0[slot*12+:12]}+{1'b0,x1[slot*12+:12]};
- wire [12:0] sum_y={1'b0,y0[slot*12+:12]}+{1'b0,y1[slot*12+:12]};
- wire [11:0] px=sum_x[12:1],py=sum_y[12:1];
- wire good=valid[slot] && x0[slot*12+:12]<=x1[slot*12+:12] &&
-  y0[slot*12+:12]<=y1[slot*12+:12] && x1[slot*12+:12]<IMG_W && y1[slot*12+:12]<IMG_H;
- wire [15:0] gap=batch_ms-last_ms[slot],sample_gap=batch_ms-sample_ms[slot];
- wire restart=!seeded[slot] || gap>MAX_LINK_GAP_MS;
+
+ // Stage 1: capture one slot's raw bbox and history. This breaks the long
+ // 96-bit array mux path away from the median/guard arithmetic.
+ reg [11:0] cap_x0,cap_x1,cap_y0,cap_y1;
+ reg cap_valid,cap_good,cap_seeded,cap_sampled,cap_linked;
+ reg [15:0] cap_last_ms,cap_sample_ms;
+ reg [12:0] cap_smooth_x;reg [11:0] cap_smooth_y;
+ reg [10:0] cap_raw_x0,cap_raw_x1;reg [9:0] cap_raw_y0,cap_raw_y1;
+ reg [8:0] cap_previous_x;reg [7:0] cap_previous_y;
+
+ // Stage 2: center/median/guard differences.
+ reg [11:0] mid_px,mid_py,mid_mx,mid_my,mid_dx,mid_dy;
+ reg mid_restart;
+
  function [11:0] median3;
   input [11:0] a,b,c;
   begin median3=(a>b)?((b>c)?b:((a>c)?c:a)):((a>c)?a:((b>c)?c:b));end
  endfunction
- wire [11:0] mx=restart?px:median3(px,{1'b0,raw_x0[slot]},{1'b0,raw_x1[slot]});
- wire [11:0] my=restart?py:median3(py,{2'b0,raw_y0[slot]},{2'b0,raw_y1[slot]});
- wire [13:0] round_x={1'b0,smooth_x[slot]}+14'd2;
- wire [12:0] round_y={1'b0,smooth_y[slot]}+13'd2;
- wire [11:0] current_x={1'b0,round_x[12:2]},current_y={2'b0,round_y[11:2]};
- wire [11:0] dx=(mx>=current_x)?mx-current_x:current_x-mx;
- wire [11:0] dy=(my>=current_y)?my-current_y:current_y-my;
- wire [14:0] average_x={2'b0,smooth_x[slot]}+{1'b0,mx,2'b0}+15'd1;
- wire [14:0] average_y={3'b0,smooth_y[slot]}+{1'b0,my,2'b0}+15'd1;
- wire [13:0] candidate_x=restart?{px,2'b0}:
-  ((dx>MAX_JUMP_PIXELS)?{mx,2'b0}:((dx<=JITTER_PIXELS)?{1'b0,smooth_x[slot]}:average_x[14:1]));
- wire [13:0] candidate_y=restart?{py,2'b0}:
-  ((dy>MAX_JUMP_PIXELS)?{my,2'b0}:((dy<=JITTER_PIXELS)?{2'b0,smooth_y[slot]}:average_y[14:1]));
+
+ wire [12:0] cap_sum_x={1'b0,cap_x0}+{1'b0,cap_x1};
+ wire [12:0] cap_sum_y={1'b0,cap_y0}+{1'b0,cap_y1};
+ wire [11:0] cap_px=cap_sum_x[12:1],cap_py=cap_sum_y[12:1];
+ wire [15:0] cap_gap=batch_ms-cap_last_ms;
+ wire cap_restart=!cap_seeded || cap_gap>MAX_LINK_GAP_MS;
+ wire [11:0] cap_mx=cap_restart?cap_px:median3(cap_px,{1'b0,cap_raw_x0},{1'b0,cap_raw_x1});
+ wire [11:0] cap_my=cap_restart?cap_py:median3(cap_py,{2'b0,cap_raw_y0},{2'b0,cap_raw_y1});
+ wire [13:0] cap_round_x={1'b0,cap_smooth_x}+14'd2;
+ wire [12:0] cap_round_y={1'b0,cap_smooth_y}+13'd2;
+ wire [11:0] cap_current_x={1'b0,cap_round_x[12:2]};
+ wire [11:0] cap_current_y={2'b0,cap_round_y[11:2]};
+ wire [11:0] cap_dx=(cap_mx>=cap_current_x)?cap_mx-cap_current_x:cap_current_x-cap_mx;
+ wire [11:0] cap_dy=(cap_my>=cap_current_y)?cap_my-cap_current_y:cap_current_y-cap_my;
+
+ wire [14:0] average_x={2'b0,cap_smooth_x}+{1'b0,mid_mx,2'b0}+15'd1;
+ wire [14:0] average_y={3'b0,cap_smooth_y}+{1'b0,mid_my,2'b0}+15'd1;
+ wire [13:0] candidate_x=mid_restart?{mid_px,2'b0}:
+  ((mid_dx>MAX_JUMP_PIXELS)?{mid_mx,2'b0}:((mid_dx<=JITTER_PIXELS)?{1'b0,cap_smooth_x}:average_x[14:1]));
+ wire [13:0] candidate_y=mid_restart?{mid_py,2'b0}:
+  ((mid_dy>MAX_JUMP_PIXELS)?{mid_my,2'b0}:((mid_dy<=JITTER_PIXELS)?{2'b0,cap_smooth_y}:average_y[14:1]));
  wire [14:0] result_x={1'b0,candidate_x}+15'd2,result_y={1'b0,candidate_y}+15'd2;
  wire [8:0] gx=result_x[12:2]>>SCALE_LOG2;
  wire [7:0] gy=result_y[11:2]>>SCALE_LOG2;
- wire [8:0] move_x=gx>=previous_x[slot]?gx-previous_x[slot]:previous_x[slot]-gx;
- wire [7:0] move_y=gy>=previous_y[slot]?gy-previous_y[slot]:previous_y[slot]-gy;
- wire due=!sampled[slot] || SAMPLE_INTERVAL_MS==0 || sample_gap>=SAMPLE_INTERVAL_MS;
- wire link=linked[slot] && sample_gap<=MAX_LINK_GAP_MS &&
+ wire [8:0] move_x=gx>=cap_previous_x?gx-cap_previous_x:cap_previous_x-gx;
+ wire [7:0] move_y=gy>=cap_previous_y?gy-cap_previous_y:cap_previous_y-gy;
+ wire [15:0] sample_gap=batch_ms-cap_sample_ms;
+ wire due=!cap_sampled || SAMPLE_INTERVAL_MS==0 || sample_gap>=SAMPLE_INTERVAL_MS;
+ wire link=cap_linked && sample_gap<=MAX_LINK_GAP_MS &&
   move_x<=(MAX_JUMP_PIXELS>>SCALE_LOG2) && move_y<=(MAX_JUMP_PIXELS>>SCALE_LOG2);
- assign record=busy && good && due && !clear;
- assign entry={batch_ms,1'b1,link,gx,gy,2'd0,slot};
+ wire final_record=cap_good && due && !clear;
+
  integer i;
  always @(posedge clk or negedge rst_n)begin
   if(!rst_n)begin
-   busy<=0;slot<=0;done<=0;batch_ms<=0;seeded<=0;sampled<=0;linked<=0;
+   busy<=0;slot<=0;phase<=0;done<=0;batch_ms<=0;seeded<=0;sampled<=0;linked<=0;
+   record<=0;entry<=0;
+   cap_x0<=0;cap_x1<=0;cap_y0<=0;cap_y1<=0;cap_valid<=0;cap_good<=0;
+   cap_seeded<=0;cap_sampled<=0;cap_linked<=0;cap_last_ms<=0;cap_sample_ms<=0;
+   cap_smooth_x<=0;cap_smooth_y<=0;cap_raw_x0<=0;cap_raw_x1<=0;
+   cap_raw_y0<=0;cap_raw_y1<=0;cap_previous_x<=0;cap_previous_y<=0;
+   mid_px<=0;mid_py<=0;mid_mx<=0;mid_my<=0;mid_dx<=0;mid_dy<=0;mid_restart<=0;
    for(i=0;i<8;i=i+1)begin
     raw_x0[i]<=0;raw_x1[i]<=0;raw_y0[i]<=0;raw_y1[i]<=0;
     smooth_x[i]<=0;smooth_y[i]<=0;last_ms[i]<=0;sample_ms[i]<=0;
     previous_x[i]<=0;previous_y[i]<=0;
    end
   end else begin
-   done<=0;
-   if(clear)begin busy<=0;seeded<=0;sampled<=0;linked<=0;end
-   else if(start)begin busy<=1;slot<=0;batch_ms<=ms_now;end
+   done<=0;record<=0;
+   if(clear)begin busy<=0;phase<=0;seeded<=0;sampled<=0;linked<=0;end
+   else if(start)begin busy<=1;slot<=0;phase<=0;batch_ms<=ms_now;end
    else if(busy)begin
-    if(!good)begin seeded[slot]<=0;linked[slot]<=0;end
-    else begin
-     seeded[slot]<=1;last_ms[slot]<=batch_ms;
-     smooth_x[slot]<=candidate_x[12:0];smooth_y[slot]<=candidate_y[11:0];
-     raw_x0[slot]<=px[10:0];raw_y0[slot]<=py[9:0];
-     raw_x1[slot]<=restart?px[10:0]:raw_x0[slot];
-     raw_y1[slot]<=restart?py[9:0]:raw_y0[slot];
-     if(record)begin
-      sampled[slot]<=1;sample_ms[slot]<=batch_ms;linked[slot]<=1;
-      previous_x[slot]<=gx;previous_y[slot]<=gy;
+    case(phase)
+     2'd0:begin
+      cap_x0<=x0[slot*12+:12];cap_x1<=x1[slot*12+:12];
+      cap_y0<=y0[slot*12+:12];cap_y1<=y1[slot*12+:12];
+      cap_valid<=valid[slot];
+      cap_good<=valid[slot] && x0[slot*12+:12]<=x1[slot*12+:12] &&
+       y0[slot*12+:12]<=y1[slot*12+:12] && x1[slot*12+:12]<IMG_W && y1[slot*12+:12]<IMG_H;
+      cap_seeded<=seeded[slot];cap_sampled<=sampled[slot];cap_linked<=linked[slot];
+      cap_last_ms<=last_ms[slot];cap_sample_ms<=sample_ms[slot];
+      cap_smooth_x<=smooth_x[slot];cap_smooth_y<=smooth_y[slot];
+      cap_raw_x0<=raw_x0[slot];cap_raw_x1<=raw_x1[slot];
+      cap_raw_y0<=raw_y0[slot];cap_raw_y1<=raw_y1[slot];
+      cap_previous_x<=previous_x[slot];cap_previous_y<=previous_y[slot];
+      phase<=1;
      end
-    end
-    if(slot==7)begin busy<=0;done<=1;end else slot<=slot+1'b1;
+     2'd1:begin
+      mid_px<=cap_px;mid_py<=cap_py;
+      mid_restart<=cap_restart;
+      mid_mx<=cap_mx;mid_my<=cap_my;
+      mid_dx<=cap_dx;mid_dy<=cap_dy;
+      phase<=2;
+     end
+     default:begin
+      if(!cap_good)begin
+       seeded[slot]<=0;linked[slot]<=0;
+      end else begin
+       seeded[slot]<=1;last_ms[slot]<=batch_ms;
+       smooth_x[slot]<=candidate_x[12:0];smooth_y[slot]<=candidate_y[11:0];
+       raw_x0[slot]<=mid_px[10:0];raw_y0[slot]<=mid_py[9:0];
+       raw_x1[slot]<=mid_restart?mid_px[10:0]:cap_raw_x0;
+       raw_y1[slot]<=mid_restart?mid_py[9:0]:cap_raw_y0;
+       if(final_record)begin
+        sampled[slot]<=1;sample_ms[slot]<=batch_ms;linked[slot]<=1;
+        previous_x[slot]<=gx;previous_y[slot]<=gy;
+       end
+      end
+      if(final_record)begin
+       record<=1;
+       entry<={batch_ms,1'b1,link,gx,gy,2'd0,slot};
+      end
+      if(slot==7)begin busy<=0;done<=1;end
+      else begin slot<=slot+1'b1;phase<=0;end
+     end
+    endcase
    end
   end
  end
