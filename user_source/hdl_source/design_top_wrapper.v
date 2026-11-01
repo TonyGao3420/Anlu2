@@ -984,7 +984,7 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1) (
         .CONTRAST_ENABLE(0),
         .SATURATION_ENABLE(0),
         .BRIGHTNESS_OFFSET(0),
-        .RGB_GAIN_Q8(307),
+        .RGB_GAIN_Q8(256),   // unity: global 1.2x gain disabled
         .BLACK_LEVEL(12),
         .WHITE_LEVEL(238),
         .SATURATION_Q8(320),

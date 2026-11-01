@@ -107,10 +107,10 @@ AutoExcluded：6
 
 | 文件 | 作用 |
 |---|---|
-| `user_source/hdl_source/video/scene_color_stream.v` | 显示/ROI 共享流、3×3 接入 |
-| `user_source/hdl_source/video/display_color_shading.v` | 3×3 R/B 双线性增益 |
+| `user_source/hdl_source/video/scene_color_stream.v` | 显示/ROI 共享流、3×3 接入（当前开启） |
+| `user_source/hdl_source/video/display_color_shading.v` | 3×3 R/B 双线性增益（当前开启） |
 | `user_source/hdl_source/video/display_edge_color.v` | 边缘 R/B 修正，当前 ENABLE=0 作为六拍旁路 |
-| `user_source/hdl_source/video/video_enhance.v` | 全局亮度/对比度/饱和度/锐化；当前全局 ×1.2 |
+| `user_source/hdl_source/video/video_enhance.v` | 全局亮度/对比度/饱和度/锐化；当前全局 ×1.0，1.2 已关闭 |
 | `user_source/hdl_source/video/display_common_tone.v` | 公共 tone |
 | `user_source/hdl_source/video/roi_center_osd.v` | 中心 ROI 坐标 OSD，透明底 |
 | `user_source/hdl_source/video/roi_background_stylize.v` | 背景风格化 |

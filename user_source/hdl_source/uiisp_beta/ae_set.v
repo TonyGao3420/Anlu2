@@ -1,5 +1,5 @@
 // Anlu2 源码说明：按键驱动的手动曝光/增益设定器，配置完成且数值变化时发一次写请求。
-// 接口与使用约定：不是基于画面统计的自动曝光。默认曝光1991半行、增益档位128；顶层两个按键只接增益减/增。
+// 接口与使用约定：不是基于画面统计的自动曝光。默认曝光498半行（最大值1991的约1/4）、增益档位128；顶层两个按键调整曝光。
 // 工程状态：已列入TD编译清单。
 
 /*******************************MILIANKE*******************************
@@ -75,14 +75,14 @@ module ae_set (
     //	Use button to add / sub idelay values. I_button[0]:IncDatDly, [1]DecDatDly, [2]IncI_clkDly, [3]DecI_clkDly
     reg [3:0] r_button_0 = 0, r_button_1 = 0;
     // 原厂720p60模式VTS=1000，曝光以半行计，最大值为2*VTS-9=1991。
-    // 默认使用最大安全曝光1991；增益控制128映射为8倍模拟增益和1.5倍细调增益，
-    // 相比16倍模拟增益档减少暗部读出噪声放大，同时保留较长曝光。
-    reg [15:0] r_ae_set = 1991, r_ag_set = 128;
+    // 默认使用最大安全曝光1991的约四分之一（498），增益控制128映射为8倍模拟增益和1.5倍细调增益，
+    // 相比16倍模拟增益档减少暗部读出噪声放大，同时保留可用曝光。
+    reg [15:0] r_ae_set = 498, r_ag_set = 128;
     always @(posedge I_clk or posedge I_rst) begin
         if (I_rst) begin
             r_button_0 <= 0;
             r_button_1 <= 0;
-            r_ae_set   <= 1991;
+            r_ae_set   <= 498;
             r_ag_set   <= 128;
         end else begin
             //	When button pressed, r_button_1 bit is 1. 

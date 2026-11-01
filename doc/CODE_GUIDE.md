@@ -53,6 +53,8 @@ module design_top_wrapper #(parameter integer CAMERA_ROTATE_180=1)
 | `I_sw2` | 风格化 + 一秒轨迹 |
 | `I_sw3` | 多目标识别 |
 | `I_sw4` | 舵机 HOME 复位，0→1 触发 |
+| `I_button[0]` | 降低曝光 AE，低有效，D5 |
+| `I_button[1]` | 提高曝光 AE，低有效，A9 |
 | `IO_cam_sda` / `O_cam_scl` | 摄像头 I2C |
 | MIPI 差分输入 | 2-lane CSI |
 
@@ -63,6 +65,16 @@ SW1 = A4
 SW2 = B4
 SW3 = E11
 SW4 = D11
+```
+
+曝光：
+
+```text
+默认 AE = 498 半行
+范围 = 2 ～ 1991
+D5 = 降低曝光
+A9 = 提高曝光
+按住持续调整
 ```
 
 ### 2.2 主要输出
@@ -152,7 +164,7 @@ scene_color_stream（display_color_shading 3×3）
   ↓
 display_edge_color（ENABLE=0，六拍旁路）
   ↓
-video_enhance（ENABLE=0，全局 ×1.2 仍生效）
+video_enhance（ENABLE=0，全局 ×1.0；1.2 已关闭）
   ↓
 display_common_tone
   ↓
@@ -173,7 +185,7 @@ HDMI 1280×720 @ 60Hz
 AWB              开启
 显示端 3×3       开启
 RAW 静态阴影     关闭/未实例化
-全局 1.2         开启
+全局 1.2         关闭
 公共 tone        开启
 ```
 
@@ -211,10 +223,10 @@ RAW 静态阴影     关闭/未实例化
 
 | 文件 | 模块 | 作用 |
 |---|---|---|
-| `video/scene_color_stream.v` | `scene_color_stream` | 显示/ROI 共享流、3×3 颜色校正 |
+| `video/scene_color_stream.v` | `scene_color_stream` | 显示/ROI 共享流、3×3 颜色校正接入（当前开启） |
 | `video/display_color_shading.v` | `display_color_shading` | 3×3 R/B 双线性增益 |
 | `video/display_edge_color.v` | `display_edge_color` | 边缘 R/B 修正；当前旁路 |
-| `video/video_enhance.v` | `video_enhance` | 全局亮度/对比度/饱和度/锐化；当前主要用全局 ×1.2 |
+| `video/video_enhance.v` | `video_enhance` | 全局亮度/对比度/饱和度/锐化；当前全局 ×1.0，1.2 已关闭 |
 | `video/display_common_tone.v` | `display_common_tone` | 公共亮度 tone |
 | `video/roi_center_osd.v` | `roi_center_osd` | 中心 ROI 坐标 OSD，透明底 |
 
@@ -262,9 +274,9 @@ AWB_ENABLE = 1
 - 平滑逼近；
 - 排除过暗/过曝点。
 
-### 6.2 3×3 显示端颜色校正
+### 6.2 3×3 显示端颜色校正（当前开启）
 
-`display_color_shading`：
+`display_color_shading` 当前启用，使用以下 9 节点 R/B 增益。
 
 - 9 个节点；
 - 水平/垂直双线性插值；
@@ -281,9 +293,9 @@ y: 32 / 360 / 688
 当前 R：
 
 ```text
-227  282  213
-219  327  206
-206  249  203
+204  282  192
+197  327  185
+185  249  183
 ```
 
 当前 B：
@@ -315,7 +327,7 @@ python tools/resource_combo_20261030/generate_shading_rom.py
 ### 6.4 全局亮度 / tone
 
 ```text
-RGB_GAIN_Q8 = 307  // 约 1.2 倍
+RGB_GAIN_Q8 = 256  // 1.0 倍，1.2 已关闭
 display_common_tone // 公共曲线
 ```
 
@@ -532,7 +544,7 @@ white_field_rgb_osd.v（仅 CALIBRATION_MODE=1）
 
 ```text
 display_edge_color.v   // 提供 6 拍旁路
-video_enhance.v        // 全局 1.2 倍仍生效
+video_enhance.v        // 全局 1.2 已关闭，当前 ×1.0
 signal_delay.v         // AWB 50 拍延迟
 scene_position_color_bias.v // generate 分支仍引用
 ```
@@ -581,7 +593,7 @@ scene_position_color_bias.v // generate 分支仍引用
 
 - `PROJECT_LOG_UNIFIED.md`：统一日志、阶段记录、资源/时序历史。
 - `SOURCE_INVENTORY.md`：当前 `.al` 源文件、AutoExcluded 和隐式 MIF 清单。
-- `SHADING_GAINS_20261031.md`：3×3 增益快照。
+- `SHADING_GAINS_20261031.md`：3×3 增益快照（当前 3×3 已开启）。
 - `doc/` 历史资料已移出交付目录。
 
 ---

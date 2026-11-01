@@ -17,15 +17,15 @@ module display_color_shading #(
     function [9:0] r_gain;
         input [3:0] node;
         begin case(node)
-            4'd0: r_gain=10'd227;
+            4'd0: r_gain=10'd204;
             4'd1: r_gain=10'd282;
-            4'd2: r_gain=10'd213;
-            4'd3: r_gain=10'd219;
+            4'd2: r_gain=10'd192;
+            4'd3: r_gain=10'd197;
             4'd4: r_gain=10'd327;
-            4'd5: r_gain=10'd206;
-            4'd6: r_gain=10'd206;
+            4'd5: r_gain=10'd185;
+            4'd6: r_gain=10'd185;
             4'd7: r_gain=10'd249;
-            4'd8: r_gain=10'd203;
+            4'd8: r_gain=10'd183;
             default:r_gain=10'd256;
         endcase end
     endfunction

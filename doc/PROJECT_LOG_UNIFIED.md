@@ -58,8 +58,8 @@ MIPI CSI-2 / SC520CS 摄像头输入
 720p60 HDMI 输出
 ISP demosaic
 AWB 自动白平衡
-显示端 3×3 R/B 颜色校正
-全局 1.2 倍亮度
+显示端 3×3 R/B 颜色校正：开启
+全局 1.2 倍亮度：已关闭
 公共 tone
 单目标识别
 多目标识别（最多 8 个）
@@ -129,11 +129,11 @@ video_out（180° 旋转）
   ↓
 hdmi_mixer（Logo / anlu CNT / 右侧 HUD / 目标框）
   ↓
-scene_color_stream（display_color_shading 3×3）
+scene_color_stream（display_color_shading 3×3，当前开启）
   ↓
 display_edge_color（ENABLE=0，六拍旁路）
   ↓
-video_enhance（ENABLE=0，但 RGB_GAIN_Q8=307）
+video_enhance（ENABLE=0，RGB_GAIN_Q8=256）
   ↓
 display_common_tone
   ↓
@@ -152,9 +152,9 @@ HDMI 1280×720 @ 60Hz
 
 - `raw_measured_shading` 已从 `isp_top` 中移除；
 - `awb_frame_stable` 使用自定义帧级稳定 AWB；
-- `display_color_shading` 使用 3 张 MIF ROM；
+- `display_color_shading` 使用 3 张 MIF ROM，当前 `RGB_SHADING_ENABLE=1`；
 - `display_edge_color` 当前只作为固定延迟旁路；
-- `video_enhance` 的全局增益仍然生效；
+- `video_enhance` 的全局增益当前为 ×1.0（1.2 已关闭）；
 - 白场九宫格调试模块只在 `CALIBRATION_MODE=1` 时存在，最终模式为 0。
 
 ---
@@ -232,9 +232,9 @@ AWB_ENABLE = 1
 
 已从数据通路删除，不再使用 36 节点静态阴影校正。
 
-### 4.3 3×3 显示端颜色校正
+### 4.3 3×3 显示端颜色校正（当前开启）
 
-当前 3×3 节点位置：
+当前 `RGB_SHADING_ENABLE=1`，3×3 参与显示。
 
 ```text
 x：64 / 640 / 1216
@@ -244,9 +244,9 @@ y：32 / 360 / 688
 R 增益：
 
 ```text
-227  282  213
-219  327  206
-206  249  203
+204  282  192
+197  327  185
+185  249  183
 ```
 
 B 增益：
@@ -280,7 +280,7 @@ python tools/resource_combo_20261030/generate_shading_rom.py
 ### 4.5 全局亮度与 tone
 
 ```text
-RGB_GAIN_Q8 = 307  // 1.2 倍
+RGB_GAIN_Q8 = 256  // 1.0 倍，1.2 已关闭
 display_common_tone  // 公共亮度曲线
 ```
 
@@ -838,7 +838,7 @@ Setup WNS 约 -121 ps
 AWB 使用 awb_frame_stable
 检测是绿色单/多目标
 显示端 3×3 已开启
-全局亮度由 video_enhance 的 ×1.2 提供
+全局亮度旧版由 video_enhance 的 ×1.2 提供，当前已关闭为 ×1.0
 工程路径是 D:\Anlogic\Anlu2
 ```
 
@@ -878,7 +878,7 @@ SW4 舵机 HOME 复位
 | RAW→HDMI 未打通 | 已解决 |
 | 图像算法暂缓 | 已实现绿色检测/风格化/轨迹 |
 | 官方时序未收敛 | 最终 WNS +0.266 ns |
-| 颜色链路层叠 | AWB + 3×3 + 全局 1.2 已明确 |
+| 颜色链路层叠 | AWB + 3×3（开启）+ 全局 1.2（关闭） |
 | 未使用模块留在 `.al` | 已标记/部分 AutoExcluded |
 | 复位/CDC 约束不足 | 仍以 PLL lock 为主，SW4 独立舵机复位 |
 | 文档漂移 | 已用统一日志/代码介绍收敛 |

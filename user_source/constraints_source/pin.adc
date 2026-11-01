@@ -2,11 +2,12 @@ set_pin_assignment	{ IO_cam_sda }	{ LOCATION = J3; }
 set_pin_assignment	{ IO_cam_sda }	{ IOSTANDARD = LVCMOS33; }
 set_pin_assignment	{ IO_cam_sda }	{ DRIVESTRENGTH = 8; }
 set_pin_assignment	{ IO_cam_sda }	{ PULLTYPE = PULLUP; }
-set_pin_assignment	{ I_button[0] }	{ LOCATION = N2; }
+# Exposure buttons: I_button[0]=D5 decreases AE, I_button[1]=A9 increases AE
+set_pin_assignment	{ I_button[0] }	{ LOCATION = D5; }
 set_pin_assignment	{ I_button[0] }	{ IOSTANDARD = LVCMOS33; }
 set_pin_assignment	{ I_button[0] }	{ DRIVESTRENGTH = 8; }
 set_pin_assignment	{ I_button[0] }	{ PULLTYPE = PULLUP; }
-set_pin_assignment	{ I_button[1] }	{ LOCATION = J14; }
+set_pin_assignment	{ I_button[1] }	{ LOCATION = A9; }
 set_pin_assignment	{ I_button[1] }	{ IOSTANDARD = LVCMOS33; }
 set_pin_assignment	{ I_button[1] }	{ DRIVESTRENGTH = 8; }
 set_pin_assignment	{ I_button[1] }	{ PULLTYPE = PULLUP; }
