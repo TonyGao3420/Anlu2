@@ -33,19 +33,22 @@ bit：
 td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit
 
 生成时间：
-2026-10-31 20:06:19
+2026-11-01 14:01:32
+
+SHA256：
+4C362804A7F0C57101112EF6FBD9E6EA1492FECD8FD34A3151407A29A2553996
 
 时序：
-Setup WNS +0.266 ns
+Setup WNS +0.117 ns
 Setup TNS  0.000 ns
-Hold  WNS +0.021 ns
+Hold  WNS +0.020 ns
 Hold  TNS  0.000 ns
 
 资源：
-Slice 19,729 / 21,216 = 92.99%
-LUT6  19,203 / 21,216 = 90.51%
+Slice 16,974 / 21,216 = 80.01%
+LUT6  16,236 / 21,216 = 76.53%
 ERAM  106 / 108
-DSP   25 / 40
+DSP   22 / 40
 ```
 
 时序余量很小，新增逻辑必须重新跑综合、布局布线和 bitgen。
@@ -105,4 +108,4 @@ user_source/constraints_source/pin.adc
 - `CALIBRATION_MODE = 0`；
 - SW4 是 0→1 延时 2 秒、复位 2 秒的舵机 HOME 复位；
 - motion trail 使用三级流水；
-- 当前时序只有 +0.266 ns 余量。
+- 当前时序只有 +0.117 ns 余量。

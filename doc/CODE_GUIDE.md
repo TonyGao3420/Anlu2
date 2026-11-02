@@ -29,7 +29,8 @@ HDMI 1280×720 @ 60 Hz
 
 ```text
 D:\Anlogic\Anlu2\td_project\camera_to_dsi_display_Runs\phy_1\camera_to_dsi_display.bit
-生成时间：2026-10-31 20:06:19
+生成时间：2026-11-01 14:01:32
+SHA256：4C362804A7F0C57101112EF6FBD9E6EA1492FECD8FD34A3151407A29A2553996
 ```
 
 ---
@@ -512,19 +513,19 @@ route post_route_opt high
 ### 10.4 最终结果
 
 ```text
-Setup WNS : +0.266 ns
+Setup WNS : +0.117 ns
 Setup TNS :  0.000 ns
-Hold WNS  : +0.021 ns
+Hold WNS  : +0.020 ns
 Hold TNS  :  0.000 ns
 ```
 
 资源：
 
 ```text
-Slice 19,729 / 21,216 = 92.99%
-LUT6  19,203 / 21,216 = 90.51%
+Slice 16,974 / 21,216 = 80.01%
+LUT6  16,236 / 21,216 = 76.53%
 ERAM  106 / 108
-DSP   25 / 40
+DSP   22 / 40
 ```
 
 ---
@@ -623,9 +624,9 @@ scene_position_color_bias.v // generate 分支仍引用
 
 ```text
 需要更大的帧缓存和像素吞吐
-当前 Slice 已到 92.99%
+当前 Slice 已到 80.01%
 当前 ERAM 已到 106/108
-时序余量只有 +0.266 ns
+时序余量只有 +0.117 ns
 ```
 
 ### 14.2 未采用的算法
@@ -653,7 +654,7 @@ scene_position_color_bias.v // generate 分支仍引用
 
 ```text
 代码：当前 tree
-bit ：camera_to_dsi_display.bit（2026-10-31 20:06:19）
-时序：Setup +0.266 ns / Hold +0.021 ns
-资源：Slice 92.99% / ERAM 106/108
+bit ：camera_to_dsi_display.bit（2026-11-01 14:01:32）
+时序：Setup +0.117 ns / Hold +0.020 ns
+资源：Slice 80.01% / ERAM 106/108
 ```

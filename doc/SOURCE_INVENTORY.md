@@ -207,20 +207,21 @@ python tools/resource_combo_20261030/generate_shading_rom.py
 
 ```text
 td_project/camera_to_dsi_display_Runs/phy_1/camera_to_dsi_display.bit
-2026-10-31 20:06:19
+2026-11-01 14:01:32
+SHA256 4C362804A7F0C57101112EF6FBD9E6EA1492FECD8FD34A3151407A29A2553996
 ```
 
 最终时序：
 
 ```text
-Setup WNS +0.266 ns
-Hold  WNS +0.021 ns
+Setup WNS +0.117 ns
+Hold  WNS +0.020 ns
 ```
 
 最终资源：
 
 ```text
-Slice 19,729 / 21,216 = 92.99%
+Slice 16,974 / 21,216 = 80.01%
 ERAM  106 / 108
-DSP   25 / 40
+DSP   22 / 40
 ```
